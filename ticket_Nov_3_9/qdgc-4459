@@ -1,26 +1,4 @@
-1. Copy file từ legacy/generated
-2. ✨ RUN: fix_invalid_comments.sh    ← FIX TRƯỚC
-3. Compile lần 1 để xem errors
-4. Fix %TYPE, arrays, nested procedures... ( theo rule ở dưới)
-5. Compile lần 2
-6. Viết result và copy file kết quả vào thư mục ticket_*
-- Bao nhiêu row
-- Số case đã test
-7. DONE
-
-
-array.exists(cnt) => array [cnt] IS NOT NULL
-oid => ctid
-array.COUNT => coalesce (cardinality (array), 0))
-FUNCTION xxx có INOUT nhưng return khác type record => thêm "OUT extra_param Boolean" lên parameter list, đổi return type thành "record"
-typeArray nhưng khai báo init là varA: typeArray() => varA := ARRAY[]:: typeArray
-UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ nguyên vẫn ok)
-SQLERRM(SQLCODE) => SQLERRM
-
-RETURN pkconstant.SUCCESS; -> RETURN pkconstant.success();
-RETURN pkconstant.FATAL; -> RETURN pkconstant.fatal();
-
-
+SQL (PLSQL): plsql/ipa/option/chikoutai/SFIPH999_TESYURYO_KAIKEI.SQL
 
 IMPORTANT: PLEASE MAKE SURE TO EXECUTE EACH FUNCTION/PROCEDURES AND ENSURE IT FUNCTION CORRECTLY.
 
@@ -46,6 +24,11 @@ Postgres: x = array_append(x, null); x[cardinality(x)] := ...
 Please compile the script and ensure it compiled successfully.
 Please make sure to test by directly executing the function/procedure and ensure it does not have return code 99. If it does, debug by adding RAISE NOTICE message to track the cause. Once the issue is resolved, remove RAISE NOTICEs that you added
 Please update db/make_plsql.sql to include this file (using path relative to db folder).
+Sources and output
 
-example: db/plsql/ipa/issueAgent/newRecordReserve/ip00101/sfIpMgrKihonValidate.sql (one of the most complicated scripts with multiple nested functions/procedures)
+Generated: generated/db_output_sql/main/plsql/ipa/option/chikoutai/SFIPH999_TESYURYO_KAIKEI.SQL
+Legacy: legacy/db/plsql/ipa/option/chikoutai/SFIPH999_TESYURYO_KAIKEI.SQL
+Save to: db/plsql/ipa/option/chikoutai/SFIPH999_TESYURYO_KAIKEI.SQL
+Example
 
+See db/plsql/ipa/issueAgent/newRecordReserve/ip00101/sfIpMgrKihonValidate.sql (one of the most complicated scripts with multiple nested functions/procedures)

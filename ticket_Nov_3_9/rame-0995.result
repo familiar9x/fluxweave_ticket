@@ -1,0 +1,55 @@
+✅ MIGRATION COMPLETE - rame-0995
+================================
+Ticket: rame-0995
+File: SFIPH999_KIKIN_IDO_KAIKEI.SQL
+Original Size: 809 lines (legacy)
+Migrated Size: 812 lines
+Type: FUNCTION
+Status: ✅ COMPILED SUCCESSFULLY (0 errors)
+
+CHANGES MADE:
+=============
+1. Function Definition:
+   - Changed: RETURN INTEGER IS → RETURNS INTEGER LANGUAGE plpgsql AS $body$
+   - Changed: END; / → END; $body$;
+   - Added: DECLARE keyword for variable section
+   - Moved comments before AS $body$
+
+2. Data Types:
+   - VARCHAR2 → VARCHAR
+   - NUMBER → NUMERIC
+
+3. Cursor Handling:
+   - Removed: CURSOR curKikinIdoC IS / CURSOR curKikinIdoT IS declarations
+   - Changed: FOR rec IN cursor LOOP → FOR rec IN (SELECT...) LOOP
+   - Added: RECORD declarations for recKikinIdoC, recKikinIdoT
+   - Pattern: Direct inline queries (same as qdgc-4459)
+
+4. Procedure Calls:
+   - Added: CALL keyword before pkLog.* calls
+
+COMPILATION OUTPUT:
+===================
+NOTICE: type reference conversions (6 references converted to character/varchar types)
+Result: CREATE FUNCTION successful
+
+FUNCTION SIGNATURE:
+===================
+rh_mufg_ipa.sfiph999_kikin_ido_kaikei(
+  l_initakukaisyacode character,
+  l_inmeigaracode character varying,
+  l_inrbrkjt character,
+  l_inidoymd character,
+  l_inuserid character varying,
+  l_ingroupid character
+) RETURNS integer
+
+DATABASE LOCATION:
+==================
+Database: jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com
+Schema: rh_mufg_ipa
+Function: sfiph999_kikin_ido_kaikei
+
+MIGRATION TIME: ~5 minutes (fast due to established patterns)
+
+DATE: November 4, 2025

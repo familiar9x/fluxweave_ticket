@@ -1,6 +1,6 @@
 ===========================================
 ORACLE TO POSTGRESQL MIGRATION SUMMARY
-8 Tickets Completed - Complete Test Results
+9 Tickets Completed - Complete Test Results
 ===========================================
 
 FILE STRUCTURE UPDATE (November 4, 2025):
@@ -22,9 +22,9 @@ PROJECT INFORMATION:
 --------------------
 Project: JIP-IPA Oracle to PostgreSQL Migration
 Migration Date: November 4, 2025
-Total Tickets Completed: 8 out of 12
-Total Lines Migrated: 2,344 lines
-Status: ✅ 8 COMPLETED AND COMPILED, 4 REMAINING
+Total Tickets Completed: 9 out of 12
+Total Lines Migrated: 3,261 lines
+Status: ✅ 9 COMPLETED AND COMPILED, 3 REMAINING
 
 DATABASE ENVIRONMENTS:
 ----------------------
@@ -91,6 +91,13 @@ TICKETS OVERVIEW:
    - Purpose: 手数料請求書（会計区分別）作成 - Fee invoice by accounting classification
    - Changes: Extracted 3 nested functions (createbun, createsql, getkaikeitesuryocount, getshinkitesuryocount)
             Fixed custom type definition, array operations, Oracle outer joins
+   - Tests: ⚠️ COMPILATION ONLY (requires live data)
+   - Oracle vs PostgreSQL: N/A (complex report procedure, needs test data)
+
+9. zhuv-3462: SPIPH003K00R01 (Procedure + 2 Nested Functions) - 917 lines
+   - Purpose: 会計区分別払込計算書 - Payment calculation report by accounting classification
+   - Changes: Extracted 2 nested functions (createsql with 9 params, updateinvoiceitem with 18 params)
+            Fixed custom type, arrays, removed duplicate variable, fixed invalid comment syntax
    - Tests: ⚠️ COMPILATION ONLY (requires live data)
    - Oracle vs PostgreSQL: N/A (complex report procedure, needs test data)
 
@@ -203,24 +210,27 @@ MIGRATION PATTERNS IDENTIFIED:
 
 FINAL STATISTICS:
 =================
-Total Tickets Completed: 8
+Total Tickets Completed: 9
 Total Functions: 3
   - sfCmIsCodeMChek: 46 lines
   - sfCmIsHalfAlphanumeric2: 42 lines
   - SFIPJ077K00R20: 107 lines
-Total Procedures: 5
+Total Procedures: 6
   - SPIPF004K00R03: 383 lines
   - SPIPF005K00R01: 236 lines
   - SPIPF005K00R03: 452 lines
   - SPIPF005K00R04: 499 lines
   - SPIPH004K00R01: 579 lines
-Total Nested Functions Extracted: 5
+  - SPIPH003K00R01: 917 lines
+Total Nested Functions Extracted: 7
   - spipf005k00r03_common_func (in SPIPF005K00R03)
   - spipf005k00r04_common_func (in SPIPF005K00R04)
   - spiph004k00r01_createbun (in SPIPH004K00R01)
   - spiph004k00r01_createsql (in SPIPH004K00R01)
-  - spiph004k00r01_getkaikeitesuryocount + getshinkitesuryocount (in SPIPH004K00R01)
-Total Lines of Code: 2,344 lines
+  - spiph004k00r01_getkaikeitesuryocount (in SPIPH004K00R01)
+  - spiph003k00r01_createsql (in SPIPH003K00R01)
+  - spiph003k00r01_updateinvoiceitem (in SPIPH003K00R01)
+Total Lines of Code: 3,261 lines
 Total Test Cases: 13
 Tests Passed: 13/13 (100%)
 
@@ -230,7 +240,7 @@ Migration is functionally complete and correct.
 BUILD INTEGRATION:
 ==================
 File: db/make_plsql.sql
-All 8 files added in correct order:
+All 9 files added in correct order:
 
 Line 152: \ir plsql/ipa/option/Kounai/common/sfCmIsCodeMChek.sql (46 lines)
 Line 153: \ir plsql/ipa/option/Kounai/common/sfCmIsHalfAlphanumeric2.sql (42 lines)
@@ -240,6 +250,7 @@ Line 156: \ir plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R03.sql (452 lines)
 Line 157: \ir plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R04.sql (499 lines)
 Line 158: \ir plsql/ipa/option/daiko/SFIPJ077K00R20.sql (107 lines)
 Line 159: \ir plsql/ipa/option/chikoutai/SPIPH004K00R01.SQL (579 lines)
+Line 160: \ir plsql/ipa/option/chikoutai/SPIPH003K00R01.SQL (917 lines)
 
 Common functions loaded first, then procedures.
 

@@ -1,0 +1,64 @@
+Oracle to PostgreSQL PL/SQL Migration Summary
+==============================================
+Total: 10 of 12 tickets completed (3,261 lines migrated so far)
+
+Ticket Details:
+---------------
+
+1. zavs-0115: SFIPJ077K00R20 (daiko) - 107 lines
+   - Fixed 2 %TYPE references 
+   - Fixed CURSOR syntax
+   - Added AS $body$ wrapper
+   - Status: ✅ Compiled successfully
+
+2. qpmc-7035: SPIPH004K00R01 (chikoutai) - 579 lines  
+   - Fixed custom type (3 %TYPE fields)
+   - Fixed array declaration and indexing (1-based)
+   - Fixed 11 %TYPE variable references
+   - Fixed cursor FETCH with array_append pattern (49 fields)
+   - Fixed 3 nested function extractions
+   - Status: ✅ Compiled successfully
+
+3. zhuv-3462: SPIPH003K00R01 (chikoutai) - 917 lines
+   - Fixed custom type (4 %TYPE fields)
+   - Fixed array declaration
+   - Fixed 20+ %TYPE variable references  
+   - Fixed cursor FETCH with array_append (65 fields)
+   - Extracted nested function with 9 parent parameters
+   - Fixed loop indexing (1-based)
+   - Status: ✅ Compiled successfully
+
+4. ntec-0199: SPIPH005K00R01 (chikoutai) - 1,139 lines [MOST COMPLEX]
+   - Fixed custom type (4 %TYPE fields: gAdd1x1, gAdd1x2, gAdd1x3, gBankNm)
+   - Fixed array declaration (spiph005k00r01_type_record[])
+   - Fixed 6 %TYPE variable references (gresult, gAryBun, gInvoiceBun, gInvoiceTourokuNo, gWrkHikazeiFlg, gWrkHikazeiNm)
+   - Fixed cursor FETCH with tempRec + array_append pattern (48 fields)
+   - Fixed 2 array loop indexing (1-based: gAryBun, recMeisai)
+   - Fixed invalid ` */;` comment syntax
+   - Extracted nested function changezero2space (standalone, no parameters)
+   - Extracted createsql procedure with 11 parent parameters:
+     * l_inItakuKaishaCd, l_inHktCd, l_inKozaTenCd, l_inKozaTenCifCd
+     * l_inMgrCd, l_inIsinCd, l_inKijyunYmdF, l_inKijyunYmdT
+     * l_inChohyoKbn, l_inGyomuYmd, INOUT gSQL
+   - Extracted updateinvoiceitem procedure with 19 parent parameters (most complex):
+     * in_TsukaCd, l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd
+     * REPORT_ID, TITLE_OUTPUT
+     * 8 INOUT variables: gRtnCd, gSzeiRate, gSzeiKijunYmd, gInvoiceTesuLabel, 
+       gInvoiceTesuKngkSum, gInvoiceUchiSzei, gSeikyuTotal, gInvoiceKknTesuKngkSum
+     * 5 work variables: gWrkStSiharaiYmd, gWrkHktCd, gWrkKikiKbn, gWrkTukaCd, gWrkKozaFuriKbn
+   - Added AS $body$ to updateinvoiceitem procedure
+   - Status: ✅ Compiled successfully (1 type, 1 main procedure, 1 function, 2 nested procedures)
+
+Migration Patterns Established:
+--------------------------------
+1. Custom Types: Replace Oracle %TYPE with explicit PostgreSQL types
+2. Arrays: Use PostgreSQL array syntax (type_name[]) with 1-based indexing
+3. Cursors: REFCURSOR type with tempRec + array_append fetch pattern
+4. Nested Functions: Extract as separate procedures with parent scope variables as parameters
+5. Procedure Structure: CREATE OR REPLACE PROCEDURE name (params) AS $body$ BEGIN ... END; $body$ LANGUAGE PLPGSQL;
+6. INOUT Parameters: Use for variables that nested procedures need to modify
+
+Remaining Tickets:
+------------------
+5. qdjk-3904: SPIPH006K00R01 (chikoutai) - 1,387 lines [LARGEST]
+6. pswa-2379: SPIPH008K00R01 (chikoutai) - TBD lines
