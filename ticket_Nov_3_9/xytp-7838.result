@@ -1,0 +1,90 @@
+===========================================
+Ticket: xytp-7838
+Function: sfCmIsCodeMChek
+Description: コード値チェック（Code Value Check）
+===========================================
+
+MIGRATION SUMMARY:
+------------------
+Source: generated/db_output_sql/main/plsql/ipa/option/Kounai/common/sfCmIsCodeMChek.sql
+Target: db/plsql/ipa/option/Kounai/common/sfCmIsCodeMChek.sql
+Status: ✅ COMPLETED
+
+CHANGES MADE:
+-------------
+1. Code Formatting & Clarity
+   - Improved formatting and readability
+   - Fixed WHERE clause order for natural reading
+   - Original: WHERE l_code_shubetsu = code_shubetsu
+   - Fixed: WHERE code_shubetsu = l_code_shubetsu
+
+2. Generator Output Quality
+   - Generator output was already correct
+   - NULL check properly handles empty strings
+   - Exception handling properly implemented
+   - No major fixes required
+
+COMPILATION RESULTS:
+--------------------
+PostgreSQL:
+  Command: psql -f plsql/ipa/option/Kounai/common/sfCmIsCodeMChek.sql
+  Status: ✅ CREATE FUNCTION
+  
+Oracle (Legacy):
+  Status: ✅ Already exists in Oracle database
+
+BUILD SCRIPT:
+-------------
+File: db/make_plsql.sql
+Added: \ir plsql/ipa/option/Kounai/common/sfCmIsCodeMChek.sql
+Position: Line 152
+
+ORACLE vs POSTGRESQL COMPARISON TEST:
+======================================
+
+Test Environment:
+-----------------
+Oracle: jip-ipa-cp.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:1521/ORCL
+PostgreSQL: jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:5432/rh_mufg_ipa
+
+Test Case 1: Valid Code (191, '10')
+------------------------------------
+Input: code_shubetsu='191', code_value='10'
+  
+Oracle Result: 0
+PostgreSQL Result: 0
+Status: ✅ MATCH
+
+Test Case 2: Invalid Code (191, '999')
+---------------------------------------
+Input: code_shubetsu='191', code_value='999'
+  
+Oracle Result: 1
+PostgreSQL Result: 1
+Status: ✅ MATCH
+
+Test Case 3: Valid Code (507, '0')
+-----------------------------------
+Input: code_shubetsu='507', code_value='0'
+  
+Oracle Result: 0
+PostgreSQL Result: 0
+Status: ✅ MATCH
+
+Test Case 4: NULL Parameters
+-----------------------------
+Input: code_shubetsu=NULL, code_value=NULL
+  
+Oracle Result: 0
+PostgreSQL Result: 0
+Status: ✅ MATCH
+
+FINAL TEST SUMMARY:
+===================
+Total Tests: 4
+Passed: 4/4 (100%)
+Status: ✅ ALL TESTS PASSED
+
+Oracle and PostgreSQL return IDENTICAL results.
+
+Date: November 4, 2025

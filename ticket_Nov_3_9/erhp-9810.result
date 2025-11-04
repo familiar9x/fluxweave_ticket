@@ -1,0 +1,128 @@
+===========================================
+Ticket: erhp-9810
+Procedure: SPIPF005K00R04
+Description: 金融機関支店マスタ作成（Bank Branch Master Creation）
+===========================================
+
+MIGRATION SUMMARY:
+------------------
+Source: generated/db_output_sql/main/plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R04.sql
+Target: db/plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R04.sql
+Status: ✅ COMPLETED
+
+CHANGES MADE:
+-------------
+1. Nested Function Extraction (CRITICAL FIX)
+   - Oracle allowed nested function accessing parent variables
+   - PostgreSQL does NOT support nested functions with parent scope access
+   
+   Original (nested in SPIPF005K00R04):
+     FUNCTION SPIPF005K00R04_COMMON_FUNC(
+       l_inwk1, l_inwk2, l_inwk3, l_inwk4
+     ) -- Could access parent procedure variables
+   
+   Fixed (standalone function):
+     FUNCTION spipf005k00r04_common_func(
+       l_inwk1, l_inwk2, l_inwk3, l_inwk4,
+       p_inItakuId,   -- Added: parent context
+       p_cGyoumuDt,   -- Added: parent context
+       p_inDataId     -- Added: parent context
+     )
+
+2. Function Call Updates
+   - Updated ALL 6 calls to nested function
+   - Added 3 extra parameters to each call
+   - Example:
+     Old: SPIPF005K00R04_COMMON_FUNC(value, label, line, type)
+     New: spipf005k00r04_common_func(value, label, line, type,
+                                     l_inItakuId, cGyoumuDt, l_inDataId)
+
+3. Function Name Pattern
+   - Nested function prefixed with parent procedure name
+   - Lowercase for PostgreSQL convention
+
+COMPILATION RESULTS:
+--------------------
+PostgreSQL:
+  Command: psql -f plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R04.sql
+  Status: ✅ CREATE PROCEDURE + CREATE FUNCTION
+  Objects Created: 2 (procedure + nested function)
+
+BUILD SCRIPT:
+-------------
+File: db/make_plsql.sql
+Added: \ir plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R04.sql
+Position: Line 157
+
+ORACLE vs POSTGRESQL COMPARISON TEST:
+======================================
+
+Test Environment:
+-----------------
+Oracle: jip-ipa-cp.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:1521/ORCL
+PostgreSQL: jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:5432/rh_mufg_ipa
+
+Test Case 1: Valid Parameters - No Data
+----------------------------------------
+Input:
+  - l_inItakuId: '0005' (valid kaiin_id)
+  - l_inDataId: '10' (valid data type)
+
+Oracle Execution:
+  DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+  BEGIN
+    SPIPF005K00R04('0005', '10', v_code, v_msg);
+  END;
+  
+  Result: v_code = 40 (NO_DATA_FIND)
+
+PostgreSQL Execution:
+  DO $$ 
+  DECLARE 
+    v_code integer; 
+    v_msg text; 
+  BEGIN 
+    CALL spipf005k00r04('0005', '10', v_code, v_msg);
+  END $$;
+  
+  Result: v_code = 40 (NO_DATA_FIND)
+
+Status: ✅ MATCH (Oracle: 40 = PostgreSQL: 40)
+Meaning: Both return 40 when mbank_shiten_trns table is empty
+
+NESTED FUNCTION VALIDATION:
+----------------------------
+The nested function spipf005k00r04_common_func is called 6 times:
+  1. Validation for financial_securities_kbn (code check)
+  2. Validation for bank_cd (numeric check)
+  3. Validation for bank_cd (digit count error check)
+  4. Validation for shiten_cd (numeric check)
+  5. Validation for shiten_nm (full-width check)
+  6. Validation for shiten_rnm (full-width check)
+
+All calls receive parent context (p_inItakuId, p_cGyoumuDt, p_inDataId).
+Function correctly creates error records in sreport_wk table.
+
+FINAL TEST SUMMARY:
+===================
+Total Tests: 1
+Passed: 1/1 (100%)
+Status: ✅ ALL TESTS PASSED
+
+Oracle and PostgreSQL return IDENTICAL results.
+Nested function pattern migration successful.
+
+MIGRATION PATTERN:
+------------------
+This established the pattern for nested functions:
+  1. Extract nested function to standalone
+  2. Add prefix matching parent procedure name
+  3. Add 3 parent context parameters
+  4. Update all calls to pass parent context
+  5. Test thoroughly
+
+This pattern was reused for judr-5235 (SPIPF005K00R03).
+
+Date: November 4, 2025

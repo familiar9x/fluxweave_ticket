@@ -1,0 +1,102 @@
+===========================================
+Ticket: rawx-4418
+Procedure: SPIPF004K00R03
+Description: カレンダーマスタ作成（Calendar Master Creation）
+===========================================
+
+MIGRATION SUMMARY:
+------------------
+Source: generated/db_output_sql/main/plsql/ipa/option/Kounai/ShokiIkou/SPIPF004K00R03.sql
+Target: db/plsql/ipa/option/Kounai/ShokiIkou/SPIPF004K00R03.sql
+Status: ✅ COMPLETED
+
+CHANGES MADE:
+-------------
+1. Function Call Syntax Fix
+   - Original: cGyoumuDt := pkDate.getGyomuYmd (missing parentheses)
+   - Fixed: cGyoumuDt := pkDate.getGyomuYmd()
+   - PostgreSQL requires () even for zero-parameter functions
+
+2. Type Conversions
+   - NUMBER → NUMERIC
+   - VARCHAR2 → TEXT
+   - All Oracle types properly converted
+
+COMPILATION RESULTS:
+--------------------
+PostgreSQL:
+  Command: psql -f plsql/ipa/option/Kounai/ShokiIkou/SPIPF004K00R03.sql
+  Status: ✅ CREATE PROCEDURE
+  Notices:
+    - type reference vjiko_itaku.kaiin_id%TYPE converted to character
+    - type reference scode.code_value%TYPE converted to character varying
+
+BUILD SCRIPT:
+-------------
+File: db/make_plsql.sql
+Added: \ir plsql/ipa/option/Kounai/ShokiIkou/SPIPF004K00R03.sql
+Position: Line 154
+
+ORACLE vs POSTGRESQL COMPARISON TEST:
+======================================
+
+Test Environment:
+-----------------
+Oracle: jip-ipa-cp.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:1521/ORCL
+PostgreSQL: jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:5432/rh_mufg_ipa
+
+Test Case 1: Valid Parameters - No Data
+----------------------------------------
+Input:
+  - l_inItakuId: '0005' (valid kaiin_id)
+  - l_inDataId: '10' (valid data type)
+
+Oracle Execution:
+  DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+  BEGIN
+    SPIPF004K00R03('0005', '10', v_code, v_msg);
+  END;
+  
+  Result: v_code = 40 (NO_DATA_FIND)
+
+PostgreSQL Execution:
+  DO $$ 
+  DECLARE 
+    v_code integer; 
+    v_msg text; 
+  BEGIN 
+    CALL spipf004k00r03('0005', '10', v_code, v_msg);
+  END $$;
+  
+  Result: v_code = 40 (NO_DATA_FIND)
+
+Status: ✅ MATCH (Oracle: 40 = PostgreSQL: 40)
+Meaning: Both return 40 when mcalender_trns table is empty
+
+Test Case 2: Invalid Parameter - Empty kaiin_id
+------------------------------------------------
+Input:
+  - l_inItakuId: '' (empty string - invalid)
+  - l_inDataId: '10'
+
+Oracle Execution:
+  Result: v_code = 1 (PARAMETER_ERROR)
+
+PostgreSQL Execution:
+  Result: v_code = 1 (PARAMETER_ERROR)
+
+Status: ✅ MATCH (Oracle: 1 = PostgreSQL: 1)
+Meaning: Both correctly detect and reject empty parameter
+
+FINAL TEST SUMMARY:
+===================
+Total Tests: 2
+Passed: 2/2 (100%)
+Status: ✅ ALL TESTS PASSED
+
+Oracle and PostgreSQL return IDENTICAL results.
+Parameter validation logic works correctly in both databases.
+
+Date: November 4, 2025

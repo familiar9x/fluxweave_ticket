@@ -1,0 +1,86 @@
+===========================================
+Ticket: ayds-6394
+Function: sfCmIsHalfAlphanumeric2
+Description: 半角英数字チェック（Half-width Alphanumeric Check）
+===========================================
+
+MIGRATION SUMMARY:
+------------------
+Source: generated/db_output_sql/main/plsql/ipa/option/Kounai/common/sfCmIsHalfAlphanumeric2.sql
+Target: db/plsql/ipa/option/Kounai/common/sfCmIsHalfAlphanumeric2.sql
+Status: ✅ COMPLETED
+
+CHANGES MADE:
+-------------
+1. Function Logic Fix
+   - Generator had correct structure
+   - Validates A-Z, a-z, 0-9 only (no special characters)
+   - Uses position(substring()) to check each character
+
+2. Code Quality
+   - Clean implementation
+   - No type conversions needed
+   - Proper exception handling
+
+COMPILATION RESULTS:
+--------------------
+PostgreSQL:
+  Command: psql -f plsql/ipa/option/Kounai/common/sfCmIsHalfAlphanumeric2.sql
+  Status: ✅ CREATE FUNCTION
+
+BUILD SCRIPT:
+-------------
+File: db/make_plsql.sql
+Added: \ir plsql/ipa/option/Kounai/common/sfCmIsHalfAlphanumeric2.sql
+Position: Line 153
+
+ORACLE vs POSTGRESQL COMPARISON TEST:
+======================================
+
+Test Environment:
+-----------------
+Oracle: jip-ipa-cp.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:1521/ORCL
+PostgreSQL: jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com:5432/rh_mufg_ipa
+
+Test Case 1: Valid Alphanumeric 'ABC123'
+-----------------------------------------
+Input: 'ABC123' (uppercase letters and numbers)
+  
+Oracle Result: 0 (valid)
+PostgreSQL Result: 0 (valid)
+Status: ✅ MATCH
+
+Test Case 2: Invalid with Hyphen 'ABC-123'
+-------------------------------------------
+Input: 'ABC-123' (contains hyphen - not allowed)
+  
+Oracle Result: 1 (invalid)
+PostgreSQL Result: 1 (invalid)
+Status: ✅ MATCH
+
+Test Case 3: Valid Lowercase 'abc123'
+--------------------------------------
+Input: 'abc123' (lowercase letters and numbers)
+  
+Oracle Result: 0 (valid)
+PostgreSQL Result: 0 (valid)
+Status: ✅ MATCH
+
+Test Case 4: Empty String
+--------------------------
+Input: '' (empty string)
+  
+Oracle Result: 0 (treated as valid)
+PostgreSQL Result: 0 (treated as valid)
+Status: ✅ MATCH
+
+FINAL TEST SUMMARY:
+===================
+Total Tests: 4
+Passed: 4/4 (100%)
+Status: ✅ ALL TESTS PASSED
+
+Oracle and PostgreSQL return IDENTICAL results.
+Function correctly validates half-width alphanumeric characters only.
+
+Date: November 4, 2025

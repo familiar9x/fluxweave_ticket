@@ -1,0 +1,154 @@
+===========================================
+TICKET: qpmc-7035
+FILE: SPIPH004K00R01.SQL (579 lines)
+STATUS: ✅ COMPLETED AND COMPILED
+===========================================
+
+PROCEDURE INFORMATION:
+----------------------
+Type: Procedure with 3 Nested Functions
+Name: spiph004k00r01
+Purpose: 顧客宛帳票出力 - 手数料請求書（会計区分別）作成
+Category: chikoutai (Municipal Bond)
+Report ID: IPH30000411
+
+Nested Functions:
+1. spiph004k00r01_createbun - 請求文章作成
+2. spiph004k00r01_createsql - Dynamic SQL作成
+3. spiph004k00r01_getkaikeitesuryocount - 会計手数料カウント
+4. spiph004k00r01_getshinkitesuryocount - 新規手数料カウント
+
+CHANGES MADE:
+=============
+
+1. ✅ Fixed Custom Type Definition (Line 4-29)
+   - Changed: TYPE_RECORD → spiph004k00r01_type_record
+   - Removed: INDEX BY integer (Oracle associative array)
+   - Added: DROP TYPE IF EXISTS with CASCADE
+   - Changed: All %TYPE references to explicit types (varchar, char, numeric)
+   - Reason: PostgreSQL requires explicit type names and standard arrays
+
+2. ✅ Fixed Array Declaration (Line 108)
+   - Changed: SPIPH004K00R01_TYPE_TABLE → spiph004k00r01_type_record[]
+   - Reason: PostgreSQL uses standard array syntax
+
+3. ✅ Fixed Cursor Type Declaration (Line 125)
+   - Changed: SPIPH004K00R01_CURSOR_TYPE → REFCURSOR
+   - Removed: TYPE declaration
+   - Reason: PostgreSQL has built-in REFCURSOR type
+
+4. ✅ Extracted Nested Function: createSQL (Line 413-544)
+   - New signature: spiph004k00r01_createsql()
+   - Added 9 parameters from parent scope:
+     * l_inItakuKaishaCd
+     * l_inMgrCd
+     * l_inKijyunYmdF
+     * l_inKijyunYmdT
+     * l_inHktCd
+     * l_inKozaTenCd
+     * l_inKozaTenCifCd
+     * l_inIsinCd
+     * gSQL (INOUT parameter)
+   - Changed: Nested function → Stand-alone procedure
+   - Reason: PostgreSQL does not support nested procedures
+
+5. ✅ Updated createSQL Call (Line 175-184)
+   - Changed: Direct call → CALL with parameters
+   - Passed all required variables from parent
+   - Reason: Stand-alone procedure requires explicit parameters
+
+6. ✅ Fixed Oracle Outer Joins (Line 489-495)
+   - Changed: S06.ITAKU_KAISHA_CD(+) → LEFT JOIN KOZA_FRK S06
+   - Changed: MCD1.CODE_SHUBETSU(+) → LEFT JOIN SCODE MCD1
+   - Added: ON clauses for join conditions
+   - Reason: PostgreSQL uses standard SQL JOIN syntax
+
+7. ✅ Fixed NVL Functions (Line 434)
+   - Changed: NVL(WT1.TESURYO_GK,0) → coalesce(WT1.TESURYO_GK,0)
+   - Reason: PostgreSQL uses COALESCE
+
+8. ✅ Fixed Array Loop (Line 256)
+   - Changed: FOR i IN 0..aryBun.COUNT - 1
+   - To: FOR i IN 1..coalesce(cardinality(aryBun), 0)
+   - Reason: PostgreSQL arrays are 1-based, use cardinality()
+
+9. ✅ Fixed Cursor Fetch Pattern (Line 188-197)
+   - Changed: FETCH ... INTO recMeisai[gSeqNo]...
+   - To: FETCH ... INTO tempRec; array_append(recMeisai, tempRec)
+   - Added: tempRec variable for temporary storage
+   - Added: CLOSE curMeisai after loop
+   - Reason: PostgreSQL cannot fetch directly into array element
+
+10. ✅ Fixed Array Iteration (Line 258)
+    - Changed: FOR i IN 0..recMeisai.COUNT
+    - To: FOR i IN 1..coalesce(cardinality(recMeisai), 0)
+    - Reason: PostgreSQL arrays start at 1
+
+11. ✅ Fixed COUNT Function (Line 562, 580)
+    - Changed: COUNT(oid) → COUNT(*)
+    - Reason: oid is deprecated in PostgreSQL, use standard COUNT(*)
+
+12. ✅ Fixed Function Parameter Types (Line 547, 565)
+    - Changed: MGR_KIHON.ITAKU_KAISHA_CD%TYPE → char
+    - Changed: MGR_KIHON.MGR_CD%TYPE → char
+    - Reason: Stand-alone functions cannot reference table types
+
+13. ✅ Fixed pkIpaBun Array Type (Line 399)
+    - Changed: pkIpaBun.BUN_ARRAY → varchar[]
+    - Reason: Use PostgreSQL native array type
+
+COMPILATION RESULT:
+===================
+✅ SUCCESS - All objects created:
+   - DROP TYPE (with CASCADE)
+   - CREATE TYPE spiph004k00r01_type_record
+   - CREATE PROCEDURE spiph004k00r01 (main procedure)
+   - CREATE FUNCTION spiph004k00r01_createbun
+   - CREATE PROCEDURE spiph004k00r01_createsql
+   - CREATE FUNCTION spiph004k00r01_getkaikeitesuryocount
+   - CREATE FUNCTION spiph004k00r01_getshinkitesuryocount
+
+No errors or warnings.
+
+FILE LOCATIONS:
+===============
+Generated: generated/db_output_sql/main/plsql/ipa/option/chikoutai/SPIPH004K00R01.SQL (586 lines)
+Legacy: legacy/db/plsql/ipa/option/chikoutai/SPIPH004K00R01.SQL (638 lines)
+Migrated: db/plsql/ipa/option/chikoutai/SPIPH004K00R01.SQL (579 lines)
+Build Script: db/make_plsql.sql (Line 159)
+
+MIGRATION PATTERNS USED:
+=========================
+1. Custom Type Definition: Full type name with explicit field types
+2. Array Declaration: PostgreSQL standard array syntax type[]
+3. Nested Function Extraction: Added parent scope parameters
+4. Oracle Outer Join: Converted to LEFT JOIN with ON clause
+5. Array Operations: Changed to 1-based indexing with cardinality()
+6. Cursor Fetch: Use temporary record then array_append
+7. Function Types: Changed %TYPE to explicit types
+
+NOTES:
+======
+- This is a complex report generation procedure for municipal bonds
+- Creates fee invoices grouped by accounting classification (会計区分別)
+- Uses dynamic SQL for flexible query building
+- Handles invoice formatting with tax calculations
+- Output to SREPORT_WK table for report printing
+- Main procedure cannot be tested without actual data in:
+  * MGR_KIHON_VIEW (銘柄基本)
+  * TESURYO_KAIKEI (手数料計算結果)
+  * MHAKKOTAI (発行体マスタ)
+  * VJIKO_ITAKU (自行・委託会社VIEW)
+- Nested functions can be tested independently
+
+TESTING STATUS:
+===============
+⚠️  COMPILATION ONLY - Functional testing requires:
+   - Active MGR_KIHON data with ITAKU_KAISHA_CD
+   - TESURYO_KAIKEI records with fee calculations
+   - KAIKEI_KBN master data
+   - Print framework (pkPrint, pkCsvJournal)
+   - Date utilities (pkDate)
+   - Invoice utilities (pkInvoice)
+
+Migration complexity: MEDIUM-HIGH (585 lines, 4 nested functions, dynamic SQL, custom types)
