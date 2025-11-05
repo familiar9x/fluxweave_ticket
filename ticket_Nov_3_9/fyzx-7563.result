@@ -1,0 +1,141 @@
+================================================================================
+TICKET: fyzx-7563
+FILE: SPIPF005K00R02.SQL
+PURPOSE: 金融機関支店マスタの内容を出力する (Output financial institution branch master data)
+================================================================================
+
+MIGRATION STATUS: ✅ SUCCESS
+--------------------------------------------------------------------------------
+
+MIGRATION STEPS COMPLETED:
+✅ 1. Applied type conversion rules from 0_rule:
+   - CHAR → VARCHAR (all parameters: l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inChohyoSakuKbn, l_inGyomuYmd)
+   - char(11) → varchar(11) (REPORT_ID constant)
+   - Fixed comment syntax (removed invalid /*)
+   - Removed BOTH keyword from trim() function
+   - Added missing RECORD declarations for cursors
+
+✅ 2. Fixed pkPrint.insertData call pattern:
+   - Changed from individual parameters (l_inItem001, l_inItem002, ...)
+   - To composite type pattern: TYPE_SREPORT_WK_ITEM
+   - Following example from pkIpp010K00R03.sql
+
+✅ 3. Compilation: SUCCESS
+   - Procedure compiled without errors
+   - CREATE PROCEDURE successful
+
+✅ 4. Execution Testing: SUCCESS
+   - Return Code: 0 (SUCCESS)
+   - Records inserted: 1 record into SREPORT_WK
+   - PRT_OK registration: ✅ Successful
+   
+TEST RESULTS:
+--------------------------------------------------------------------------------
+Test Parameters:
+  - l_inItakuKaishaCd: '0005' (委託会社コード)
+  - l_inUserId: 'b5176270' (ユーザーID)
+  - l_inChohyoKbn: '1' (帳票区分)
+  - l_inChohyoSakuKbn: '1' (帳票作成区分)
+  - l_inGyomuYmd: '20230215' (業務日付)
+
+Test Data Source:
+  - MBANK_SHITEN table: 33,657 total records
+  - Filtered by: SAKUSEI_YMD = '20230215' AND SAKUSEI_ID = 'b5176270'
+  - Matching records: 1
+
+Output:
+  ✅ Return Code: 0 (SUCCESS)
+  ✅ Error Message: (empty/none)
+  ✅ SREPORT_WK records: 1 record inserted
+     - KEY_CD: '0005'
+     - CHOHYO_KBN: '1'
+     - SAKUSEI_YMD: '20230215'
+     - CHOHYO_ID: 'IPF30000521'
+     - ITEM001: Business date (業務日付)
+     - ITEM002: Financial securities classification
+     - ITEM003: Code abbreviation
+     - ITEM004: Bank code
+     - ITEM005: Branch code
+     - ITEM006: Branch name
+     - ITEM007: Branch abbreviation
+     - ITEM008: Branch kana abbreviation
+     - ITEM009: Report ID
+  ✅ PRT_OK registration: Record successfully inserted
+
+MIGRATION COMPLIANCE (0_rule):
+--------------------------------------------------------------------------------
+✅ CHAR → VARCHAR: Applied to all parameters
+✅ Type consistency: All types converted correctly
+✅ Comment syntax: Fixed invalid /* comments
+✅ Function calls: PostgreSQL-compatible
+✅ pkPrint.insertData: Fixed using composite type pattern (TYPE_SREPORT_WK_ITEM)
+✅ Cursor declarations: Proper RECORD types added
+✅ Compilation: No errors
+✅ Execution: Returns 0 (success)
+
+KEY MIGRATION PATTERN APPLIED:
+--------------------------------------------------------------------------------
+**Problem:** pkPrint.insertData with individual item parameters not supported
+
+**Solution:** Use TYPE_SREPORT_WK_ITEM composite type pattern
+```sql
+-- Declare composite type variable
+l_inItem TYPE_SREPORT_WK_ITEM;
+
+-- Initialize and populate
+l_inItem := ROW();
+l_inItem.l_inItem001 := value1;
+l_inItem.l_inItem002 := value2;
+...
+l_inItem.l_inItem009 := value9;
+
+-- Call with composite type
+CALL pkPrint.insertData(
+    l_inKeyCd      => ...,
+    l_inUserId     => ...,
+    l_inChohyoKbn  => ...,
+    l_inSakuseiYmd => ...,
+    l_inChohyoId   => ...,
+    l_inSeqNo      => ...,
+    l_inHeaderFlg  => ...,
+    l_inItem       => l_inItem,      -- ← Composite type
+    l_inKousinId   => ...,
+    l_inSakuseiId  => ...
+);
+```
+
+**Reference:** /home/ec2-user/jip-ipa/db/plsql/ipa/bondManagement/numberedManagementPractically/ipp0001001/pkIpp010K00R03.sql (line 1086)
+
+COMPARISON WITH EXPECTED BEHAVIOR:
+--------------------------------------------------------------------------------
+✅ Data Processing:
+   - Reads MBANK_SHITEN records for specified date/user
+   - Joins with SCODE table for code descriptions
+   - Inserts formatted data into SREPORT_WK
+   - Registers batch report in PRT_OK table
+
+✅ Error Handling:
+   - Parameter validation: All parameters checked for null/empty
+   - Exception handling: Fatal errors caught and logged
+   - Return codes: 0 (success), 1 (error), 40 (no data), 99 (fatal)
+
+✅ Business Logic:
+   - Header record insertion via pkPrint.insertHeader
+   - Detail records via pkPrint.insertData loop
+   - Batch registration in PRT_OK (when l_inChohyoKbn = '1')
+   - Proper cleanup of existing SREPORT_WK records before insert
+
+FILE LOCATIONS:
+--------------------------------------------------------------------------------
+Migrated file: /home/ec2-user/fluxweave_ticket/ticket_Nov_3_9/fyzx-7563_SPIPF005K00R02.sql
+Original (generated): /home/ec2-user/jip-ipa/generated/db_output_sql/main/plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R02.SQL
+Original (legacy): /home/ec2-user/jip-ipa/legacy/db/plsql/ipa/option/Kounai/ShokiIkou/SPIPF005K00R02.SQL
+
+================================================================================
+✅ MIGRATION COMPLETE AND SUCCESSFUL
+   - All 0_rule guidelines applied
+   - Procedure executes correctly with return code 0
+   - Data properly inserted into SREPORT_WK and PRT_OK tables
+   - Pattern documented for future pkPrint.insertData migrations
+================================================================================
+

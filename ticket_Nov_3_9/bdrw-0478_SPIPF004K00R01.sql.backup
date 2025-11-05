@@ -1,0 +1,316 @@
+/**
+ * 著作権:Copyright(c)2004
+ * 会社名:JIP
+ * 概要　:カレンダマスタの内容を出力する。
+ * 引数　:l_inItakuKaishaCd	IN	VARCHAR		委託会社コード
+ * 　　　 l_inUserId			IN	VARCHAR		ユーザーID
+ * 　　　 l_inChohyoKbn		IN	VARCHAR		帳票区分
+ * 　　　 l_inChohyoSakuKbn	IN	VARCHAR		帳票作成区分
+ * 　　　 l_inGyomuYmd		IN	VARCHAR		業務日付
+ * 　　　 l_outSqlCode		OUT	NUMERIC		リターン値
+ * 　　　 l_outSqlErrM		OUT	TEXT		エラーコメント
+ * 返り値:なし
+ * @version $Revision: 1.4 $
+ */
+
+CREATE OR REPLACE PROCEDURE spipf004k00r01 (
+	l_inItakuKaishaCd VARCHAR,		-- 委託会社コード
+	l_inUserId VARCHAR,				-- ユーザーID
+	l_inChohyoKbn VARCHAR,			-- 帳票区分
+	l_inChohyoSakuKbn VARCHAR,		-- 帳票作成区分
+	l_inGyomuYmd VARCHAR,			-- 業務日付
+	l_outSqlCode OUT numeric,		-- リターン値
+	l_outSqlErrM OUT text			-- エラーコメント
+) AS $body$
+DECLARE
+--==============================================================================
+--					デバッグ機能													
+--==============================================================================
+	DEBUG	numeric(1)	:= 1  -- Debug enabled;
+--==============================================================================
+--					定数定義													
+--==============================================================================
+	RTN_OK				CONSTANT integer	:= 0;					-- 正常
+	RTN_NG				CONSTANT integer	:= 1;					-- 予期したエラー
+	RTN_NODATA			CONSTANT integer	:= 40;					-- データなし
+	RTN_FATAL			CONSTANT integer	:= 99;					-- 予期せぬエラー
+	REPORT_ID			CONSTANT varchar(11)	:= 'IPF30000411';	-- 帳票ID
+--==============================================================================
+--					変数定義													
+--==============================================================================
+	gRtnCd				integer :=	RTN_OK;						-- リターンコード
+	gSeqNo				integer := 0;							-- シーケンス
+	gCount				integer := 0;							-- 1〜14までのカウンタ
+	gAREA_CD			varchar(3);								-- 地域コード
+	gAREA_NM			varchar(100);							-- コード名称
+	gHOLIDAY			varchar(8)[14];							-- 休日配列(1-14)
+	i					integer;								-- Loop counter
+--==============================================================================
+--					カーソル定義													
+--==============================================================================
+	curMeisai CURSOR FOR
+		SELECT 	M61.AREA_CD,								-- 地域コード
+				M61.HOLIDAY,								-- 休日
+				SC04.CODE_NM 								-- コード名称
+		FROM mcalendar m61
+		LEFT OUTER JOIN (SELECT * FROM SCODE WHERE CODE_SHUBETSU = '715') sc04 
+			ON (M61.AREA_CD = SC04.CODE_VALUE)
+		WHERE TO_CHAR(M61.SAKUSEI_DT, 'yyyymmdd') = l_inGyomuYmd 
+		AND M61.SAKUSEI_ID = l_inUserId  
+		ORDER BY M61.AREA_CD, M61.HOLIDAY;
+	
+	curCount CURSOR FOR
+		SELECT 	COUNT(*) AS CNT
+		FROM	PRT_OK	S05
+		WHERE	S05.ITAKU_KAISHA_CD = l_inItakuKaishaCd
+		AND		S05.KIJUN_YMD = l_inGyomuYmd
+		AND		S05.LIST_SAKUSEI_KBN = l_inChohyoSakuKbn
+		AND		S05.CHOHYO_ID = REPORT_ID;
+	
+	recMeisai RECORD;
+	recCount RECORD;
+	l_inItem TYPE_SREPORT_WK_ITEM;
+	
+--==============================================================================
+--					メイン処理														
+--==============================================================================
+BEGIN
+	IF DEBUG = 1 THEN	
+		CALL pkLog.debug(l_inUserId, REPORT_ID, 'IPF004K00R01 START');	
+	END IF;
+	
+	-- 入力パラメタ(委託会社コード)のチェック
+	IF coalesce(trim(l_inItakuKaishaCd), '') = '' THEN
+		IF DEBUG = 1 THEN	
+			CALL pkLog.debug(l_inUserId, REPORT_ID, 'param error');	
+		END IF;
+		l_outSqlCode := RTN_NG;
+		l_outSqlErrM := '';
+		CALL pkLog.error('ECM501', 'IPF004K00R01', '＜項目名称:委託会社コード＞'||'＜項目値:'||l_inItakuKaishaCd||'＞');
+		RETURN;
+	END IF;
+	
+	-- 入力パラメタ(ユーザＩＤ)のチェック
+	IF coalesce(trim(l_inUserId), '') = '' THEN
+		IF DEBUG = 1 THEN	
+			CALL pkLog.debug(l_inUserId, REPORT_ID, 'param error');	
+		END IF;
+		l_outSqlCode := RTN_NG;
+		l_outSqlErrM := '';
+		CALL pkLog.error('ECM501', 'IPF004K00R01', '＜項目名称:ユーザＩＤ＞'||'＜項目値:'||l_inUserId||'＞');
+		RETURN;
+	END IF;
+	
+	-- 入力パラメタ(帳票区分)のチェック
+	IF coalesce(trim(l_inChohyoKbn), '') = '' THEN
+		IF DEBUG = 1 THEN	
+			CALL pkLog.debug(l_inUserId, REPORT_ID, 'param error');	
+		END IF;
+		l_outSqlCode := RTN_NG;
+		l_outSqlErrM := '';
+		CALL pkLog.error('ECM501', 'IPF004K00R01', '＜項目名称:帳票区分＞'||'＜項目値:'||l_inChohyoKbn||'＞');
+		RETURN;
+	END IF;
+	
+	-- 入力パラメタ(帳票作成区分)のチェック
+	IF coalesce(trim(l_inChohyoSakuKbn), '') = '' THEN
+		IF DEBUG = 1 THEN	
+			CALL pkLog.debug(l_inUserId, REPORT_ID, 'param error');	
+		END IF;
+		l_outSqlCode := RTN_NG;
+		l_outSqlErrM := '';
+		CALL pkLog.error('ECM501', 'IPF004K00R01', '＜項目名称:帳票作成区分＞'||'＜項目値:'||l_inChohyoSakuKbn||'＞');
+		RETURN;
+	END IF;
+	
+	-- 入力パラメタ(業務日付)のチェック
+	IF coalesce(trim(l_inGyomuYmd), '') = '' THEN
+		IF DEBUG = 1 THEN	
+			CALL pkLog.debug(l_inUserId, REPORT_ID, 'param error');	
+		END IF;
+		l_outSqlCode := RTN_NG;
+		l_outSqlErrM := '';
+		CALL pkLog.error('ECM501', 'IPF004K00R01', '＜項目名称:業務日付＞'||'＜項目値:'||l_inGyomuYmd||'＞');
+		RETURN;
+	END IF;
+	
+	-- 帳票ワークの削除
+	DELETE FROM SREPORT_WK
+	WHERE	KEY_CD = l_inItakuKaishaCd
+	AND		USER_ID = 'BATCH'
+	AND		CHOHYO_KBN = l_inChohyoKbn
+	AND		SAKUSEI_YMD = l_inGyomuYmd
+	AND		CHOHYO_ID = REPORT_ID;
+	
+	-- ヘッダレコードを追加
+	CALL pkPrint.insertHeader(l_inItakuKaishaCd, 'BATCH', l_inChohyoKbn, l_inGyomuYmd, REPORT_ID);
+	
+	-- 配列初期化
+	FOR i IN 1..14 LOOP
+		gHOLIDAY[i] := '';
+	END LOOP;
+	
+	-- データ取得
+	FOR recMeisai IN curMeisai LOOP
+		IF DEBUG = 1 THEN
+			RAISE NOTICE 'Loop: gCount=%, gAREA_CD=%, recMeisai.AREA_CD=%', gCount, COALESCE(gAREA_CD, 'NULL'), recMeisai.AREA_CD;
+		END IF;
+		
+		-- 14個に達したか、または地域コードが変わった場合
+		IF gCount = 14 OR (gCount <> 0 AND gAREA_CD <> recMeisai.AREA_CD) THEN
+			gSeqNo := gSeqNo + 1;
+			
+			IF DEBUG = 1 THEN
+				RAISE NOTICE 'Inserting seq_no=%, area_cd=%, gCount=%', gSeqNo, gAREA_CD, gCount;
+			END IF;
+			
+			-- Initialize composite type
+			l_inItem := ROW();
+			l_inItem.l_inItem001 := l_inGyomuYmd;
+			l_inItem.l_inItem002 := gAREA_CD;
+			l_inItem.l_inItem003 := gAREA_NM;
+			l_inItem.l_inItem004 := gHOLIDAY[1];
+			l_inItem.l_inItem005 := gHOLIDAY[2];
+			l_inItem.l_inItem006 := gHOLIDAY[3];
+			l_inItem.l_inItem007 := gHOLIDAY[4];
+			l_inItem.l_inItem008 := gHOLIDAY[5];
+			l_inItem.l_inItem009 := gHOLIDAY[6];
+			l_inItem.l_inItem010 := gHOLIDAY[7];
+			l_inItem.l_inItem011 := gHOLIDAY[8];
+			l_inItem.l_inItem012 := gHOLIDAY[9];
+			l_inItem.l_inItem013 := gHOLIDAY[10];
+			l_inItem.l_inItem014 := gHOLIDAY[11];
+			l_inItem.l_inItem015 := gHOLIDAY[12];
+			l_inItem.l_inItem016 := gHOLIDAY[13];
+			l_inItem.l_inItem017 := gHOLIDAY[14];
+			l_inItem.l_inItem018 := REPORT_ID;
+			
+			-- 帳票ワークへデータを追加
+			CALL pkPrint.insertData(
+				l_inKeyCd			=>	l_inItakuKaishaCd,			-- 識別コード
+				l_inUserId			=>	'BATCH',					-- ユーザＩＤ
+				l_inChohyoKbn		=>	l_inChohyoKbn,				-- 帳票区分
+				l_inSakuseiYmd		=>	l_inGyomuYmd,				-- 作成年月日
+				l_inChohyoId		=>	REPORT_ID,					-- 帳票ＩＤ
+				l_inSeqNo			=>	gSeqNo,						-- 連番
+				l_inHeaderFlg		=>	'1',						-- ヘッダフラグ
+				l_inItem			=>	l_inItem,					-- アイテム
+				l_inKousinId		=>	l_inUserId,					-- 更新者ID
+				l_inSakuseiId		=>	l_inUserId					-- 作成者ID
+			);
+			
+			-- 配列初期化
+			FOR i IN 1..14 LOOP
+				gHOLIDAY[i] := '';
+			END LOOP;
+			gCount := 0;
+		END IF;
+		
+		gAREA_CD := recMeisai.AREA_CD;
+		gAREA_NM := recMeisai.CODE_NM;
+		gCount := gCount + 1;
+		gHOLIDAY[gCount] := recMeisai.HOLIDAY;
+	END LOOP;
+	
+	-- 最後のレコードがまだ追加されていない場合
+	IF gCount > 0 THEN
+		-- 最後のレコードを追加
+		gSeqNo := gSeqNo + 1;
+		
+		-- Initialize composite type
+		l_inItem := ROW();
+		l_inItem.l_inItem001 := l_inGyomuYmd;
+		l_inItem.l_inItem002 := gAREA_CD;
+		l_inItem.l_inItem003 := gAREA_NM;
+		l_inItem.l_inItem004 := gHOLIDAY[1];
+		l_inItem.l_inItem005 := gHOLIDAY[2];
+		l_inItem.l_inItem006 := gHOLIDAY[3];
+		l_inItem.l_inItem007 := gHOLIDAY[4];
+		l_inItem.l_inItem008 := gHOLIDAY[5];
+		l_inItem.l_inItem009 := gHOLIDAY[6];
+		l_inItem.l_inItem010 := gHOLIDAY[7];
+		l_inItem.l_inItem011 := gHOLIDAY[8];
+		l_inItem.l_inItem012 := gHOLIDAY[9];
+		l_inItem.l_inItem013 := gHOLIDAY[10];
+		l_inItem.l_inItem014 := gHOLIDAY[11];
+		l_inItem.l_inItem015 := gHOLIDAY[12];
+		l_inItem.l_inItem016 := gHOLIDAY[13];
+		l_inItem.l_inItem017 := gHOLIDAY[14];
+		l_inItem.l_inItem018 := REPORT_ID;
+		
+		-- 帳票ワークへデータを追加
+		CALL pkPrint.insertData(
+			l_inKeyCd			=>	l_inItakuKaishaCd,			-- 識別コード
+			l_inUserId			=>	'BATCH',					-- ユーザＩＤ
+			l_inChohyoKbn		=>	l_inChohyoKbn,				-- 帳票区分
+			l_inSakuseiYmd		=>	l_inGyomuYmd,				-- 作成年月日
+			l_inChohyoId		=>	REPORT_ID,					-- 帳票ＩＤ
+			l_inSeqNo			=>	gSeqNo,						-- 連番
+			l_inHeaderFlg		=>	'1',						-- ヘッダフラグ
+			l_inItem			=>	l_inItem,					-- アイテム
+			l_inKousinId		=>	l_inUserId,					-- 更新者ID
+			l_inSakuseiId		=>	l_inUserId					-- 作成者ID
+		);
+	END IF;
+	
+	-- データが全くない場合
+	IF gSeqNo = 0 THEN
+		gRtnCd := RTN_NODATA;
+	END IF;
+	
+	-- バッチ帳票印刷管理への登録
+	FOR recCount IN curCount LOOP
+		IF recCount.CNT = 0 THEN
+			INSERT INTO PRT_OK(
+				ITAKU_KAISHA_CD,				-- 委託会社コード
+				KIJUN_YMD,						-- 基準日
+				LIST_SAKUSEI_KBN,				-- 帳票作成区分
+				CHOHYO_ID,						-- 帳票ＩＤ
+				SHORI_KBN,						-- 処理区分
+				LAST_TEISEI_DT,					-- 最終訂正日時
+				LAST_TEISEI_ID,					-- 最終訂正者
+				SHONIN_DT,						-- 承認日時
+				SHONIN_ID,						-- 承認者
+				KOUSIN_DT,						-- 更新日時
+				KOUSIN_ID,						-- 更新者
+				SAKUSEI_DT,						-- 作成日時
+				SAKUSEI_ID 						-- 作成者
+			)
+			VALUES (
+				l_inItakuKaishaCd,
+				l_inGyomuYmd,
+				l_inChohyoSakuKbn,
+				REPORT_ID,
+				'1',							-- 承認
+				clock_timestamp(),
+				l_inUserId,
+				clock_timestamp(),
+				l_inUserId,
+				clock_timestamp(),
+				l_inUserId,
+				clock_timestamp(),
+				l_inUserId
+			);
+		END IF;
+	END LOOP;
+	
+	-- 終了処理
+	l_outSqlCode := gRtnCd;
+	l_outSqlErrM := '';
+	
+	IF DEBUG = 1 THEN	
+		CALL pkLog.debug(l_inUserId, REPORT_ID, 'ROWCOUNT:'||gSeqNo);	
+	END IF;
+	IF DEBUG = 1 THEN	
+		CALL pkLog.debug(l_inUserId, REPORT_ID, 'IPF004K00R01 END');	
+	END IF;
+	
+-- エラー処理
+EXCEPTION
+	WHEN OTHERS THEN
+		CALL pkLog.fatal('ECM701', 'IPF004K00R01', 'SQLERRM:'||SQLERRM||'('||SQLSTATE||')');
+		l_outSqlCode := RTN_FATAL;
+		l_outSqlErrM := SQLERRM;
+END;
+$body$
+LANGUAGE PLPGSQL;

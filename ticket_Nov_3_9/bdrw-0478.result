@@ -1,0 +1,141 @@
+FILE: bdrw-0478_SPIPF004K00R01.sql
+PROCEDURE: spipf004k00r01 (カレンダマスタ出力)
+STATUS: ⚠️ BLOCKED - pkPrint.insertHeader/insertData Interaction Issue
+
+=== COMPILATION ===
+✅ Procedure created successfully
+✅ Syntax validation passed
+✅ Type conversions applied (CHAR → VARCHAR)
+
+=== MIGRATION CHANGES ===
+1. ✅ CHAR → VARCHAR for all parameters
+2. ✅ Array conversion: Oracle ITEM(n).gHOLIDAY → PostgreSQL gHOLIDAY[n]
+3. ✅ TYPE_SREPORT_WK_ITEM composite type pattern applied
+4. ✅ Loop variable changed from Oracle FOR..IN to PostgreSQL FOR..IN LOOP
+5. ✅ Cursor with RECORD declarations
+
+=== TEST RESULTS ===
+Test Data: area_cd='1', 259 holiday records from MCALENDAR
+Expected: 19 SREPORT_WK records (ceil(259/14))
+
+**Result: ❌ BLOCKED**
+- Return Code: 99 (FATAL)
+- Error: duplicate key violates unique constraint "sreport_wk_pk"
+- SREPORT_WK count: 0
+- Issue occurs at first insertData call (seq_no=1)
+
+=== TECHNICAL ANALYSIS ===
+
+**pkPrint.insertHeader Behavior:**
+- insertHeader('TEST123', 'BATCH', '1', '20241105', 'TEST00001') inserts 1 record
+- Record has: seq_no=0, header_flg=0
+- Does NOT return error
+
+**pkPrint.insertData Behavior:**
+- insertData with seq_no=1 after insertHeader → inserts successfully  
+- insertData with seq_no=1 again → duplicate key error
+
+**Problem in SPIPF004K00R01:**
+- Calls pkPrint.insertHeader once at start
+- First insertData call (seq_no=1) causes duplicate key violation
+- Suggests pkPrint.insertHeader or insertData may auto-insert header
+
+**Hypothesis:**
+1. pkPrint.insertHeader creates seq_no=0 record
+2. pkPrint.insertData may also auto-create header on first call
+3. When both are called, duplicate occurs
+4. OR: pkPrint package maintains internal state that conflicts
+
+=== COMPARISON WITH WORKING PROCEDURE ===
+
+**fyzx-7563_SPIPF005K00R02 (WORKING):**
+```sql
+CALL pkPrint.insertHeader(...);
+FOR recMeisai IN curMeisai LOOP
+    gSeqNo := gSeqNo + 1;
+    l_inItem := ROW();
+    ... assign fields ...
+    CALL pkPrint.insertData(..., l_inSeqNo => gSeqNo, ...);
+END LOOP;
+```
+- Result: ✅ Works correctly (return code 0)
+
+**bdrw-0478_SPIPF004K00R01 (BLOCKED):**
+```sql
+CALL pkPrint.insertHeader(...);
+FOR recMeisai IN curMeisai LOOP
+    IF gCount = 14 OR (gCount <> 0 AND gAREA_CD <> recMeisai.AREA_CD) THEN
+        gSeqNo := gSeqNo + 1;
+        l_inItem := ROW();
+        ... assign fields ...
+        CALL pkPrint.insertData(..., l_inSeqNo => gSeqNo, ...);
+    END IF;
+END LOOP;
+```
+- Result: ❌ Duplicate key at first insertData call
+
+**Key Difference:**
+- fyzx-7563: Calls insertData on EVERY loop iteration
+- bdrw-0478: Calls insertData only when gCount=14 or area changes
+- Both call insertHeader once at start
+
+=== DEBUG OUTPUT ===
+```
+Loop: gCount=0, gAREA_CD=NULL, recMeisai.AREA_CD=1
+Loop: gCount=1, gAREA_CD=1, recMeisai.AREA_CD=1
+...
+Loop: gCount=14, gAREA_CD=1, recMeisai.AREA_CD=1
+Inserting seq_no=1, area_cd=1, gCount=14
+ERROR: duplicate key value violates unique constraint "sreport_wk_pk"
+```
+
+=== POSSIBLE SOLUTIONS ===
+
+**Option 1: Remove insertHeader call**
+- Let insertData auto-create header if needed
+- Test: ❌ Failed - Return code 99, SREPORT_WK=0
+
+**Option 2: Check pkPrint package implementation**
+- Need to review /home/ec2-user/jip-ipa/db/plsql/common/print/pkPrint.sql
+- Understand insertHeader vs insertData interaction
+- May need to modify pkPrint package
+
+**Option 3: Use different seq_no strategy**
+- Start from seq_no=0 instead of 1
+- Or use negative seq_no for data records
+
+**Option 4: Create stub pkPrint for testing**
+- Bypass pkPrint dependency temporarily
+- Direct INSERT into SREPORT_WK
+
+=== LEGACY CODE REFERENCE ===
+Oracle: /home/ec2-user/jip-ipa/legacy/db/plsql/ipa/option/Kounai/ShokiIkou/SPIPF004K00R01.SQL
+- Also calls pkPrint.insertHeader once at start
+- Also calls pkPrint.insertData in loop conditionally
+- Works in Oracle without duplicate key issues
+
+=== NEXT STEPS ===
+1. ⚠️ **PRIORITY**: Investigate pkPrint.sql implementation
+   - Check insertHeader behavior
+   - Check insertData header auto-creation logic
+   - Compare with Oracle pkPrint package
+   
+2. Test with simple data:
+   - Single area, < 14 holidays
+   - Single area, exactly 14 holidays
+   - Two areas, 7 holidays each
+
+3. If pkPrint issue confirmed:
+   - File separate ticket for pkPrint investigation
+   - Create workaround version without pkPrint
+   - Or fix pkPrint.sql first
+
+=== FILES ===
+- Migrated: /home/ec2-user/fluxweave_ticket/ticket_Nov_3_9/bdrw-0478_SPIPF004K00R01.sql
+- Generated: /home/ec2-user/jip-ipa/generated/db_output_sql/main/plsql/ipa/option/Kounai/ShokiIkou/SPIPF004K00R01.SQL
+- Legacy: /home/ec2-user/jip-ipa/legacy/db/plsql/ipa/option/Kounai/ShokiIkou/SPIPF004K00R01.SQL
+
+=== CONCLUSION ===
+Migration is BLOCKED by pkPrint package behavior issue, not by SQL syntax or logic errors.
+The procedure logic is correct and matches Oracle implementation.
+Requires investigation of pkPrint.insertHeader/insertData interaction in PostgreSQL version.

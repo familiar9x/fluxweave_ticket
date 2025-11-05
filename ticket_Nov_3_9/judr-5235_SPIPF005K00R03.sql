@@ -383,7 +383,7 @@ DECLARE
 	MSGID_CHECK_KETASU			CONSTANT varchar(6)	:= 'ECM012'	;
 	
 	nRtnCd numeric;
-	nRtnCd2 numeric;
+	nRtnCd2 integer;  -- Changed from numeric to integer for spipf001k00r01 compatibility
 	vRtnErrMsg varchar(10);
 	cMsgId char(6);
 
@@ -430,19 +430,19 @@ BEGIN
 	END CASE;
 	-- 共通関数からの戻り値が'1'の場合、エラーリスト（共通）作成ＳＰを呼び出す
 	IF nRtnCd = 1 THEN
-		CALL SPIPF001K00R01(
-			p_inItakuId,
-			'BATCH', 
-			'1', 
-			'3', 
-			p_cGyoumuDt,
-			p_inDataId, 
-			l_inwk3,
-			l_inwk2, 
-			l_inwk1, 
-			cMsgId, 
-			nRtnCd2, 
-			vRtnErrMsg
+		CALL spipf001k00r01(
+			l_inItakuId    => p_inItakuId::CHAR,
+			l_inUserId     => 'BATCH'::VARCHAR,
+			l_inChyohyoKbn => '1'::CHAR,
+			l_inChyohyoSakuKbn => '3'::CHAR,
+			l_inGyoumuDt   => p_cGyoumuDt::CHAR,
+			l_inDataId     => p_inDataId::VARCHAR,
+			l_inRowNum     => l_inwk3,
+			l_inColNm      => l_inwk2::VARCHAR,
+			l_inSyuroku    => l_inwk1::VARCHAR,
+			l_inMessageId  => cMsgId::VARCHAR,
+			l_outSqlCode   => nRtnCd2,
+			l_outSqlErrM   => vRtnErrMsg
 		);
 		RETURN nRtnCd;
 	END IF;

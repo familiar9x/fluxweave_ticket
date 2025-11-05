@@ -20,7 +20,7 @@ DECLARE
 
 BEGIN
 	returnValue := 0;
-	IF (l_inValue IS NOT NULL AND trim(l_inValue) <> '') THEN
+	IF (l_inValue IS NOT NULL) THEN
 		FOR cnt IN 1..length(l_inValue) LOOP
 			IF (position(substr(l_inValue, cnt, 1) in checkChars) != 0) THEN
 				returnValue := 0;

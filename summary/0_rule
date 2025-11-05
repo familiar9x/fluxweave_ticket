@@ -3,6 +3,9 @@
 3. Compile lần 1 để xem errors
 4. Fix %TYPE, arrays, nested procedures... ( theo rule ở dưới)
 5. Compile lần 2
+6. Test với Oracle, để lấy sample out put
+- them du lieu ve ticket vao 1_test_migration.py va chay thu
+7. Test lại vs PostgreSQL vs cùng tham số 
 6. Viết result và copy file kết quả vào thư mục ticket_*
 - Bao nhiêu row
 - Số case đã test
@@ -16,10 +19,70 @@ FUNCTION xxx có INOUT nhưng return khác type record => thêm "OUT extra_param
 typeArray nhưng khai báo init là varA: typeArray() => varA := ARRAY[]:: typeArray
 UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ nguyên vẫn ok)
 SQLERRM(SQLCODE) => SQLERRM
+SQLCODE → SQLSTATE
+
+VARCHAR2(n) -> VARCHAR(n)
+NUMBER -> NUMERIC
+CLOB	-> TEXT	    PostgreSQL không có CLOB.
+BLOB	-> BYTEA	Dữ liệu nhị phân.
+RAW(n)	-> BYTEA	    Cũng là nhị phân.
+LONG	-> TEXT	        Oracle LONG → PostgreSQL TEXT.
+NVARCHAR2	-> VARCHAR	PostgreSQL tự hỗ trợ UTF-8.
+
+Nếu procedure nhận composite type → phải pack các field vào biến cùng type rồi truyền vào procedure.
+ví dụ: 
+Tạo TYPE_SREPORT_WK_ITEM composite type: 
+Gán từng field vào composite type: 
+Gọi pkPrint.insertData với composite type:
+-- Initialize composite type
+l_inItem := ROW();
+l_inItem.l_inItem001 := l_inGyomuYmd;
+l_inItem.l_inItem002 := recMeisai.FINANCIAL_SECURITIES_KBN;
+l_inItem.l_inItem003 := recMeisai.CODE_RNM;
+l_inItem.l_inItem004 := recMeisai.BANK_CD;
+l_inItem.l_inItem005 := recMeisai.SHITEN_CD;
+l_inItem.l_inItem006 := recMeisai.SHITEN_NM;
+l_inItem.l_inItem007 := recMeisai.SHITEN_RNM;
+l_inItem.l_inItem008 := recMeisai.SHITEN_KANA_RNM;
+l_inItem.l_inItem009 := REPORT_ID;
+->
+CALL pkPrint.insertData(
+    ...
+    l_inItem => l_inItem,  -- Dùng composite type thay vì l_inItem001, l_inItem002, ...
+    ...
+);
+
+
+		CALL pkPrint.insertData(
+			l_inKeyCd			=>	l_inItakuKaishaCd,			-- 識別コード
+			l_inUserId			=>	'BATCH',					-- ユーザＩＤ
+			l_inChohyoKbn		=>	l_inChohyoKbn,				-- 帳票区分
+			l_inSakuseiYmd		=>	l_inGyomuYmd,				-- 作成年月日
+			l_inChohyoId		=>	REPORT_ID,					-- 帳票ＩＤ
+			l_inSeqNo			=>	gSeqNo,						-- 連番
+			l_inHeaderFlg		=>	'1',						-- ヘッダフラグ
+			l_inItem			=>	l_inItem,					-- アイテム
+			l_inKousinId		=>	l_inUserId,					-- 更新者ID
+			l_inSakuseiId		=>	l_inUserId					-- 作成者ID
+
+		CALL pkPrint.insertData(
+			l_inKeyCd      => l_inKeyCd,
+			l_inUserId     => l_inUserId,
+			l_inChohyoKbn  => l_inChohyoKbn,
+			l_inSakuseiYmd => l_inSakuseiYmd,
+			l_inChohyoId   => REPORT_ID,
+			l_inSeqNo      => gSeqNo,
+			l_inHeaderFlg  => '1',
+			l_inItem			 => l_inItem,
+			l_inKousinId   => l_inUserId,
+			l_inSakuseiId  => l_inUserId
 
 RETURN pkconstant.SUCCESS; -> RETURN pkconstant.success();
 RETURN pkconstant.FATAL; -> RETURN pkconstant.fatal();
 
+Dynamic SQL chứa Oracle (+) outer join syntax (15 chỗ)
+PostgreSQL không support (+), cần convert sang LEFT JOIN. ví dụ: FROM H03
+LEFT OUTER JOIN WT03 ON (H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD AND H03.MGR_CD = WT03.MGR_CD). 
 
 
 IMPORTANT: PLEASE MAKE SURE TO EXECUTE EACH FUNCTION/PROCEDURES AND ENSURE IT FUNCTION CORRECTLY.

@@ -230,6 +230,134 @@ END $$;
                 'expected': 40
             }
         ]
+    },
+    'mktz-2195': {
+        'name': 'SPIPF001K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Valid params - error display',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000111';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000111';
+    COMMIT;
+    
+    SPIPF001K00R01('0005', 'TESTUSER', '1', '1', '20190225', 
+                   '01', 100, 'テスト項目', 'テスト内容', 'ECM001',
+                   v_code, v_msg);
+    :result := v_code;
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg varchar; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000111';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000111';
+    
+    CALL spipf001k00r01('0005', 'TESTUSER', '1', '1', '20190225',
+                        '01', 100, 'テスト項目', 'テスト内容', 'ECM001',
+                        v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'Invalid param - empty user_id',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    SPIPF001K00R01('0005', '', '1', '1', '20190225', 
+                   '01', 100, 'テスト', 'テスト', 'ECM001',
+                   v_code, v_msg);
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf001k00r01('0005', '', '1', '1', '20190225',
+                        '01', 100, 'テスト', 'テスト', 'ECM001',
+                        v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, v_msg;
+END $$;
+""",
+                'expected': 1
+            }
+        ]
+    },
+    'fyzx-7563': {
+        'name': 'SPIPF005K00R02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Valid params - no data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000521';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000521';
+    COMMIT;
+    
+    SPIPF005K00R02('0005', 'BATCH', '1', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000521';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000521';
+    
+    CALL spipf005k00r02('0005', 'BATCH', '1', '1', '20190225', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 40
+            },
+            {
+                'description': 'Invalid param - empty itaku_kaisha_cd',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    SPIPF005K00R02('', 'BATCH', '1', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg text; 
+BEGIN 
+    CALL spipf005k00r02('', 'BATCH', '1', '1', '20190225', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 1
+            }
+        ]
     }
 }
 
