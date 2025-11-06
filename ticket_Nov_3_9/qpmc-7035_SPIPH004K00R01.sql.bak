@@ -5,18 +5,18 @@ CREATE TYPE spiph004k00r01_type_record AS (
 			,gKaikeiKbnNm			varchar(40)			-- 会計区分名称
 			,gTokijoYakushokuNm		varchar(50)		-- 登記上役職名称
 			,gTokijoDelegateNm		varchar(50)		-- 登記上代表者名称
-			,gInvoiceTourokuNo		varchar(14) 		-- 適格請求書発行事業者登録番号
-			,gAdd2x1				varchar(50) 					-- 住所２−１
-			,gAdd2x2				varchar(50) 					-- 住所２−２
-			,gAdd2x3				varchar(50) 					-- 住所２−３
-			,gBankNm				varchar(50) 				-- 銀行名称
+			,gInvoiceTourokuNo		VJIKO_ITAKU.INVOICE_TOUROKU_NO%TYPE 		-- 適格請求書発行事業者登録番号
+			,gAdd2x1				VJIKO_ITAKU.ADD2x1%TYPE 					-- 住所２−１
+			,gAdd2x2				VJIKO_ITAKU.ADD2x2%TYPE 					-- 住所２−２
+			,gAdd2x3				VJIKO_ITAKU.ADD2x3%TYPE 					-- 住所２−３
+			,gBankNm				VJIKO_ITAKU.BANK_NM%TYPE 				-- 銀行名称
 			,gDelegateNm			varchar(102)							-- 代表者名称
 			,gIsinCd				char(12)					-- ISINコード
 			,gMgrCd					varchar(13)					-- 銘柄コード
 			,gMgrNm					varchar(400)					-- 銘柄の正式名称
 			,gChokyuYmd				char(8)			-- 支払日
 			,gButenNm				varchar(50)					-- 担当部署名称
-			,gThikokozaPrintFlg		char(1) 	-- 地公体請求書顧客口座出力フラグ
+			,gThikokozaPrintFlg		VJIKO_ITAKU.CHIKOKOZA_PRINT_FLG%TYPE 	-- 地公体請求書顧客口座出力フラグ
 			,gKozaNm				varchar(40)						-- 口座科目名称
 --			,gKozaNo				KOZA_FRK.KOZA_NO%TYPE					-- 口座番号
 			,gKozaNo				varchar(14)							-- 口座番号
@@ -42,7 +42,7 @@ CREATE OR REPLACE PROCEDURE spiph004k00r01 ( l_inHktCd CHAR,		-- 発行体コー
  l_inGyomuYmd CHAR,		-- 業務日付
 --	l_inStRecKbn		IN	CHAR,		-- 初回レコード区分
  l_outSqlCode OUT numeric,		-- リターン値
- l_outSqlErrM OUT VARCHAR(500) 		-- エラーコメント
+ l_outSqlErrM OUT CHAR 		-- エラーコメント
  ) AS $body$
 DECLARE
 
@@ -104,7 +104,8 @@ DECLARE
 	gSQL				varchar(4500) := NULL;				-- SQL編集
 	-- DB取得項目
 	-- 配列定義
-	recMeisai TYPE_RECORD[];
+	TYPE SPIPH004K00R01_TYPE_TABLE IS TABLE OF TYPE_RECORD		INDEX BY integer;
+	recMeisai SPIPH004K00R01_TYPE_TABLE;
 	-- 西暦変換用
 	gWrkStTuchiYmd		varchar(20) := NULL;					-- 通知日
 	gWrkStSiharaiYmd	varchar(20) := NULL;					-- 支払日
@@ -180,7 +181,7 @@ BEGIN
 	AND		CHOHYO_ID = REPORT_ID;
 	--gSeqNo := gSeqNoIni;
 	-- SQL編集
-	CALL SPIPH004K00R01_createSQL(gSQL);
+	CALL SPIPH004K00R01_createSQL();
 --	TEST_DEBUG_LOG('SPIPH004K00R01',gSQL);  -- SQL LOG
 	-- ヘッダレコードを追加
 	CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, REPORT_ID);
@@ -188,9 +189,32 @@ BEGIN
 	OPEN curMeisai FOR EXECUTE gSQL;
 	-- データ取得
 	LOOP
-		FETCH curMeisai INTO tempRec;
+		FETCH curMeisai INTO		 recMeisai[gSeqNo].gHktCd 					-- 発行体コード
+									,recMeisai[gSeqNo].gKaikeiKbn 				-- 会計区分
+									,recMeisai[gSeqNo].gKaikeiKbnNm 				-- 会計区分名称
+									,recMeisai[gSeqNo].gTokijoYakushokuNm 		-- 登記上役職名称
+									,recMeisai[gSeqNo].gTokijoDelegateNm 		-- 登記上代表者名称
+									,recMeisai[gSeqNo].gInvoiceTourokuNo 		-- 適格請求書発行事業者登録番号
+									,recMeisai[gSeqNo].gAdd2x1					-- 住所２−１
+									,recMeisai[gSeqNo].gAdd2x2					-- 住所２−２
+									,recMeisai[gSeqNo].gAdd2x3					-- 住所２−３
+									,recMeisai[gSeqNo].gBankNm 					-- 銀行名称
+									,recMeisai[gSeqNo].gDelegateNm 				-- 代表者名称
+									,recMeisai[gSeqNo].gIsinCd 					-- ISINコード
+                  					,recMeisai[gSeqNo].gMgrCd 					-- 銘柄コード
+									,recMeisai[gSeqNo].gMgrNm 					-- 銘柄の正式名称
+									,recMeisai[gSeqNo].gChokyuYmd 				-- 支払日
+									,recMeisai[gSeqNo].gButenNm 					-- 担当部署名称
+									,recMeisai[gSeqNo].gThikokozaPrintFlg 		-- 地公体請求書顧客口座出力フラグ
+									,recMeisai[gSeqNo].gKozaNm 					-- 口座科目名称
+									,recMeisai[gSeqNo].gKozaNo 					-- 口座番号
+									,recMeisai[gSeqNo].gKozameigininKanaNm 		-- 口座名義人(カナ)
+									,recMeisai[gSeqNo].gTesuryoKngk 				-- 手数料金額(税抜)
+									,recMeisai[gSeqNo].gSzeiSeikyuKbn 			-- 消費税請求区分
+									,recMeisai[gSeqNo].gHakkoYmd 				-- 発行年月日
+									,recMeisai[gSeqNo].gHakkoTsukaCd 			-- 発行通貨
+									;
 		EXIT WHEN NOT FOUND;/* apply on curMeisai */
-		recMeisai[gSeqNo] := tempRec;
 		gSeqNo := gSeqNo + 1;
 	END LOOP;
 	-- 和暦変換
@@ -201,74 +225,25 @@ BEGIN
 	CASE
 		WHEN gSeqNo = 0 THEN
 		--対象データなし
-			-- Initialize composite type
-			l_inItem := ROW(
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR,
-				NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR
-			)::TYPE_SREPORT_WK_ITEM;
-			
-			-- Set no-data message at position 26
-			l_inItem.l_inItem026 := '対象データなし';
-			l_inItem.l_inItem001 := gWrkStTuchiYmd;
-			
-			-- Insert no-data record
-			CALL pkPrint.insertData(
-				l_inKeyCd			=>	l_inItakuKaishaCd,
-				l_inUserId			=>	l_inUserId,
-				l_inChohyoKbn		=>	l_inChohyoKbn,
-				l_inSakuseiYmd		=>	l_inGyomuYmd,
-				l_inChohyoId		=>	REPORT_ID,
-				l_inSeqNo			=>	1,
-				l_inHeaderFlg		=>	'1',
-				l_inItem			=>	l_inItem,
-				l_inKousinId		=>	l_inUserId,
-				l_inSakuseiId		=>	l_inUserId
-			);
-			l_outSqlCode := RTN_OK;
+--			gRtnCd := RTN_NODATA;
+			-- 帳票ワークへデータを追加(請求書)
+			l_outSqlCode := PKIPACALCTESURYO.setNoDataPrint(l_inItakuKaishaCd,
+	                                                        l_inUserId,
+	                                                        l_inGyomuYmd,
+	                                                        REPORT_ID,
+	                                                        l_inChohyoKbn,
+	                                                        26,
+	                                                        gWrkStTuchiYmd,
+	                                                        1,
+	                                                        '',
+	                                                        0,
+	                                                        '',
+	                                                        0,
+	                                                        '',
+	                                                        0,
+	                                                        '',
+	                                                        0
+	                                                        );
 		ELSE
 		-- 対象データ有り
 			FOR i IN 0..coalesce(cardinality(recMeisai), 0) - 1 LOOP
@@ -313,52 +288,49 @@ BEGIN
 					gTokiDelegateNm := gTokiDelegateNm || '　殿';
 				END IF;
 				-- 帳票ワークへデータを追加
-				-- Initialize composite type
-				l_inItem.l_inItem001 := gWrkStTuchiYmd;
-				l_inItem.l_inItem002 := recMeisai[i].gHktCd;
-				l_inItem.l_inItem003 := recMeisai[i].gKaikeiKbn;
-				l_inItem.l_inItem004 := recMeisai[i].gKaikeiKbnNm;
-				l_inItem.l_inItem005 := recMeisai[i].gTokijoYakushokuNm;
-				l_inItem.l_inItem006 := recMeisai[i].gTokijoDelegateNm;
-				l_inItem.l_inItem007 := recMeisai[i].gAdd2x1;
-				l_inItem.l_inItem008 := recMeisai[i].gAdd2x2;
-				l_inItem.l_inItem009 := recMeisai[i].gAdd2x3;
-				l_inItem.l_inItem010 := recMeisai[i].gBankNm;
-				l_inItem.l_inItem011 := recMeisai[i].gDelegateNm;
-				l_inItem.l_inItem012 := recMeisai[i].gThikokozaPrintFlg;
-				l_inItem.l_inItem013 := recMeisai[i].gMgrNm;
-				l_inItem.l_inItem014 := '金' || trim(both TO_CHAR(recMeisai[i].gTesuryoKngk,'99,999,999,999,999'));
-				l_inItem.l_inItem015 := gTesuryoSzei;
-				l_inItem.l_inItem016 := gWrkStSiharaiYmd;
-				l_inItem.l_inItem017 := SPIPH004K00R01_createBun(REPORT_ID);
-				l_inItem.l_inItem018 := gWrkHouhou;
-				l_inItem.l_inItem019 := gWrkShurui;
-				l_inItem.l_inItem020 := gWrkKozaNo;
-				l_inItem.l_inItem021 := gWrkKozaNinNm;
-				l_inItem.l_inItem022 := gWrkMgrNm;
-				l_inItem.l_inItem023 := FMT_HAKKO_KNGK_J;
-				l_inItem.l_inItem024 := FMT_RBR_KNGK_J;
-				l_inItem.l_inItem025 := FMT_SHOKAN_KNGK_J;
-				l_inItem.l_inItem027 := gWrkTesuryoNm;
-				l_inItem.l_inItem028 := recMeisai[i].gInvoiceTourokuNo;
-				l_inItem.l_inItem029 := gInvoiceTesuLabel;
-				l_inItem.l_inItem030 := recMeisai[i].gTesuryoKngk;
-				l_inItem.l_inItem031 := recMeisai[i].gHakkoYmd;
-				l_inItem.l_inItem032 := gSzeiRate;
-				l_inItem.l_inItem033 := recMeisai[i].gTokijoYakushokuNm;
-				l_inItem.l_inItem034 := gTokiDelegateNm;
-				
 				CALL pkPrint.insertData(
-					l_inKeyCd			=>	l_inItakuKaishaCd,
-					l_inUserId			=>	l_inUserId,
-					l_inChohyoKbn		=>	l_inChohyoKbn,
-					l_inSakuseiYmd		=>	l_inGyomuYmd,
-					l_inChohyoId		=>	REPORT_ID,
-					l_inSeqNo			=>	gSeqNoIni,
-					l_inHeaderFlg		=>	'1',
-					l_inItem			=>	l_inItem,
-					l_inKousinId		=>	l_inUserId,
-					l_inSakuseiId		=>	l_inUserId
+					l_inKeyCd			=>	l_inItakuKaishaCd 					-- 識別コード
+					,l_inUserId			=>	l_inUserId 							-- ユーザＩＤ
+					,l_inChohyoKbn		=>	l_inChohyoKbn 						-- 帳票区分
+					,l_inSakuseiYmd		=>	l_inGyomuYmd 						-- 作成年月日
+					,l_inChohyoId		=>	REPORT_ID 							-- 帳票ＩＤ
+					,l_inSeqNo			=>	gSeqNoIni 							-- 連番
+					,l_inHeaderFlg		=>	'1'									-- ヘッダフラグ
+					,l_inItem001		=>	gWrkStTuchiYmd 						-- 通知日
+					,l_inItem002		=>	recMeisai[i].gHktCd 					-- 発行体コード
+					,l_inItem003		=>	recMeisai[i].gKaikeiKbn 				-- 会計区分
+					,l_inItem004		=>	recMeisai[i].gKaikeiKbnNm 			-- 会計区分名称
+					,l_inItem005		=>	recMeisai[i].gTokijoYakushokuNm 		-- 登記上役職名称
+					,l_inItem006		=>	recMeisai[i].gTokijoDelegateNm 		-- 登記上代表者名称 2005/08/22 殿を削除
+					,l_inItem007		=>	recMeisai[i].gAdd2x1				-- 住所２−１
+					,l_inItem008		=>	recMeisai[i].gAdd2x2				-- 住所２−２
+					,l_inItem009		=>	recMeisai[i].gAdd2x3				-- 住所２−３
+					,l_inItem010		=>	recMeisai[i].gBankNm 				-- 銀行名称
+					,l_inItem011		=>	recMeisai[i].gDelegateNm 			-- 代表者名称
+					,l_inItem012		=>	recMeisai[i].gThikokozaPrintFlg 		-- 地公体請求書顧客口座出力フラグ
+					,l_inItem013		=>	recMeisai[i].gMgrNm 					-- 銘柄の正式名称
+					,l_inItem014		=>	'金' || trim(both TO_CHAR(recMeisai[i].gTesuryoKngk,'99,999,999,999,999')) 			-- 手数料金額(税抜)
+					,l_inItem015		=>	gTesuryoSzei 						-- うち消費税相当額
+					,l_inItem016		=>	gWrkStSiharaiYmd 					-- 支払日
+					,l_inItem017		=>	SPIPH004K00R01_createBun(REPORT_ID)				-- 表示文言
+					,l_inItem018		=>	gWrkHouhou 							-- 送金方法
+					,l_inItem019		=>	gWrkShurui 							-- 種類
+					,l_inItem020		=>	gWrkKozaNo 							-- 口座番号
+					,l_inItem021		=>	gWrkKozaNinNm 						-- 口座名義人(カナ)
+					,l_inItem022		=>	gWrkMgrNm 							-- 銘柄の正式名称
+					,l_inItem023		=>	FMT_HAKKO_KNGK_J 					-- 発行金額書式フォーマット
+					,l_inItem024		=>	FMT_RBR_KNGK_J 						-- 利払金額書式フォーマット
+					,l_inItem025		=>	FMT_SHOKAN_KNGK_J 					-- 償還金額書式フォーマット
+					,l_inItem027		=>	gWrkTesuryoNm 					-- 手数料種類名称
+					,l_inItem028		=>	recMeisai[i].gInvoiceTourokuNo 		-- 適格請求書発行事業者登録番号
+					,l_inItem029 		=>	gInvoiceTesuLabel 					-- 適格請求書_手数料ラベル
+					,l_inItem030		=>	recMeisai[i].gTesuryoKngk 			-- 手数料金額(ジャーナル)
+					,l_inItem031		=>	recMeisai[i].gHakkoYmd 				-- 消費税基準日(ジャーナル)
+					,l_inItem032 		=>	gSzeiRate 							-- 消費税率(ジャーナル)
+					,l_inItem033		=>	recMeisai[i].gTokijoYakushokuNm 		-- 登記上役職名称(ジャーナル)
+					,l_inItem034		=>	gTokiDelegateNm 						-- 登記上代表者名称(ジャーナル)
+					,l_inKousinId		=>	l_inUserId 							-- 更新者ID
+					,l_inSakuseiId		=>	l_inUserId 							-- 作成者ID
 				);
 			END LOOP;
 		-- CSVジャーナルINSERT  
@@ -383,6 +355,7 @@ EXCEPTION
 		l_outSqlCode := RTN_FATAL;
 		l_outSqlErrM := SQLERRM;
 END;
+ */;
 $body$
 LANGUAGE PLPGSQL
 ;
@@ -424,7 +397,7 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spiph004k00r01_createsql (INOUT gSQL varchar(4500)) AS $body$
+CREATE OR REPLACE PROCEDURE spiph004k00r01_createsql () AS $body$
 BEGIN
 	gSQL := '';
 	gSQL := gSQL || ' SELECT';

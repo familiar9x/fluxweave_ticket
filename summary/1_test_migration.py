@@ -358,6 +358,138 @@ END $$;
                 'expected': 1
             }
         ]
+    },
+    'zhuv-3462': {
+        'name': 'SPIPH003K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Valid params - no data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+    COMMIT;
+    
+    SPIPH003K00R01(NULL, NULL, NULL, NULL, NULL, '20190101', '20190331', '20190225',
+                   '0005', 'BATCH', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg varchar(500); 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+    
+    CALL spiph003k00r01(NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, 
+                        '20190101'::VARCHAR, '20190331'::VARCHAR, '20190225'::VARCHAR,
+                        '0005'::VARCHAR, 'BATCH', '1'::VARCHAR, '20190225'::VARCHAR, v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2
+            },
+            {
+                'description': 'Invalid param - empty itaku_kaisha_cd',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    SPIPH003K00R01(NULL, NULL, NULL, NULL, NULL, '20190101', '20190331', '20190225',
+                   '', 'BATCH', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg varchar(500); 
+BEGIN 
+    CALL spiph003k00r01(NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, 
+                        '20190101'::VARCHAR, '20190331'::VARCHAR, '20190225'::VARCHAR,
+                        ''::VARCHAR, 'BATCH', '1'::VARCHAR, '20190225'::VARCHAR, v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 1
+            }
+        ]
+    },
+    'qpmc-7035': {
+        'name': 'SPIPH004K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Valid params - no data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000411';
+    COMMIT;
+    
+    SPIPH004K00R01(NULL, NULL, NULL, NULL, NULL, '20190101', '20190331', '20190225',
+                   '0005', 'BATCH', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg varchar(500); 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000411';
+    
+    CALL spiph004k00r01(NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, 
+                        '20190101'::CHAR, '20190331'::CHAR, '20190225'::CHAR,
+                        '0005'::CHAR, 'BATCH', '1'::CHAR, '20190225'::CHAR, v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'Invalid param - empty itaku_kaisha_cd',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    SPIPH004K00R01(NULL, NULL, NULL, NULL, NULL, '20190101', '20190331', '20190225',
+                   '', 'BATCH', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg varchar(500); 
+BEGIN 
+    CALL spiph004k00r01(NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, 
+                        '20190101'::CHAR, '20190331'::CHAR, '20190225'::CHAR,
+                        ''::CHAR, 'BATCH', '1'::CHAR, '20190225'::CHAR, v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 1
+            }
+        ]
     }
 }
 

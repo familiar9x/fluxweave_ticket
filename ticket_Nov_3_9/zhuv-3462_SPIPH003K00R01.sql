@@ -1,6 +1,3 @@
-
-
-
 DROP TYPE IF EXISTS spiph003k00r01_type_record CASCADE;
 CREATE TYPE spiph003k00r01_type_record AS (
 			 gHktCd					varchar(6)					-- 発行体コード
@@ -51,7 +48,7 @@ CREATE OR REPLACE PROCEDURE spiph003k00r01 ( l_inHktCd VARCHAR,		-- 発行体コ
  l_inChohyoKbn VARCHAR,		-- 帳票区分
  l_inGyomuYmd VARCHAR,		-- 業務日付
  l_outSqlCode OUT numeric,		-- リターン値
- l_outSqlErrM OUT VARCHAR 		-- エラーコメント
+ l_outSqlErrM OUT VARCHAR(500) 		-- エラーコメント
  ) AS $body$
 DECLARE
 
@@ -59,18 +56,18 @@ DECLARE
 --/* 著作権:Copyright(c)2004
 --/* 会社名:JIP
 --/* 概要　:顧客宛帳票出力指示画面の入力条件により、払込計算書（会計区分別）を作成する。
---/* 引数　:	l_inHktCd			IN	VARCHAR		発行体コード
---/*			l_inKozaTenCd		IN	VARCHAR		口座店コード
---/*			l_inKozaTenCifCd	IN	VARCHAR		口座店CIFコード
---/*			l_inMgrCd			IN	VARCHAR		銘柄コード
---/*			l_inIsinCd			IN	VARCHAR		ISINコード
---/*			l_inKijyunYmdF		IN	VARCHAR		基準日(FROM)
---/*			l_inKijyunYmdT		IN	VARCHAR		基準日(TO)
---/*			l_inTuchiYmd		IN	VARCHAR		通知日
---/*			l_inItakuKaishaCd	IN	VARCHAR		委託会社コード
---/*			l_inUserId			IN	VARCHAR		ユーザーID
---/*			l_inChohyoKbn		IN	VARCHAR		帳票区分
---/*			l_inGyomuYmd		IN	VARCHAR		業務日付
+--/* 引数　:	l_inHktCd			IN	CHAR		発行体コード
+--/*			l_inKozaTenCd		IN	CHAR		口座店コード
+--/*			l_inKozaTenCifCd	IN	CHAR		口座店CIFコード
+--/*			l_inMgrCd			IN	CHAR		銘柄コード
+--/*			l_inIsinCd			IN	CHAR		ISINコード
+--/*			l_inKijyunYmdF		IN	CHAR		基準日(FROM)
+--/*			l_inKijyunYmdT		IN	CHAR		基準日(TO)
+--/*			l_inTuchiYmd		IN	CHAR		通知日
+--/*			l_inItakuKaishaCd	IN	CHAR		委託会社コード
+--/*			l_inUserId			IN	CHAR		ユーザーID
+--/*			l_inChohyoKbn		IN	CHAR		帳票区分
+--/*			l_inGyomuYmd		IN	CHAR		業務日付
 --/*			l_outSqlCode		OUT	INTEGER		リターン値
 --/*			l_outSqlErrM		OUT	VARCHAR2	エラーコメント
 --/* 返り値:なし
@@ -97,13 +94,13 @@ DECLARE
 	RTN_NG				CONSTANT integer	:= 1;						-- 予期したエラー
 	RTN_NODATA			CONSTANT integer	:= 2;						-- データなし
 	RTN_FATAL			CONSTANT integer	:= 99;						-- 予期せぬエラー
-	REPORT_ID			CONSTANT varchar(11)	:= 'IPH30000311';			-- 帳票ID
+	REPORT_ID			CONSTANT char(11)	:= 'IPH30000311';			-- 帳票ID
 	-- 書式フォーマット
-	FMT_HAKKO_KNGK_J	CONSTANT varchar(18)	:= 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';	-- 発行金額
-	FMT_RBR_KNGK_J		CONSTANT varchar(18)	:= 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';	-- 利払金額
-	FMT_SHOKAN_KNGK_J	CONSTANT varchar(18)	:= 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';	-- 償還金額
-	TSUCHI_YMD_DEF		CONSTANT varchar(16)	:= '      年  月  日';		-- 通知日（デフォルト）
---	ST_REC_KBN_FIRST	CONSTANT VARCHAR(1)		:= '1';					-- 初回レコード区分（初回）
+	FMT_HAKKO_KNGK_J	CONSTANT char(18)	:= 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';	-- 発行金額
+	FMT_RBR_KNGK_J		CONSTANT char(18)	:= 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';	-- 利払金額
+	FMT_SHOKAN_KNGK_J	CONSTANT char(18)	:= 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';	-- 償還金額
+	TSUCHI_YMD_DEF		CONSTANT char(16)	:= '      年  月  日';		-- 通知日（デフォルト）
+--	ST_REC_KBN_FIRST	CONSTANT CHAR(1)		:= '1';					-- 初回レコード区分（初回）
 --==============================================================================
 --					変数定義													
 --==============================================================================
@@ -143,16 +140,16 @@ DECLARE
 	-- インボイス用
 	gAryBun					varchar[];						-- インボイス文章(請求書)配列
 	gInvoiceBun				varchar(400);					-- インボイス文章
-	gInvoiceTourokuNo		varchar(14);	-- 適格請求書発行事業者登録番号
+	gInvoiceTourokuNo		varchar(13);	-- 適格請求書発行事業者登録番号
 	gInvoiceTesuLabel		varchar(20);							-- 手数料ラベル
 	gInvoiceTesuKngkSum		numeric(16) := 0;					-- 適格請求書_手数料合計
 	gInvoiceUchiSzei		numeric(16) := 0;					-- 適格請求書_内消費税
 	gInvoiceUchiSzeiT		numeric(16) := 0;					-- 適格請求書_内消費税（立替払）
 	gSzeiRate				numeric(2);								-- 適格請求書_消費税率
-	gSzeiKijunYmd			varchar(8);								-- 適格請求書_消費税基準日
-	gInvoiceTourokuNoT		varchar(14);		-- 適格請求書発行事業者登録番号（ほふり）
+	gSzeiKijunYmd			char(8);								-- 適格請求書_消費税基準日
+	gInvoiceTourokuNoT		varchar(13);		-- 適格請求書発行事業者登録番号（ほふり）
 	gHoujinNm				varchar(100);					-- 法人名称（ほふり）
-	gWrkHoujinCd			varchar(8);					-- 法人コード（ほふり）
+	gWrkHoujinCd			char(8);					-- 法人コード（ほふり）
 	gJournalAtena1			varchar(400) := NULL;				-- 宛名1(ジャーナル)
 	gJournalAtena2			varchar(400) := NULL;				-- 宛名2(ジャーナル)
 	gJournalAtena3			varchar(400) := NULL;
@@ -229,10 +226,6 @@ BEGIN
 		l_inIsinCd,
 		gSQL
 	);
-	
-	-- DEBUG: Show generated SQL
-	RAISE NOTICE 'Generated SQL: %', gSQL;
-	
 	-- カーソルオープン
 	OPEN curMeisai FOR EXECUTE gSQL;
 	-- データ取得
@@ -547,7 +540,7 @@ BEGIN
 EXCEPTION
 	WHEN	OTHERS	THEN
 --		ROLLBACK;
-		CALL pkLog.fatal(l_inUserId, REPORT_ID, 'SQLSTATE:'||SQLSTATE);
+		CALL pkLog.fatal(l_inUserId, REPORT_ID, 'SQLCODE:'||SQLSTATE);
 		CALL pkLog.fatal(l_inUserId, REPORT_ID, 'SQLERRM:'||SQLERRM);
 	l_outSqlCode := RTN_FATAL;
 	l_outSqlErrM := SQLERRM;
@@ -556,21 +549,21 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spiph003k00r01 ( l_inHktCd VARCHAR, l_inKozaTenCd VARCHAR, l_inKozaTenCifCd VARCHAR, l_inMgrCd VARCHAR, l_inIsinCd VARCHAR, l_inKijyunYmdF VARCHAR, l_inKijyunYmdT VARCHAR, l_inTuchiYmd VARCHAR, l_inItakuKaishaCd VARCHAR, l_inUserId text, l_inChohyoKbn VARCHAR, l_inGyomuYmd VARCHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT VARCHAR  ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spiph003k00r01 ( l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifCd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inKijyunYmdF CHAR, l_inKijyunYmdT CHAR, l_inTuchiYmd CHAR, l_inItakuKaishaCd CHAR, l_inUserId text, l_inChohyoKbn CHAR, l_inGyomuYmd CHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT CHAR  ) FROM PUBLIC;
 
 
 
 
 
 CREATE OR REPLACE PROCEDURE spiph003k00r01_createsql (
-	l_inItakuKaishaCd VARCHAR,
-	l_inMgrCd VARCHAR,
-	l_inKijyunYmdF VARCHAR,
-	l_inKijyunYmdT VARCHAR,
-	l_inHktCd VARCHAR,
-	l_inKozaTenCd VARCHAR,
-	l_inKozaTenCifCd VARCHAR,
-	l_inIsinCd VARCHAR,
+	l_inItakuKaishaCd CHAR,
+	l_inMgrCd CHAR,
+	l_inKijyunYmdF CHAR,
+	l_inKijyunYmdT CHAR,
+	l_inHktCd CHAR,
+	l_inKozaTenCd CHAR,
+	l_inKozaTenCifCd CHAR,
+	l_inIsinCd CHAR,
 	INOUT gSQL varchar
 ) AS $body$
 BEGIN
@@ -706,8 +699,8 @@ BEGIN
 		|| '                        NVL(WT03.JUTAKU_RATE,0) AS JUTAKU_RATE, '
 		|| '                        SUM(H03.ANBUN_TESU_KNGK_KOMI) AS JUTAKU_GK, '
 		|| '                        SUM(H03.ANBUN_TESU_SZEI) AS JUTAKU_SZEI '
-		|| '                   FROM TESURYO_KAIKEI H03 '                   -- 手数料計算結果（会計区分別）
-		|| '                   LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                   FROM TESURYO_KAIKEI H03,  '                   -- 手数料計算結果（会計区分別）
+		|| '                        (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                                 H03.MGR_CD, '
 		|| '                                 MAX(H03.RATE_BUNSHI / H03.RATE_BUNBO * 100) AS JUTAKU_RATE '
 		|| '                            FROM TESURYO_KAIKEI H03  '                            -- 手数料計算結果（会計区分別）
@@ -720,23 +713,23 @@ BEGIN
 		|| '                            AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                            AND H03.RATE_BUNBO > 0 '		-- 0除算対策
 		|| '                          GROUP BY H03.ITAKU_KAISHA_CD, H03.MGR_CD) WT03 '
-		|| '                   ON (H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD '
-		|| '                    AND H03.MGR_CD = WT03.MGR_CD) '
-		|| '                  WHERE H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
+		|| '                  WHERE H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD(+) '
+		|| '                    AND H03.MGR_CD = WT03.MGR_CD(+) '
+		|| '                    AND H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 		|| '                    AND H03.TESU_SHURUI_CD = ''01'' '
 		|| '                    AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                  GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                           H03.MGR_CD, '
 		|| '                           H03.KAIKEI_KBN, '
-		|| '                           WT03.JUTAKU_RATE) WT01 '
-		|| '                LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                           WT03.JUTAKU_RATE) WT01, '
+		|| '                (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                         H03.MGR_CD, '
 		|| '                         H03.KAIKEI_KBN, '
 		|| '                         NVL(WT04.HIKIUKE_RATE,0) AS HIKIUKE_RATE, '
 		|| '                         SUM(H03.ANBUN_TESU_KNGK_KOMI) AS HIKIUKE_GK, '
 		|| '                         SUM(H03.ANBUN_TESU_SZEI) AS HIKIUKE_SZEI '
-		|| '                    FROM TESURYO_KAIKEI H03 '                    -- 手数料計算結果（会計区分別）
-		|| '                    LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                    FROM TESURYO_KAIKEI H03, '                    -- 手数料計算結果（会計区分別）
+		|| '                         (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                                  H03.MGR_CD, '
 		|| '                                  MAX(H03.RATE_BUNSHI / H03.RATE_BUNBO * 100) AS HIKIUKE_RATE '
  			|| '                         FROM TESURYO_KAIKEI H03 ' -- 手数料計算結果（会計区分別）
@@ -749,26 +742,23 @@ BEGIN
 		|| '                            AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                            AND H03.RATE_BUNBO > 0 '		-- 0除算対策
 		|| '                         GROUP BY H03.ITAKU_KAISHA_CD, H03.MGR_CD) WT04 '
-		|| '                    ON (H03.ITAKU_KAISHA_CD = WT04.ITAKU_KAISHA_CD '
-		|| '                   AND H03.MGR_CD = WT04.MGR_CD) '
-		|| '                 WHERE H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
+		|| '                 WHERE H03.ITAKU_KAISHA_CD = WT04.ITAKU_KAISHA_CD(+) '
+		|| '                   AND H03.MGR_CD = WT04.MGR_CD(+) '
+		|| '                   AND H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 		|| '                   AND H03.TESU_SHURUI_CD = ''31'' '
 		|| '                   AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                 GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                          H03.MGR_CD, '
 		|| '                          H03.KAIKEI_KBN, '
-		|| '                          WT04.HIKIUKE_RATE) WT02 '
-		|| '                ON (WT01.ITAKU_KAISHA_CD = WT02.ITAKU_KAISHA_CD '
-		|| '                   AND WT01.MGR_CD = WT02.MGR_CD '
-		|| '                   AND WT01.KAIKEI_KBN = WT02.KAIKEI_KBN) '
-		|| '                LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                          WT04.HIKIUKE_RATE) WT02, '
+		|| '                (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                         H03.MGR_CD, '
 		|| '                         H03.KAIKEI_KBN, '
 		|| '                         NVL(WT05.KANJI_RATE,0) AS KANJI_RATE, '
 		|| '                         SUM(H03.ANBUN_TESU_KNGK_KOMI) AS KANJI_GK, '
 		|| '                         SUM(H03.ANBUN_TESU_SZEI) AS KANJI_SZEI '
-		|| '                    FROM TESURYO_KAIKEI H03 '                    -- 手数料計算結果（会計区分別）
-		|| '                    LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                    FROM TESURYO_KAIKEI H03, '                    -- 手数料計算結果（会計区分別）
+		|| '                         (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                                  H03.MGR_CD, '
 		|| '                                  MAX(H03.RATE_BUNSHI / H03.RATE_BUNBO * 100) AS KANJI_RATE '
  			|| '                         FROM TESURYO_KAIKEI H03 ' -- 手数料計算結果（会計区分別）
@@ -781,19 +771,16 @@ BEGIN
 		|| '                            AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                            AND H03.RATE_BUNBO > 0 '		-- 0除算対策
 		|| '                         GROUP BY H03.ITAKU_KAISHA_CD, H03.MGR_CD) WT05 '
-		|| '                    ON (H03.ITAKU_KAISHA_CD = WT05.ITAKU_KAISHA_CD '
-		|| '                   AND H03.MGR_CD = WT05.MGR_CD) '
-		|| '                 WHERE H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
+		|| '                 WHERE H03.ITAKU_KAISHA_CD = WT05.ITAKU_KAISHA_CD(+) '
+		|| '                   AND H03.MGR_CD = WT05.MGR_CD(+) '
+		|| '                   AND H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 		|| '                   AND H03.TESU_SHURUI_CD = ''32'' '
 		|| '                   AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                 GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                          H03.MGR_CD, '
 		|| '                          H03.KAIKEI_KBN, '
-		|| '                          WT05.KANJI_RATE) WT06 '
-		|| '                ON (WT01.ITAKU_KAISHA_CD = WT06.ITAKU_KAISHA_CD '
-		|| '                   AND WT01.MGR_CD = WT06.MGR_CD '
-		|| '                   AND WT01.KAIKEI_KBN = WT06.KAIKEI_KBN) '
-		|| '                LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                          WT05.KANJI_RATE) WT06, '
+		|| '                (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                         H03.MGR_CD, '
 		|| '                         H03.KAIKEI_KBN, '
 		|| '                         SUM(H03.ANBUN_TESU_KNGK_KOMI) AS SHINKI_GK, '
@@ -818,9 +805,15 @@ BEGIN
 		|| '                 GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                          H03.MGR_CD, '
 		|| '                          H03.KAIKEI_KBN) WT08 '
-		|| '                ON (WT01.ITAKU_KAISHA_CD = WT08.ITAKU_KAISHA_CD '
-		|| '                   AND WT01.MGR_CD = WT08.MGR_CD '
-		|| '                   AND WT01.KAIKEI_KBN = WT08.KAIKEI_KBN)) AT03 '
+		|| '         WHERE WT01.ITAKU_KAISHA_CD = WT02.ITAKU_KAISHA_CD(+) '
+		|| '           AND WT01.MGR_CD = WT02.MGR_CD(+) '
+		|| '           AND WT01.KAIKEI_KBN = WT02.KAIKEI_KBN(+) '
+		|| '           AND WT01.ITAKU_KAISHA_CD = WT06.ITAKU_KAISHA_CD(+) '
+		|| '           AND WT01.MGR_CD = WT06.MGR_CD(+) '
+		|| '           AND WT01.KAIKEI_KBN = WT06.KAIKEI_KBN(+) '
+		|| '           AND WT01.ITAKU_KAISHA_CD = WT08.ITAKU_KAISHA_CD(+) '
+		|| '           AND WT01.MGR_CD = WT08.MGR_CD(+) '
+		|| '           AND WT01.KAIKEI_KBN = WT08.KAIKEI_KBN(+)) AT03 '
 		|| ' WHERE AT01.ITAKU_KAISHA_CD = AT02.ITAKU_KAISHA_CD '
 		|| '   AND AT02.ITAKU_KAISHA_CD = AT03.ITAKU_KAISHA_CD '
 		|| '   AND AT01.MGR_CD = AT03.MGR_CD '
@@ -846,13 +839,13 @@ LANGUAGE PLPGSQL
 
 CREATE OR REPLACE PROCEDURE spiph003k00r01_updateinvoiceitem (
 	in_TsukaCd text,
-	l_inItakuKaishaCd VARCHAR,
+	l_inItakuKaishaCd CHAR,
 	l_inUserId VARCHAR,
-	l_inChohyoKbn VARCHAR,
-	l_inGyomuYmd VARCHAR,
-	REPORT_ID VARCHAR,
+	l_inChohyoKbn CHAR,
+	l_inGyomuYmd CHAR,
+	REPORT_ID CHAR,
 	INOUT gRtnCd integer,
-	INOUT gSzeiKijunYmd varchar,
+	INOUT gSzeiKijunYmd char,
 	INOUT gSzeiRate varchar,
 	INOUT gInvoiceTesuLabel varchar,
 	INOUT gTesuGTotal numeric,
@@ -860,7 +853,7 @@ CREATE OR REPLACE PROCEDURE spiph003k00r01_updateinvoiceitem (
 	INOUT gShnkTesuryoTotal numeric,
 	INOUT gInvoiceUchiSzeiT numeric,
 	INOUT gFurikomiTotal numeric,
-	INOUT gWrkStSiharaiYmd varchar,
+	INOUT gWrkStSiharaiYmd char,
 	INOUT gWrkHktCd varchar,
 	INOUT gWrkIsinCd varchar
 ) AS $body$
