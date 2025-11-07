@@ -1021,6 +1021,133 @@ END $$;
                 'expected': 2
             }
         ]
+    },
+    'bdrw-0478': {
+        'name': 'SPIPF004K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Test 1: Valid parameters - no data (expect RTN_NODATA=40)',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000411';
+    COMMIT;
+    
+    SPIPF004K00R01(
+        '0005',       -- l_inItakuKaishaCd
+        'BATCH',      -- l_inUserId
+        '3',          -- l_inChohyoKbn (1 char)
+        '0',          -- l_inChohyoSakuKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    );
+    :result := v_code;
+    
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000411';
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000411';
+    
+    CALL spipf004k00r01(
+        '0005',       -- l_inItakuKaishaCd
+        'BATCH',      -- l_inUserId
+        '3',          -- l_inChohyoKbn (1 char)
+        '0',          -- l_inChohyoSakuKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    ); 
+    RAISE NOTICE '%', v_code;
+    
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000411';
+END $$;
+""",
+                'expected': 40
+            },
+            {
+                'description': 'Test 2: Invalid parameter - empty UserId (expect RTN_NG=1)',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    SPIPF004K00R01(
+        '0005',       -- l_inItakuKaishaCd
+        '',           -- l_inUserId (empty - should fail)
+        '3',          -- l_inChohyoKbn (1 char)
+        '0',          -- l_inChohyoSakuKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    );
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf004k00r01(
+        '0005',       -- l_inItakuKaishaCd
+        '',           -- l_inUserId (empty - should fail)
+        '3',          -- l_inChohyoKbn (1 char)
+        '0',          -- l_inChohyoSakuKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    ); 
+    RAISE NOTICE '%', v_code;
+END $$;
+""",
+                'expected': 1
+            },
+            {
+                'description': 'Test 3: Valid parameters - with data (expect RTN_OK=0)',
+                'oracle_sql': None,  # PostgreSQL-only test (requires MCALENDAR test data)
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000411';
+    
+    CALL spipf004k00r01(
+        '0005',       -- l_inItakuKaishaCd
+        'BATCH',      -- l_inUserId (matches test data in MCALENDAR)
+        '3',          -- l_inChohyoKbn (1 char)
+        '0',          -- l_inChohyoSakuKbn
+        '20190225',   -- l_inGyomuYmd (matches MCALENDAR.sakusei_dt)
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    ); 
+    RAISE NOTICE '%', v_code;
+    
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000411';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000411';
+END $$;
+""",
+                'expected': 0
+            }
+        ]
     }
 }
 
@@ -1062,6 +1189,13 @@ def test_postgres_procedure(cursor, sql: str) -> Any:
                 # Extract first number after Code:
                 parts = notice.split('Code:')[1].strip().split(',')[0].strip()
                 return int(parts)
+            else:
+                # Try to extract just a number from the notice
+                # Pattern: NOTICE:  <number>
+                import re
+                match = re.search(r'\b(\d+)\b', notice)
+                if match:
+                    return int(match.group(1))
     return None
 
 

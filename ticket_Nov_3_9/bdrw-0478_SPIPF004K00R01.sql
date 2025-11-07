@@ -14,12 +14,12 @@
  */
 
 CREATE OR REPLACE PROCEDURE spipf004k00r01 (
-	l_inItakuKaishaCd VARCHAR,		-- 委託会社コード
+	l_inItakuKaishaCd text,		-- 委託会社コード
 	l_inUserId        VARCHAR,		-- ユーザーID
-	l_inChohyoKbn     VARCHAR,		-- 帳票区分
-	l_inChohyoSakuKbn VARCHAR,		-- 帳票作成区分
-	l_inGyomuYmd      VARCHAR,		-- 業務日付
-	l_outSqlCode OUT numeric,		-- リターン値
+	l_inChohyoKbn     text,		-- 帳票区分
+	l_inChohyoSakuKbn text,		-- 帳票作成区分
+	l_inGyomuYmd      text,		-- 業務日付
+	l_outSqlCode OUT integer,		-- リターン値
 	l_outSqlErrM  OUT text			-- エラーコメント
 )
 LANGUAGE plpgsql

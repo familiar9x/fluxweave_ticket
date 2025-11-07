@@ -13,7 +13,7 @@
  */
 
 CREATE OR REPLACE FUNCTION sfCmIsCodeMChek (
-	l_code_shubetsu char,
+	l_code_shubetsu text,
 	l_code_value text
 ) RETURNS numeric AS $body$
 DECLARE
