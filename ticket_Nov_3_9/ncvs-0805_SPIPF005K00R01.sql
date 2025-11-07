@@ -1,10 +1,10 @@
 CREATE OR REPLACE PROCEDURE spipf005k00r01 (
-	l_inItakuKaishaCd CHAR,		-- 委託会社コード
-	l_inUserId CHAR,		-- ユーザーID
-	l_inChohyoKbn CHAR,		-- 帳票区分
-	l_inChohyoSakuKbn CHAR,		-- 帳票作成区分
-	l_inGyomuYmd CHAR,		-- 業務日付
-	l_outSqlCode OUT numeric,		-- リターン値
+	l_inItakuKaishaCd VARCHAR,		-- 委託会社コード
+	l_inUserId VARCHAR,		-- ユーザーID
+	l_inChohyoKbn VARCHAR,		-- 帳票区分
+	l_inChohyoSakuKbn VARCHAR,		-- 帳票作成区分
+	l_inGyomuYmd VARCHAR,		-- 業務日付
+	l_outSqlCode OUT integer,		-- リターン値
 	l_outSqlErrM OUT text	-- エラーコメント
 ) AS $body$
 DECLARE
@@ -48,6 +48,7 @@ DECLARE
 --==============================================================================
 	gRtnCd				integer :=	RTN_OK;							-- リターンコード
 	gSeqNo				integer := 0;								-- シーケンス
+	v_item				TYPE_SREPORT_WK_ITEM;						-- 帳票ワークアイテム
 --==============================================================================
 --					カーソル定義													
 --==============================================================================
@@ -150,25 +151,31 @@ BEGIN
 	-- データ取得
 	FOR recMeisai IN curMeisai LOOP
 		gSeqNo := gSeqNo + 1;
+		
+		-- Clear toàn bộ item
+		v_item := ROW();
+		
+		v_item.l_inItem001 := l_inGyomuYmd;							-- 業務日付
+		v_item.l_inItem002 := recMeisai.FINANCIAL_SECURITIES_KBN;	-- 金融証券区分
+		v_item.l_inItem003 := recMeisai.CODE_RNM;					-- 金融証券区分略称
+		v_item.l_inItem004 := recMeisai.BANK_CD;					-- 金融機関コード
+		v_item.l_inItem005 := recMeisai.BANK_NM;					-- 金融機関名称
+		v_item.l_inItem006 := recMeisai.BANK_RNM;					-- 金融機関略称
+		v_item.l_inItem007 := recMeisai.BANK_KANA_RNM;				-- 金融機関略称(カナ)
+		v_item.l_inItem008 := REPORT_ID;							-- 帳票ＩＤ
+		
 		-- 帳票ワークへデータを追加
 		CALL pkPrint.insertData(
-			l_inKeyCd			=>	l_inItakuKaishaCd, 						-- 識別コード
-			l_inUserId			=>	'BATCH',									-- ユーザＩＤ
-			l_inChohyoKbn		=>	l_inChohyoKbn, 							-- 帳票区分
-			l_inSakuseiYmd		=>	l_inGyomuYmd, 							-- 業務日付
-			l_inChohyoId		=>	REPORT_ID, 								-- 帳票ＩＤ
-			l_inSeqNo			=>	gSeqNo, 									-- 連番
-			l_inHeaderFlg		=>	'1',										-- ヘッダフラグ
-			l_inItem001		=>	l_inGyomuYmd, 							-- 業務日付
-			l_inItem002		=>	recMeisai.FINANCIAL_SECURITIES_KBN, 		-- 金融証券区分
-			l_inItem003		=>	recMeisai.CODE_RNM, 						-- 金融証券区分略称
-			l_inItem004		=>	recMeisai.BANK_CD, 						-- 金融機関コード
-			l_inItem005		=>	recMeisai.BANK_NM, 						-- 金融機関名称
-			l_inItem006		=>	recMeisai.BANK_RNM, 						-- 金融機関略称
-			l_inItem007		=>	recMeisai.BANK_KANA_RNM, 					-- 金融機関略称(カナ)
-			l_inItem008		=>	REPORT_ID, 								-- 帳票ＩＤ
-			l_inKousinId		=>	l_inUserId, 								-- 更新者ID
-			l_inSakuseiId		=>	l_inUserId 								-- 作成者ID
+			l_inKeyCd		=> l_inItakuKaishaCd,
+			l_inUserId		=> 'BATCH',
+			l_inChohyoKbn	=> l_inChohyoKbn,
+			l_inSakuseiYmd	=> l_inGyomuYmd,
+			l_inChohyoId	=> REPORT_ID,
+			l_inSeqNo		=> gSeqNo,
+			l_inHeaderFlg	=> 1,
+			l_inItem		=> v_item,
+			l_inKousinId	=> l_inUserId,
+			l_inSakuseiId	=> l_inUserId
 		);	
 	END LOOP;
 	

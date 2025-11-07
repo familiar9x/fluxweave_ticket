@@ -3,21 +3,22 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spiph008k00r01 ( l_inUserId text, -- ユーザーID
- l_inItakuKaishaCd CHAR,     -- 委託会社コード
- l_inKijunYmdFrom CHAR,     -- 基準日(FROM)
- l_inKijunYmdTo CHAR,     -- 基準日(TO)
- l_inHktCd CHAR,     -- 発行体コード
- l_inKozaTenCd CHAR,     -- 口座店コード
- l_inKozaTenCifcd CHAR,     -- 口座店CIFコード
- l_inMgrCd CHAR,     -- 銘柄コード
- l_inIsinCd CHAR,     -- ISINコード
- l_inTsuchiYmd CHAR,     -- 通知日
- l_inChohyoSakuKbn CHAR,     -- 帳票作成区分
- l_inChohyoKbn CHAR,     -- 帳票区分
- l_inGyomuYmd CHAR,     -- 業務日付
- l_outSqlCode OUT numeric,   -- リターン値
- l_outSqlErrM OUT CHAR       -- エラーコメント
+CREATE OR REPLACE PROCEDURE spiph008k00r01 ( 
+ l_inUserId text, -- ユーザーID
+ l_inItakuKaishaCd TEXT,     -- 委託会社コード
+ l_inKijunYmdFrom TEXT,     -- 基準日(FROM)
+ l_inKijunYmdTo TEXT,     -- 基準日(TO)
+ l_inHktCd TEXT,     -- 発行体コード
+ l_inKozaTenCd TEXT,     -- 口座店コード
+ l_inKozaTenCifcd TEXT,     -- 口座店CIFコード
+ l_inMgrCd TEXT,     -- 銘柄コード
+ l_inIsinCd TEXT,     -- ISINコード
+ l_inTsuchiYmd TEXT,     -- 通知日
+ l_inChohyoSakuKbn TEXT,     -- 帳票作成区分
+ l_inChohyoKbn TEXT,     -- 帳票区分
+ l_inGyomuYmd TEXT,     -- 業務日付
+ l_outSqlCode OUT integer,   -- リターン値
+ l_outSqlErrM OUT text       -- エラーコメント
  ) AS $body$
 DECLARE
 
@@ -26,18 +27,18 @@ DECLARE
 --/* 会社名:JIP
 --/* 概要　:
 --/*        公社債元利金支払基金請求書（会計区分別合算表示）を作成する。
---/* 引数　:	l_inChohyoSakuKbn	IN	CHAR		帳票作成区分
---/*			l_inHktCd			IN	CHAR		発行体コード/
---/*			l_inMgrCd			IN	CHAR		銘柄コード
---/*			l_inKijunYmdFrom	IN	CHAR		基準日(FROM)
---/*			l_inKijunYmdTo		IN	CHAR		基準日(TO)
---/*			l_inTsuchiYmd		IN	CHAR		通知日
---/*			l_inItakuKaishaCd	IN	CHAR		委託会社コード
---/*			l_inUserId			IN	CHAR		ユーザーID
---/*			l_inChohyoKbn		IN	CHAR		帳票区分
---/*			l_inGyomuYmd		IN	CHAR		業務日付
+--/* 引数　:	l_inChohyoSakuKbn	IN	TEXT		帳票作成区分
+--/*			l_inHktCd			IN	TEXT		発行体コード/
+--/*			l_inMgrCd			IN	TEXT		銘柄コード
+--/*			l_inKijunYmdFrom	IN	TEXT		基準日(FROM)
+--/*			l_inKijunYmdTo		IN	TEXT		基準日(TO)
+--/*			l_inTsuchiYmd		IN	TEXT		通知日
+--/*			l_inItakuKaishaCd	IN	TEXT		委託会社コード
+--/*			l_inUserId			IN	TEXT		ユーザーID
+--/*			l_inChohyoKbn		IN	TEXT		帳票区分
+--/*			l_inGyomuYmd		IN	TEXT		業務日付
 --/*			l_outSqlCode		OUT	INTEGER		リターン値
---/*			l_outSqlErrM		OUT	VARCHAR2	エラーコメント
+--/*			l_outSqlErrM		OUT	VARCHAR	エラーコメント
 --/* 返り値:なし
 --/*
 --/* @version $Id: SPIPH008K00R01.sql,v 1.14 2023/07/25 05:57:03 kentaro_ikeda Exp $
@@ -75,7 +76,7 @@ DECLARE
 	-- 西暦変換用
 	gWrkStTuchiYmd      varchar(20) := NULL;  -- 通知日
 	gWrkStNyukinYmd     varchar(20) := NULL;  -- ご入金日
---	gEditZandakaYm      VARCHAR2(20) DEFAULT NULL;  -- 残高基準日
+--	gEditZandakaYm      VARCHAR(20) DEFAULT NULL;  -- 残高基準日
 	gAdd1x1             varchar(50) := ' ';
 	gAdd1x2             varchar(50) := ' ';
 	gAdd1x3             varchar(50) := ' ';
@@ -83,9 +84,9 @@ DECLARE
 	gYakushokuNm1       varchar(60) := ' ';
 	gDelegateNm1        varchar(60) := ' ';
 	-- 宛名編集用
---	gTokiDelegateNm     VARCHAR2(100) DEFAULT NULL;             -- 登記上代表者名称
+--	gTokiDelegateNm     VARCHAR(100) DEFAULT NULL;             -- 登記上代表者名称
 	-- 口座情報編集
---	gYmdTitle           VARCHAR2(16) DEFAULT NULL;              -- 日付タイトル
+--	gYmdTitle           VARCHAR(16) DEFAULT NULL;              -- 日付タイトル
 	gKozaTenTitle       varchar(16) := NULL;              -- 口座店タイトル
 	gKozaTenKamokuTitle varchar(16) := NULL;              -- 口座店預金種目タイトル
 	gKozaNoTitle        varchar(16) := NULL;              -- 口座番号タイトル
@@ -115,7 +116,7 @@ DECLARE
 	-- インボイス用
 	gAryBun					pkIpaBun.BUN_ARRAY;						-- インボイス文章(請求書)配列
 	gInvoiceBun				text;					-- インボイス文章
-	gInvoiceTourokuNo		VJIKO_ITAKU.INVOICE_TOUROKU_NO%TYPE;	-- 適格請求書発行事業者登録番号
+	gInvoiceTourokuNo		varchar(14);	-- 適格請求書発行事業者登録番号
 	gInvoiceKknTesuLabel	varchar(20);							-- 基金および手数料ラベル
 	gInvoiceTesuLabel		varchar(20);							-- 手数料ラベル
 	gWrkHikazeiFlg			varchar(200);			-- 非課税免税フラグ
@@ -610,7 +611,7 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spiph008k00r01 ( l_inUserId text, l_inItakuKaishaCd CHAR, l_inKijunYmdFrom CHAR, l_inKijunYmdTo CHAR, l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifcd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inTsuchiYmd CHAR, l_inChohyoSakuKbn CHAR, l_inChohyoKbn CHAR, l_inGyomuYmd CHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT CHAR  ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spiph008k00r01 ( l_inUserId text, l_inItakuKaishaCd TEXT, l_inKijunYmdFrom TEXT, l_inKijunYmdTo TEXT, l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifcd TEXT, l_inMgrCd TEXT, l_inIsinCd TEXT, l_inTsuchiYmd TEXT, l_inChohyoSakuKbn TEXT, l_inChohyoKbn TEXT, l_inGyomuYmd TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT TEXT  ) FROM PUBLIC;
 
 
 
@@ -623,7 +624,7 @@ CREATE OR REPLACE PROCEDURE spiph008k00r01_setowninfo (
     INOUT gBankNm varchar(40), 
     INOUT gYakushokuNm1 varchar(60), 
     INOUT gDelegateNm1 varchar(60), 
-    INOUT gInvoiceTourokuNo varchar(13) 
+    INOUT gInvoiceTourokuNo varchar(14) 
 ) AS $body$
 BEGIN
 	-- 自行情報マスタから宛名部分を取得
@@ -646,11 +647,11 @@ LANGUAGE PLPGSQL
 
 
 CREATE OR REPLACE PROCEDURE spiph008k00r01_setparameter (
-    l_inHktCd CHAR,
-    l_inKozaTenCd CHAR,
-    l_inKozaTenCifcd CHAR,
-    l_inMgrCd CHAR,
-    l_inIsinCd CHAR,
+    l_inHktCd TEXT,
+    l_inKozaTenCd TEXT,
+    l_inKozaTenCifcd TEXT,
+    l_inMgrCd TEXT,
+    l_inIsinCd TEXT,
     INOUT gHktCd char(6),
     INOUT gKozaTenCd char(4),
     INOUT gKozaTenCifcd char(7),
@@ -687,10 +688,10 @@ LANGUAGE PLPGSQL
 
 
 CREATE OR REPLACE PROCEDURE spiph008k00r01_updateinvoiceitem (
-    l_inItakuKaishaCd CHAR,
+    l_inItakuKaishaCd TEXT,
     l_inUserId text,
-    l_inChohyoKbn CHAR,
-    l_inGyomuYmd CHAR,
+    l_inChohyoKbn TEXT,
+    l_inGyomuYmd TEXT,
     REPORT_ID char(11),
     TITLE_OUTPUT varchar(30),
     gWrkStNyukinYmd varchar(20),

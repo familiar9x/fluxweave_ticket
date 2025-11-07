@@ -21,7 +21,47 @@ UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ 
 SQLERRM(SQLCODE) => SQLERRM
 SQLCODE → SQLSTATE
 
+%type (CHAR types) -> thành text
+
+gInvoiceTourokuNo		varchar(14)
+
+
+ko bao h cast text sang kieu khac
+CREATE OR REPLACE PROCEDURE spipf001k00r01 (
+	l_initakuid        CHAR,                                     -- 委託会社コード
+	l_inuserid         VARCHAR,                                  -- ユーザID
+	l_inchyohyokbn     CHAR,                                     -- 帳票区分
+	l_inchyohyosakukbn CHAR,                                     -- 帳票作成区分
+	l_ingyoumudt       CHAR,                                     -- 業務日付
+	l_indataid         VARCHAR,                                  -- データ種別
+	l_inrownum         NUMERIC,                                  -- 行番号
+	l_incolnm          VARCHAR,                                  -- 項目名称
+	l_insyuroku        VARCHAR,                                  -- 収録内容
+	l_inmessageid      varchar(6),                                  -- メッセージID
+	l_outsqlcode       OUT INTEGER,                              -- リターン値
+	l_outsqlerrm       OUT text                               -- エラーコメント
+)
+
+	nCount numeric;
+	nRtnCd numeric;
+	nRtnCd2 INTERGER;
+	nSeq_no INTERGER;
+	vDataNm varchar(100);
+	vMessage MSG_KANRI.MSG_NM%TYPE;
+	vItakuKaishaRnm varchar(100);
+	cGyoumuDt sreport_wk.sakusei_ymd%type;
+
+
+	
+
+	iRet      integer;											 -- 戻り値
+	nCount    numeric;											 -- レコード数
+	cFlg      char(1);											 -- エラーフラグ
+	cGyoumuDt sreport_wk.sakusei_ymd%type;	
+
+
 VARCHAR2(n) -> VARCHAR(n)
+INTERGER -> NUMERIC
 NUMBER -> NUMERIC
 CLOB	-> TEXT	    PostgreSQL không có CLOB.
 BLOB	-> BYTEA	Dữ liệu nhị phân.
@@ -34,23 +74,31 @@ ví dụ:
 Tạo TYPE_SREPORT_WK_ITEM composite type: 
 Gán từng field vào composite type: 
 Gọi pkPrint.insertData với composite type:
--- Initialize composite type
-l_inItem := ROW();
-l_inItem.l_inItem001 := l_inGyomuYmd;
-l_inItem.l_inItem002 := recMeisai.FINANCIAL_SECURITIES_KBN;
-l_inItem.l_inItem003 := recMeisai.CODE_RNM;
-l_inItem.l_inItem004 := recMeisai.BANK_CD;
-l_inItem.l_inItem005 := recMeisai.SHITEN_CD;
-l_inItem.l_inItem006 := recMeisai.SHITEN_NM;
-l_inItem.l_inItem007 := recMeisai.SHITEN_RNM;
-l_inItem.l_inItem008 := recMeisai.SHITEN_KANA_RNM;
-l_inItem.l_inItem009 := REPORT_ID;
-->
-CALL pkPrint.insertData(
-    ...
-    l_inItem => l_inItem,  -- Dùng composite type thay vì l_inItem001, l_inItem002, ...
-    ...
-);
+		-- Clear toàn bộ item
+		v_item := ROW();
+		
+		v_item.l_inItem001 := l_inGyomuYmd;							-- 業務日付
+		v_item.l_inItem002 := recMeisai.FINANCIAL_SECURITIES_KBN;	-- 金融証券区分
+		v_item.l_inItem003 := recMeisai.CODE_RNM;					-- 金融証券区分略称
+		v_item.l_inItem004 := recMeisai.BANK_CD;					-- 金融機関コード
+		v_item.l_inItem005 := recMeisai.BANK_NM;					-- 金融機関名称
+		v_item.l_inItem006 := recMeisai.BANK_RNM;					-- 金融機関略称
+		v_item.l_inItem007 := recMeisai.BANK_KANA_RNM;				-- 金融機関略称(カナ)
+		v_item.l_inItem008 := REPORT_ID;							-- 帳票ＩＤ
+		
+		-- 帳票ワークへデータを追加
+		CALL pkPrint.insertData(
+			l_inKeyCd		=> l_inItakuKaishaCd,
+			l_inUserId		=> 'BATCH',
+			l_inChohyoKbn	=> l_inChohyoKbn,
+			l_inSakuseiYmd	=> l_inGyomuYmd,
+			l_inChohyoId	=> REPORT_ID,
+			l_inSeqNo		=> gSeqNo,
+			l_inHeaderFlg	=> 1,
+			l_inItem		=> v_item,
+			l_inKousinId	=> l_inUserId,
+			l_inSakuseiId	=> l_inUserId
+		);	
 
 
 		CALL pkPrint.insertData(

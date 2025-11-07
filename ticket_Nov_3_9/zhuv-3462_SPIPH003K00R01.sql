@@ -47,8 +47,8 @@ CREATE OR REPLACE PROCEDURE spiph003k00r01 ( l_inHktCd VARCHAR,		-- 発行体コ
  l_inUserId text,	-- ユーザーID
  l_inChohyoKbn VARCHAR,		-- 帳票区分
  l_inGyomuYmd VARCHAR,		-- 業務日付
- l_outSqlCode OUT numeric,		-- リターン値
- l_outSqlErrM OUT VARCHAR(500) 		-- エラーコメント
+ l_outSqlCode OUT integer,		-- リターン値
+ l_outSqlErrM OUT text		-- エラーコメント
  ) AS $body$
 DECLARE
 
@@ -56,20 +56,20 @@ DECLARE
 --/* 著作権:Copyright(c)2004
 --/* 会社名:JIP
 --/* 概要　:顧客宛帳票出力指示画面の入力条件により、払込計算書（会計区分別）を作成する。
---/* 引数　:	l_inHktCd			IN	CHAR		発行体コード
---/*			l_inKozaTenCd		IN	CHAR		口座店コード
---/*			l_inKozaTenCifCd	IN	CHAR		口座店CIFコード
---/*			l_inMgrCd			IN	CHAR		銘柄コード
---/*			l_inIsinCd			IN	CHAR		ISINコード
---/*			l_inKijyunYmdF		IN	CHAR		基準日(FROM)
---/*			l_inKijyunYmdT		IN	CHAR		基準日(TO)
---/*			l_inTuchiYmd		IN	CHAR		通知日
---/*			l_inItakuKaishaCd	IN	CHAR		委託会社コード
---/*			l_inUserId			IN	CHAR		ユーザーID
---/*			l_inChohyoKbn		IN	CHAR		帳票区分
---/*			l_inGyomuYmd		IN	CHAR		業務日付
+--/* 引数　:	l_inHktCd			IN	TEXT		発行体コード
+--/*			l_inKozaTenCd		IN	TEXT		口座店コード
+--/*			l_inKozaTenCifCd	IN	TEXT		口座店CIFコード
+--/*			l_inMgrCd			IN	TEXT		銘柄コード
+--/*			l_inIsinCd			IN	TEXT		ISINコード
+--/*			l_inKijyunYmdF		IN	TEXT		基準日(FROM)
+--/*			l_inKijyunYmdT		IN	TEXT		基準日(TO)
+--/*			l_inTuchiYmd		IN	TEXT		通知日
+--/*			l_inItakuKaishaCd	IN	TEXT		委託会社コード
+--/*			l_inUserId			IN	TEXT		ユーザーID
+--/*			l_inChohyoKbn		IN	TEXT		帳票区分
+--/*			l_inGyomuYmd		IN	TEXT		業務日付
 --/*			l_outSqlCode		OUT	INTEGER		リターン値
---/*			l_outSqlErrM		OUT	VARCHAR2	エラーコメント
+--/*			l_outSqlErrM		OUT	VARCHAR	エラーコメント
 --/* 返り値:なし
 --/*
 --/* @version $Id: SPIPH003K00R01.SQL,v 1.18 2023/09/06 10:28:31 kentaro_ikeda Exp $
@@ -140,14 +140,14 @@ DECLARE
 	-- インボイス用
 	gAryBun					varchar[];						-- インボイス文章(請求書)配列
 	gInvoiceBun				varchar(400);					-- インボイス文章
-	gInvoiceTourokuNo		varchar(13);	-- 適格請求書発行事業者登録番号
+	gInvoiceTourokuNo		varchar(14);	-- 適格請求書発行事業者登録番号
 	gInvoiceTesuLabel		varchar(20);							-- 手数料ラベル
 	gInvoiceTesuKngkSum		numeric(16) := 0;					-- 適格請求書_手数料合計
 	gInvoiceUchiSzei		numeric(16) := 0;					-- 適格請求書_内消費税
 	gInvoiceUchiSzeiT		numeric(16) := 0;					-- 適格請求書_内消費税（立替払）
 	gSzeiRate				numeric(2);								-- 適格請求書_消費税率
 	gSzeiKijunYmd			char(8);								-- 適格請求書_消費税基準日
-	gInvoiceTourokuNoT		varchar(13);		-- 適格請求書発行事業者登録番号（ほふり）
+	gInvoiceTourokuNoT		varchar(14);		-- 適格請求書発行事業者登録番号（ほふり）
 	gHoujinNm				varchar(100);					-- 法人名称（ほふり）
 	gWrkHoujinCd			char(8);					-- 法人コード（ほふり）
 	gJournalAtena1			varchar(400) := NULL;				-- 宛名1(ジャーナル)
@@ -155,6 +155,8 @@ DECLARE
 	gJournalAtena3			varchar(400) := NULL;
 	-- Temp record for cursor
 	tempRec spiph003k00r01_type_record;
+	-- Item composite type for pkPrint.insertData
+	v_item type_sreport_wk_item;
 --==============================================================================
 --	メイン処理	
 --==============================================================================
@@ -253,18 +255,45 @@ BEGIN
 		--対象データなし
 			gRtnCd := RTN_NODATA;
 			-- 帳票ワークへデータを追加
+			v_item := ROW(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+			              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)::type_sreport_wk_item;
+			v_item.l_inItem001 := gWrkStTuchiYmd;
+			v_item.l_inItem039 := '対象データなし';
+			
 			CALL pkPrint.insertData(
-				l_inKeyCd			=>	l_inItakuKaishaCd 					-- 識別コード
-				,l_inUserId			=>	l_inUserId 							-- ユーザＩＤ
-				,l_inChohyoKbn		=>	l_inChohyoKbn 						-- 帳票区分
-				,l_inSakuseiYmd		=>	l_inGyomuYmd 						-- 作成年月日
-				,l_inChohyoId		=>	REPORT_ID 							-- 帳票ＩＤ
-				,l_inSeqNo			=>	1									-- 連番
-				,l_inHeaderFlg		=>	'1'									-- ヘッダフラグ
-				,l_inItem001		=>	gWrkStTuchiYmd 						-- 通知日
-				,l_inItem039		=>	'対象データなし'					--
-				,l_inKousinId		=>	l_inUserId 							-- 更新者ID
-				,l_inSakuseiId		=>	l_inUserId 							-- 作成者ID
+				l_inKeyCd			=>	l_inItakuKaishaCd,
+				l_inUserId			=>	l_inUserId,
+				l_inChohyoKbn		=>	l_inChohyoKbn,
+				l_inSakuseiYmd		=>	l_inGyomuYmd,
+				l_inChohyoId		=>	REPORT_ID,
+				l_inSeqNo			=>	1,
+				l_inHeaderFlg		=>	'1',
+				l_inItem			=>	v_item,
+				l_inKousinId		=>	l_inUserId,
+				l_inSakuseiId		=>	l_inUserId
 			);
 		ELSE
 		-- 対象データ有り
@@ -300,61 +329,86 @@ BEGIN
 						RETURN;
 					END IF;
 					-- 帳票ワークへ合計データを追加
+					v_item := ROW(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+					              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)::type_sreport_wk_item;
+					v_item.l_inItem001 := gWrkStTuchiYmd;
+					v_item.l_inItem002 := recMeisai[i-1].gHktCd;
+					v_item.l_inItem003 := gAtena;
+					v_item.l_inItem004 := recMeisai[i-1].gBankNm;
+					v_item.l_inItem005 := recMeisai[i-1].gBushoNm2;
+					v_item.l_inItem006 := recMeisai[i-1].gIsinCd;
+					v_item.l_inItem007 := recMeisai[i-1].gMgrNm;
+					v_item.l_inItem008 := recMeisai[i-1].gShasaiTotal;
+					v_item.l_inItem009 := gWrkStHakkouYmd;
+					v_item.l_inItem010 := gWrkStSiharaiYmd;
+					v_item.l_inItem011 := recMeisai[i-1].gHakkoKagaku;
+					v_item.l_inItem012 := (coalesce(recMeisai[i-1].gJutakuRate,0)
+												* (1 + pkipazei.getShohiZei(recMeisai[i-1].gHakkoYmd)));
+					v_item.l_inItem013 := (coalesce(recMeisai[i-1].gHikiukeRate,0)
+												* (1 + pkipazei.getShohiZei(recMeisai[i-1].gHakkoYmd)))
+											+ (coalesce(recMeisai[i-1].gKanjiRate,0)
+												* (1 + pkipazei.getShohiZei(recMeisai[i-1].gHakkoYmd)));
+					v_item.l_inItem026 := gAnbunTotal;
+					v_item.l_inItem027 := gFurikomiTotal;
+					v_item.l_inItem028 := gJtkuTesuryoTotal;
+					v_item.l_inItem029 := gHkukTesuryoTotal;
+					v_item.l_inItem030 := gShnkTesuryoTotal;
+					v_item.l_inItem031 := gTesuGTotal;
+					v_item.l_inItem032 := gInvoiceBun;
+					v_item.l_inItem033 := recMeisai[i-1].gInvoiceTourokuNo;
+					v_item.l_inItem034 := recMeisai[i-1].gHakkoTsukaNm;
+					v_item.l_inItem035 := gFurikomiTotal;
+					v_item.l_inItem036 := FMT_HAKKO_KNGK_J;
+					v_item.l_inItem037 := FMT_RBR_KNGK_J;
+					v_item.l_inItem038 := FMT_SHOKAN_KNGK_J;
+					v_item.l_inItem040 := gInvoiceTesuLabel;
+					v_item.l_inItem041 := gTesuGTotal;
+					v_item.l_inItem042 := gInvoiceUchiSzei;
+					v_item.l_inItem043 := gInvoiceTourokuNoT;
+					v_item.l_inItem044 := gHoujinNm;
+					v_item.l_inItem045 := gShnkTesuryoTotal;
+					v_item.l_inItem046 := gInvoiceUchiSzeiT;
+					v_item.l_inItem047 := gSzeiKijunYmd;
+					v_item.l_inItem048 := gSzeiRate;
+					v_item.l_inItem049 := gJournalAtena1;
+					v_item.l_inItem050 := gJournalAtena2;
+					v_item.l_inItem051 := gJournalAtena3;
+					
 					CALL pkPrint.insertData
 					(
-						 l_inKeyCd			=>	l_inItakuKaishaCd 					-- 識別コード
-						,l_inUserId			=>	l_inUserId 							-- ユーザＩＤ
-						,l_inChohyoKbn		=>	l_inChohyoKbn 						-- 帳票区分
-						,l_inSakuseiYmd		=>	l_inGyomuYmd 						-- 作成年月日
-						,l_inChohyoId		=>	REPORT_ID 							-- 帳票ＩＤ
-						,l_inSeqNo			=>	gSeqNo 								-- 連番
-						,l_inHeaderFlg		=>	'1'									-- ヘッダフラグ
-						,l_inItem001		=>	gWrkStTuchiYmd 						-- 通知日
-						,l_inItem002		=>	recMeisai[i-1].gHktCd 				-- 発行体コード
-						,l_inItem003		=>	gAtena 								-- 発行体名称・送付先担当部署名称(御中込)
-						,l_inItem004		=>	recMeisai[i-1].gBankNm 				-- 銀行名称
-						,l_inItem005		=>	recMeisai[i-1].gBushoNm2			-- 担当部署名称２
-						,l_inItem006		=>	recMeisai[i-1].gIsinCd 				-- ISINコード
-						,l_inItem007		=>	recMeisai[i-1].gMgrNm 				-- 銘柄の正式名称
-						,l_inItem008		=>	recMeisai[i-1].gShasaiTotal 			-- 発行総額
-						,l_inItem009		=>	gWrkStHakkouYmd 						-- 発行年月日
-						,l_inItem010		=>	gWrkStSiharaiYmd 					-- 支払日
-						,l_inItem011		=>	recMeisai[i-1].gHakkoKagaku 			-- 発行価額
-						,l_inItem012		=>	(coalesce(recMeisai[i-1].gJutakuRate,0)
-													* (1 + pkipazei.getShohiZei(recMeisai[i-1].gHakkoYmd)))	-- 受託手数料率(税込)
-						,l_inItem013		=>	(coalesce(recMeisai[i-1].gHikiukeRate,0)
-													* (1 + pkipazei.getShohiZei(recMeisai[i-1].gHakkoYmd)))	-- 引受手数料率(税込)
-                          							+ (coalesce(recMeisai[i-1].gKanjiRate,0)
-													* (1 + pkipazei.getShohiZei(recMeisai[i-1].gHakkoYmd)))	-- 幹事手数料率(税込)
-            			--8/19 百万単位で合計したものをセットするように変更
-						--,l_inItem024		=>	gAnbunTotal / 1000000				-- 会計区分別按分額合計
-            			,l_inItem026		=>	gAnbunTotal 							-- 会計区分別按分額合計
-						,l_inItem027		=>	gFurikomiTotal 						-- 振込額合計
-						,l_inItem028		=>	gJtkuTesuryoTotal 					-- 受託手数料金額合計
-						,l_inItem029		=>	gHkukTesuryoTotal 					-- 引受手数料金額合計
-						,l_inItem030		=>	gShnkTesuryoTotal 					-- 新規記録手数料金額合計
-						,l_inItem031		=>	gTesuGTotal 							-- 手数料合計の合計
-						,l_inItem032		=>	gInvoiceBun 							-- インボイス文章
-						,l_inItem033		=>	recMeisai[i-1].gInvoiceTourokuNo 	-- 適格請求書発行事業者登録番号
-						,l_inItem034		=>	recMeisai[i-1].gHakkoTsukaNm 		-- 発行通貨名称
-						,l_inItem035		=>	gFurikomiTotal 						-- 適格請求書_振込額合計
-						,l_inItem036		=>	FMT_HAKKO_KNGK_J 					-- 発行金額書式フォーマット
-						,l_inItem037		=>	FMT_RBR_KNGK_J 						-- 利払金額書式フォーマット
-						,l_inItem038		=>	FMT_SHOKAN_KNGK_J 					-- 償還金額書式フォーマット
-						,l_inItem040		=>	gInvoiceTesuLabel 					-- 適格請求書_手数料ラベル
-						,l_inItem041		=>	gTesuGTotal 							-- 適格請求書_手数料合計
-						,l_inItem042		=>	gInvoiceUchiSzei 					-- 適格請求書_内消費税
-						,l_inItem043		=>	gInvoiceTourokuNoT 					-- 適格請求書発行事業者登録番号（立替払）
-						,l_inItem044		=>	gHoujinNm 							-- 法人名称（立替払）
-						,l_inItem045		=>	gShnkTesuryoTotal 					-- 適格請求書_手数料合計（立替払）
-						,l_inItem046		=>	gInvoiceUchiSzeiT 					-- 適格請求書_内消費税（立替払）
-						,l_inItem047		=>	gSzeiKijunYmd 						-- 消費税基準日(ジャーナル)
-						,l_inItem048		=>	gSzeiRate 							-- 消費税率(ジャーナル)
-						,l_inItem049		=>	gJournalAtena1						-- 宛名１(ジャーナル)
-						,l_inItem050		=>	gJournalAtena2						-- 宛名２(ジャーナル)
-						,l_inItem051		=>	gJournalAtena3						-- 宛名３(ジャーナル)
-						,l_inKousinId		=>	l_inUserId 							-- 更新者ID
-						,l_inSakuseiId		=>	l_inUserId 							-- 作成者ID
+						 l_inKeyCd			=>	l_inItakuKaishaCd,
+						 l_inUserId			=>	l_inUserId,
+						 l_inChohyoKbn		=>	l_inChohyoKbn,
+						 l_inSakuseiYmd		=>	l_inGyomuYmd,
+						 l_inChohyoId		=>	REPORT_ID,
+						 l_inSeqNo			=>	gSeqNo,
+						 l_inHeaderFlg		=>	'1',
+						 l_inItem			=>	v_item,
+						 l_inKousinId		=>	l_inUserId,
+						 l_inSakuseiId		=>	l_inUserId
 					);
 					gSeqNo := gSeqNo + 1;
 					gWrkHktCd := recMeisai[i].gHktCd;
@@ -388,57 +442,84 @@ BEGIN
 				gWrkShnkTesuryoTotal := gWrkShnkTesuryoTotal + (recMeisai[i].gShinkiKngk);	-- 新規記録手数料金額合計
 				gWrkTesuGTotal := gWrkTesuGTotal + recMeisai[i].gTesuTotal;					-- 手数料合計の合計
 				-- 帳票ワークへデータを追加
+				v_item := ROW(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+				              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)::type_sreport_wk_item;
+				v_item.l_inItem001 := gWrkStTuchiYmd;
+				v_item.l_inItem002 := recMeisai[i].gHktCd;
+				v_item.l_inItem003 := gAtena;
+				v_item.l_inItem004 := recMeisai[i].gBankNm;
+				v_item.l_inItem005 := recMeisai[i].gBushoNm2;
+				v_item.l_inItem006 := recMeisai[i].gIsinCd;
+				v_item.l_inItem007 := recMeisai[i].gMgrNm;
+				v_item.l_inItem008 := recMeisai[i].gShasaiTotal;
+				v_item.l_inItem009 := gWrkStHakkouYmd;
+				v_item.l_inItem010 := gWrkStSiharaiYmd;
+				v_item.l_inItem011 := recMeisai[i].gHakkoKagaku;
+				v_item.l_inItem012 := (coalesce(recMeisai[i].gJutakuRate,0)
+											* (1 + pkipazei.getShohiZei(recMeisai[i].gHakkoYmd)));
+				v_item.l_inItem013 := (coalesce(recMeisai[i].gHikiukeRate,0)
+											* (1 + pkipazei.getShohiZei(recMeisai[i].gHakkoYmd)))
+										+ (coalesce(recMeisai[i].gKanjiRate,0)
+											* (1 + pkipazei.getShohiZei(recMeisai[i].gHakkoYmd)));
+				v_item.l_inItem014 := recMeisai[i].gKaikeiKbn;
+				v_item.l_inItem015 := recMeisai[i].gKaikeiKbnNm;
+				v_item.l_inItem016 := recMeisai[i].gKaikeiKbnAnbunKngk / 1000000;
+				v_item.l_inItem017 := recMeisai[i].gFurikomiKngk;
+				v_item.l_inItem018 := recMeisai[i].gJutakuKngk;
+				v_item.l_inItem019 := recMeisai[i].gHikiukeKngk + recMeisai[i].gKanjiKngk;
+				v_item.l_inItem020 := recMeisai[i].gShinkiKngk;
+				v_item.l_inItem021 := recMeisai[i].gTesuTotal;
+				v_item.l_inItem022 := recMeisai[i].gJutakuSzei;
+				v_item.l_inItem023 := recMeisai[i].gHikiukeSzei + recMeisai[i].gKanjiSzei;
+				v_item.l_inItem024 := recMeisai[i].gShinkiSzei;
+				v_item.l_inItem025 := recMeisai[i].gTesuSzeiTotal;
+				v_item.l_inItem032 := gInvoiceBun;
+				v_item.l_inItem033 := recMeisai[i].gInvoiceTourokuNo;
+				v_item.l_inItem034 := recMeisai[i].gHakkoTsukaNm;
+				v_item.l_inItem036 := FMT_HAKKO_KNGK_J;
+				v_item.l_inItem037 := FMT_RBR_KNGK_J;
+				v_item.l_inItem038 := FMT_SHOKAN_KNGK_J;
+				v_item.l_inItem043 := gInvoiceTourokuNoT;
+				v_item.l_inItem044 := gHoujinNm;
+				v_item.l_inItem049 := gJournalAtena1;
+				v_item.l_inItem050 := gJournalAtena2;
+				v_item.l_inItem051 := gJournalAtena3;
+				
 				CALL pkPrint.insertData
 				(
-					 l_inKeyCd			=>	l_inItakuKaishaCd 					-- 識別コード
-					,l_inUserId			=>	l_inUserId 							-- ユーザＩＤ
-					,l_inChohyoKbn		=>	l_inChohyoKbn 						-- 帳票区分
-					,l_inSakuseiYmd		=>	l_inGyomuYmd 						-- 作成年月日
-					,l_inChohyoId		=>	REPORT_ID 							-- 帳票ＩＤ
-					,l_inSeqNo			=>	gSeqNo 								-- 連番
-					,l_inHeaderFlg		=>	'1'									-- ヘッダフラグ
-					,l_inItem001		=>	gWrkStTuchiYmd 						-- 通知日
-					,l_inItem002		=>	recMeisai[i].gHktCd 					-- 発行体コード
-					,l_inItem003		=>	gAtena 								-- 発行体名称・送付先担当部署名称(御中込)
-					,l_inItem004		=>	recMeisai[i].gBankNm 				-- 銀行名称
-					,l_inItem005		=>	recMeisai[i].gBushoNm2				-- 担当部署名称２
-					,l_inItem006		=>	recMeisai[i].gIsinCd 				-- ISINコード
-					,l_inItem007		=>	recMeisai[i].gMgrNm 					-- 銘柄の正式名称
-					,l_inItem008		=>	recMeisai[i].gShasaiTotal 			-- 発行総額
-					,l_inItem009		=>	gWrkStHakkouYmd 						-- 発行年月日
-					,l_inItem010		=>	gWrkStSiharaiYmd 					-- 支払日
-					,l_inItem011		=>	recMeisai[i].gHakkoKagaku 			-- 発行価額
-					,l_inItem012		=>	(coalesce(recMeisai[i].gJutakuRate,0)
-												* (1 + pkipazei.getShohiZei(recMeisai[i].gHakkoYmd)))	-- 受託手数料率(税込)
-					,l_inItem013		=>	(coalesce(recMeisai[i].gHikiukeRate,0)
-												* (1 + pkipazei.getShohiZei(recMeisai[i].gHakkoYmd)))	-- 引受手数料率(税込)
-                        						+ (coalesce(recMeisai[i].gKanjiRate,0)
-												* (1 + pkipazei.getShohiZei(recMeisai[i].gHakkoYmd)))	-- 幹事手数料率(税込)
-					,l_inItem014		=>	recMeisai[i].gKaikeiKbn 				-- 会計区分
-					,l_inItem015		=>	recMeisai[i].gKaikeiKbnNm 			-- 会計区分名称
-					,l_inItem016		=>	recMeisai[i].gKaikeiKbnAnbunKngk / 1000000	-- 会計区分別按分額
-					,l_inItem017		=>	recMeisai[i].gFurikomiKngk 			-- 振込額
-					,l_inItem018		=>	recMeisai[i].gJutakuKngk 			-- 受託手数料(税込)
-					,l_inItem019		=>	recMeisai[i].gHikiukeKngk + recMeisai[i].gKanjiKngk 		-- 引受手数料(税込)
-					,l_inItem020		=>	recMeisai[i].gShinkiKngk 			-- 新規記録手数料(税込)
-					,l_inItem021		=>	recMeisai[i].gTesuTotal 				-- 手数料合計
-					,l_inItem022		=>	recMeisai[i].gJutakuSzei 			-- 受託手数料消費税
-					,l_inItem023		=>	recMeisai[i].gHikiukeSzei + recMeisai[i].gKanjiSzei 		-- 引受手数料消費税
-					,l_inItem024		=>	recMeisai[i].gShinkiSzei 			-- 受託手数料消費税
-					,l_inItem025		=>	recMeisai[i].gTesuSzeiTotal 			-- 全体消費税額
-					,l_inItem032		=>	gInvoiceBun 							-- インボイス文章
-					,l_inItem033		=>	recMeisai[i].gInvoiceTourokuNo 		-- 適格請求書発行事業者登録番号
-					,l_inItem034		=>	recMeisai[i].gHakkoTsukaNm 			-- 発行通貨名称
-					,l_inItem036		=>	FMT_HAKKO_KNGK_J 					-- 発行金額書式フォーマット
-					,l_inItem037		=>	FMT_RBR_KNGK_J 						-- 利払金額書式フォーマット
-					,l_inItem038		=>	FMT_SHOKAN_KNGK_J 					-- 償還金額書式フォーマット
-					,l_inItem043		=>	gInvoiceTourokuNoT 					-- 適格請求書発行事業者登録番号（立替払）
-					,l_inItem044		=>	gHoujinNm 							-- 法人名称（立替払）
-					,l_inItem049		=>	gJournalAtena1						-- 宛名１(ジャーナル)
-					,l_inItem050		=>	gJournalAtena2						-- 宛名２(ジャーナル)
-					,l_inItem051		=>	gJournalAtena3						-- 宛名３(ジャーナル)
-					,l_inKousinId		=>	l_inUserId 							-- 更新者ID
-					,l_inSakuseiId		=>	l_inUserId 							-- 作成者ID
+					 l_inKeyCd			=>	l_inItakuKaishaCd,
+					 l_inUserId			=>	l_inUserId,
+					 l_inChohyoKbn		=>	l_inChohyoKbn,
+					 l_inSakuseiYmd		=>	l_inGyomuYmd,
+					 l_inChohyoId		=>	REPORT_ID,
+					 l_inSeqNo			=>	gSeqNo,
+					 l_inHeaderFlg		=>	'1',
+					 l_inItem			=>	v_item,
+					 l_inKousinId		=>	l_inUserId,
+					 l_inSakuseiId		=>	l_inUserId
 				);
 			END LOOP;
 	END CASE;
@@ -466,61 +547,86 @@ BEGIN
 			RETURN;
 		END IF;
 		-- 帳票ワークへ合計データを追加
+		v_item := ROW(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+		              NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)::type_sreport_wk_item;
+		v_item.l_inItem001 := gWrkStTuchiYmd;
+		v_item.l_inItem002 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHktCd;
+		v_item.l_inItem003 := gAtena;
+		v_item.l_inItem004 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gBankNm;
+		v_item.l_inItem005 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gBushoNm2;
+		v_item.l_inItem006 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gIsinCd;
+		v_item.l_inItem007 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gMgrNm;
+		v_item.l_inItem008 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gShasaiTotal;
+		v_item.l_inItem009 := gWrkStHakkouYmd;
+		v_item.l_inItem010 := gWrkStSiharaiYmd;
+		v_item.l_inItem011 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHakkoKagaku;
+		v_item.l_inItem012 := (coalesce(recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gJutakuRate,0)
+									* (1 + pkipazei.getShohiZei(recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHakkoYmd)));
+		v_item.l_inItem013 := (coalesce(recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHikiukeRate,0)
+									* (1 + pkipazei.getShohiZei(recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHakkoYmd)))
+								+ (coalesce(recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gKanjiRate,0)
+									* (1 + pkipazei.getShohiZei(recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHakkoYmd)));
+		v_item.l_inItem026 := gAnbunTotal;
+		v_item.l_inItem027 := gFurikomiTotal;
+		v_item.l_inItem028 := gJtkuTesuryoTotal;
+		v_item.l_inItem029 := gHkukTesuryoTotal;
+		v_item.l_inItem030 := gShnkTesuryoTotal;
+		v_item.l_inItem031 := gTesuGTotal;
+		v_item.l_inItem032 := gInvoiceBun;
+		v_item.l_inItem033 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gInvoiceTourokuNo;
+		v_item.l_inItem034 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHakkoTsukaNm;
+		v_item.l_inItem035 := gFurikomiTotal;
+		v_item.l_inItem036 := FMT_HAKKO_KNGK_J;
+		v_item.l_inItem037 := FMT_RBR_KNGK_J;
+		v_item.l_inItem038 := FMT_SHOKAN_KNGK_J;
+		v_item.l_inItem040 := gInvoiceTesuLabel;
+		v_item.l_inItem041 := gTesuGTotal;
+		v_item.l_inItem042 := gInvoiceUchiSzei;
+		v_item.l_inItem043 := gInvoiceTourokuNoT;
+		v_item.l_inItem044 := gHoujinNm;
+		v_item.l_inItem045 := gShnkTesuryoTotal;
+		v_item.l_inItem046 := gInvoiceUchiSzeiT;
+		v_item.l_inItem047 := recMeisai[COALESCE(cardinality(recMeisai), 0) - 1].gHakkoYmd;
+		v_item.l_inItem048 := gSzeiRate;
+		v_item.l_inItem049 := gJournalAtena1;
+		v_item.l_inItem050 := gJournalAtena2;
+		v_item.l_inItem051 := gJournalAtena3;
+		
 		CALL pkPrint.insertData
 		(
-			 l_inKeyCd			=>	l_inItakuKaishaCd 								-- 識別コード
-			,l_inUserId			=>	l_inUserId 										-- ユーザＩＤ
-			,l_inChohyoKbn		=>	l_inChohyoKbn 									-- 帳票区分
-			,l_inSakuseiYmd		=>	l_inGyomuYmd 									-- 作成年月日
-			,l_inChohyoId		=>	REPORT_ID 										-- 帳票ＩＤ
-			,l_inSeqNo			=>	gSeqNo 											-- 連番
-			,l_inHeaderFlg		=>	'1'												-- ヘッダフラグ
-			,l_inItem001		=>	gWrkStTuchiYmd 									-- 通知日
-			,l_inItem002		=>	recMeisai[recMeisai.COUNT - 1].gHktCd 			-- 発行体コード
-			,l_inItem003		=>	gAtena 											-- 発行体名称・送付先担当部署名称(御中込)
-			,l_inItem004		=>	recMeisai[recMeisai.COUNT - 1].gBankNm 			-- 銀行名称
-			,l_inItem005		=>	recMeisai[recMeisai.COUNT - 1].gBushoNm2		-- 担当部署名称２
-			,l_inItem006		=>	recMeisai[recMeisai.COUNT - 1].gIsinCd 			-- ISINコード
-			,l_inItem007		=>	recMeisai[recMeisai.COUNT - 1].gMgrNm 			-- 銘柄の正式名称
-			,l_inItem008		=>	recMeisai[recMeisai.COUNT - 1].gShasaiTotal 		-- 発行総額
-			,l_inItem009		=>	gWrkStHakkouYmd 									-- 発行年月日
-			,l_inItem010		=>	gWrkStSiharaiYmd 								-- 支払日
-			,l_inItem011		=>	recMeisai[recMeisai.COUNT - 1].gHakkoKagaku 		-- 発行価額
-			,l_inItem012		=>	(coalesce(recMeisai[recMeisai.COUNT - 1].gJutakuRate,0)
-										* (1 + pkipazei.getShohiZei(recMeisai[recMeisai.COUNT - 1].gHakkoYmd)))	-- 受託手数料率(税込)
-			,l_inItem013		=>	(coalesce(recMeisai[recMeisai.COUNT - 1].gHikiukeRate,0)
-										* (1 + pkipazei.getShohiZei(recMeisai[recMeisai.COUNT - 1].gHakkoYmd)))	-- 引受手数料率(税込)
-                    					+ (coalesce(recMeisai[recMeisai.COUNT - 1].gKanjiRate,0)
-										* (1 + pkipazei.getShohiZei(recMeisai[recMeisai.COUNT - 1].gHakkoYmd)))	-- 幹事手数料率(税込)
-      		--8/19 百万単位で合計したものをセットするように変更
-			--,l_inItem024		=>	gAnbunTotal / 1000000							-- 会計区分別按分額合計
-			,l_inItem026		=>	gAnbunTotal 										-- 会計区分別按分額合計
-			,l_inItem027		=>	gFurikomiTotal 									-- 振込額合計
-			,l_inItem028		=>	gJtkuTesuryoTotal 								-- 受託手数料金額合計
-			,l_inItem029		=>	gHkukTesuryoTotal 								-- 引受手数料金額合計
-			,l_inItem030		=>	gShnkTesuryoTotal 								-- 新規記録手数料金額合計
-			,l_inItem031		=>	gTesuGTotal 										-- 手数料合計の合計
-			,l_inItem032		=>	gInvoiceBun 										-- インボイス文章
-			,l_inItem033		=>	recMeisai[recMeisai.COUNT - 1].gInvoiceTourokuNo 	-- 適格請求書発行事業者登録番号
-			,l_inItem034		=>	recMeisai[recMeisai.COUNT - 1].gHakkoTsukaNm 	-- 発行通貨名称
-			,l_inItem035		=>	gFurikomiTotal 									-- 適格請求書_振込額合計
-			,l_inItem036		=>	FMT_HAKKO_KNGK_J 								-- 発行金額書式フォーマット
-			,l_inItem037		=>	FMT_RBR_KNGK_J 									-- 利払金額書式フォーマット
-			,l_inItem038		=>	FMT_SHOKAN_KNGK_J 								-- 償還金額書式フォーマット
-			,l_inItem040		=>	gInvoiceTesuLabel 								-- 適格請求書_手数料ラベル
-			,l_inItem041		=>	gTesuGTotal 										-- 適格請求書_手数料合計
-			,l_inItem042		=>	gInvoiceUchiSzei 								-- 適格請求書_内消費税
-			,l_inItem043		=>	gInvoiceTourokuNoT 								-- 適格請求書発行事業者登録番号（立替払）
-			,l_inItem044		=>	gHoujinNm 										-- 法人名称（立替払）
-			,l_inItem045		=>	gShnkTesuryoTotal 								-- 適格請求書_手数料合計（立替払）
-			,l_inItem046		=>	gInvoiceUchiSzeiT 								-- 適格請求書_内消費税（立替払）
-			,l_inItem047		=>	recMeisai[recMeisai.COUNT - 1].gHakkoYmd 		-- 消費税基準日(ジャーナル)
-			,l_inItem048		=>	gSzeiRate 										-- 消費税率(ジャーナル)
-			,l_inItem049		=>	gJournalAtena1									-- 宛名１(ジャーナル)
-			,l_inItem050		=>	gJournalAtena2									-- 宛名２(ジャーナル)
-			,l_inItem051		=>	gJournalAtena3									-- 宛名３(ジャーナル)
-			,l_inKousinId		=>	l_inUserId 										-- 更新者ID
-			,l_inSakuseiId		=>	l_inUserId 										-- 作成者ID
+			 l_inKeyCd			=>	l_inItakuKaishaCd,
+			 l_inUserId			=>	l_inUserId,
+			 l_inChohyoKbn		=>	l_inChohyoKbn,
+			 l_inSakuseiYmd		=>	l_inGyomuYmd,
+			 l_inChohyoId		=>	REPORT_ID,
+			 l_inSeqNo			=>	gSeqNo,
+			 l_inHeaderFlg		=>	'1',
+			 l_inItem			=>	v_item,
+			 l_inKousinId		=>	l_inUserId,
+			 l_inSakuseiId		=>	l_inUserId
 		);
 	END IF;
 	-- CSVジャーナルINSERT  
@@ -549,21 +655,21 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spiph003k00r01 ( l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifCd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inKijyunYmdF CHAR, l_inKijyunYmdT CHAR, l_inTuchiYmd CHAR, l_inItakuKaishaCd CHAR, l_inUserId text, l_inChohyoKbn CHAR, l_inGyomuYmd CHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT CHAR  ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spiph003k00r01 ( l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inIsinCd TEXT, l_inKijyunYmdF TEXT, l_inKijyunYmdT TEXT, l_inTuchiYmd TEXT, l_inItakuKaishaCd TEXT, l_inUserId text, l_inChohyoKbn TEXT, l_inGyomuYmd TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT TEXT  ) FROM PUBLIC;
 
 
 
 
 
 CREATE OR REPLACE PROCEDURE spiph003k00r01_createsql (
-	l_inItakuKaishaCd CHAR,
-	l_inMgrCd CHAR,
-	l_inKijyunYmdF CHAR,
-	l_inKijyunYmdT CHAR,
-	l_inHktCd CHAR,
-	l_inKozaTenCd CHAR,
-	l_inKozaTenCifCd CHAR,
-	l_inIsinCd CHAR,
+	l_inItakuKaishaCd TEXT,
+	l_inMgrCd TEXT,
+	l_inKijyunYmdF TEXT,
+	l_inKijyunYmdT TEXT,
+	l_inHktCd TEXT,
+	l_inKozaTenCd TEXT,
+	l_inKozaTenCifCd TEXT,
+	l_inIsinCd TEXT,
 	INOUT gSQL varchar
 ) AS $body$
 BEGIN
@@ -683,24 +789,24 @@ BEGIN
 		|| '               WT01.JUTAKU_RATE, '
 		|| '               WT02.HIKIUKE_RATE, '
 		|| '               WT06.KANJI_RATE, '
-		|| '               NVL(WT01.JUTAKU_GK, 0) AS JUTAKU_GK, '		-- 募集受託手数料（税込）
-		|| '               NVL(WT02.HIKIUKE_GK, 0) AS HIKIUKE_GK, 	'	-- 引受手数料（税込）
-		|| '               NVL(WT06.KANJI_GK, 0) AS KANJI_GK, '			-- 幹事手数料（税込）
-		|| '               NVL(WT08.SHINKI_GK, 0) AS SHINKI_GK, '		-- 新規記録手数料（税込）
-		|| '               NVL(WT01.JUTAKU_GK, 0) + NVL(WT02.HIKIUKE_GK, 0) + NVL(WT06.KANJI_GK, 0) AS TESU_TOTAL, '	-- 手数料合計
-		|| '               NVL(WT01.JUTAKU_SZEI, 0) AS JUTAKU_SZEI, '	-- 募集受託手数料消費税
-		|| '               NVL(WT02.HIKIUKE_SZEI, 0) AS HIKIUKE_SZEI, '	-- 引受手数料消費税
-		|| '               NVL(WT06.KANJI_SZEI, 0) AS KANJI_SZEI, '		-- 幹事手数料消費税
-		|| '               NVL(WT08.SHINKI_SZEI, 0) AS SHINKI_SZEI, '	-- 新規記録手数料消費税
-		|| '               NVL(WT01.JUTAKU_SZEI, 0) + NVL(WT02.HIKIUKE_SZEI, 0) + NVL(WT06.KANJI_SZEI, 0) AS TESU_SZEI_TOTAL '	-- 全体消費税額
+		|| '               COALESCE(WT01.JUTAKU_GK, 0) AS JUTAKU_GK, '		-- 募集受託手数料（税込）
+		|| '               COALESCE(WT02.HIKIUKE_GK, 0) AS HIKIUKE_GK, 	'	-- 引受手数料（税込）
+		|| '               COALESCE(WT06.KANJI_GK, 0) AS KANJI_GK, '			-- 幹事手数料（税込）
+		|| '               COALESCE(WT08.SHINKI_GK, 0) AS SHINKI_GK, '		-- 新規記録手数料（税込）
+		|| '               COALESCE(WT01.JUTAKU_GK, 0) + COALESCE(WT02.HIKIUKE_GK, 0) + COALESCE(WT06.KANJI_GK, 0) AS TESU_TOTAL, '	-- 手数料合計
+		|| '               COALESCE(WT01.JUTAKU_SZEI, 0) AS JUTAKU_SZEI, '	-- 募集受託手数料消費税
+		|| '               COALESCE(WT02.HIKIUKE_SZEI, 0) AS HIKIUKE_SZEI, '	-- 引受手数料消費税
+		|| '               COALESCE(WT06.KANJI_SZEI, 0) AS KANJI_SZEI, '		-- 幹事手数料消費税
+		|| '               COALESCE(WT08.SHINKI_SZEI, 0) AS SHINKI_SZEI, '	-- 新規記録手数料消費税
+		|| '               COALESCE(WT01.JUTAKU_SZEI, 0) + COALESCE(WT02.HIKIUKE_SZEI, 0) + COALESCE(WT06.KANJI_SZEI, 0) AS TESU_SZEI_TOTAL '	-- 全体消費税額
 		|| '          FROM (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                        H03.MGR_CD, '
 		|| '                        H03.KAIKEI_KBN, '
-		|| '                        NVL(WT03.JUTAKU_RATE,0) AS JUTAKU_RATE, '
+		|| '                        COALESCE(WT03.JUTAKU_RATE,0) AS JUTAKU_RATE, '
 		|| '                        SUM(H03.ANBUN_TESU_KNGK_KOMI) AS JUTAKU_GK, '
 		|| '                        SUM(H03.ANBUN_TESU_SZEI) AS JUTAKU_SZEI '
-		|| '                   FROM TESURYO_KAIKEI H03,  '                   -- 手数料計算結果（会計区分別）
-		|| '                        (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                   FROM TESURYO_KAIKEI H03 '                   -- 手数料計算結果（会計区分別）
+		|| '                   LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                                 H03.MGR_CD, '
 		|| '                                 MAX(H03.RATE_BUNSHI / H03.RATE_BUNBO * 100) AS JUTAKU_RATE '
 		|| '                            FROM TESURYO_KAIKEI H03  '                            -- 手数料計算結果（会計区分別）
@@ -713,23 +819,23 @@ BEGIN
 		|| '                            AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                            AND H03.RATE_BUNBO > 0 '		-- 0除算対策
 		|| '                          GROUP BY H03.ITAKU_KAISHA_CD, H03.MGR_CD) WT03 '
-		|| '                  WHERE H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD(+) '
-		|| '                    AND H03.MGR_CD = WT03.MGR_CD(+) '
-		|| '                    AND H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
+		|| '                   ON (H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD '
+		|| '                    AND H03.MGR_CD = WT03.MGR_CD) '
+		|| '                  WHERE H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 		|| '                    AND H03.TESU_SHURUI_CD = ''01'' '
 		|| '                    AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                  GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                           H03.MGR_CD, '
 		|| '                           H03.KAIKEI_KBN, '
-		|| '                           WT03.JUTAKU_RATE) WT01, '
-		|| '                (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                           WT03.JUTAKU_RATE) WT01 '
+		|| '                LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                         H03.MGR_CD, '
 		|| '                         H03.KAIKEI_KBN, '
-		|| '                         NVL(WT04.HIKIUKE_RATE,0) AS HIKIUKE_RATE, '
+		|| '                         COALESCE(WT04.HIKIUKE_RATE,0) AS HIKIUKE_RATE, '
 		|| '                         SUM(H03.ANBUN_TESU_KNGK_KOMI) AS HIKIUKE_GK, '
 		|| '                         SUM(H03.ANBUN_TESU_SZEI) AS HIKIUKE_SZEI '
-		|| '                    FROM TESURYO_KAIKEI H03, '                    -- 手数料計算結果（会計区分別）
-		|| '                         (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                    FROM TESURYO_KAIKEI H03 '                    -- 手数料計算結果（会計区分別）
+		|| '                    LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                                  H03.MGR_CD, '
 		|| '                                  MAX(H03.RATE_BUNSHI / H03.RATE_BUNBO * 100) AS HIKIUKE_RATE '
  			|| '                         FROM TESURYO_KAIKEI H03 ' -- 手数料計算結果（会計区分別）
@@ -742,23 +848,26 @@ BEGIN
 		|| '                            AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                            AND H03.RATE_BUNBO > 0 '		-- 0除算対策
 		|| '                         GROUP BY H03.ITAKU_KAISHA_CD, H03.MGR_CD) WT04 '
-		|| '                 WHERE H03.ITAKU_KAISHA_CD = WT04.ITAKU_KAISHA_CD(+) '
-		|| '                   AND H03.MGR_CD = WT04.MGR_CD(+) '
-		|| '                   AND H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
+		|| '                    ON (H03.ITAKU_KAISHA_CD = WT04.ITAKU_KAISHA_CD '
+		|| '                   AND H03.MGR_CD = WT04.MGR_CD) '
+		|| '                 WHERE H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 		|| '                   AND H03.TESU_SHURUI_CD = ''31'' '
 		|| '                   AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                 GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                          H03.MGR_CD, '
 		|| '                          H03.KAIKEI_KBN, '
-		|| '                          WT04.HIKIUKE_RATE) WT02, '
-		|| '                (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                          WT04.HIKIUKE_RATE) WT02 '
+		|| '                    ON (WT01.ITAKU_KAISHA_CD = WT02.ITAKU_KAISHA_CD '
+		|| '                   AND WT01.MGR_CD = WT02.MGR_CD '
+		|| '                   AND WT01.KAIKEI_KBN = WT02.KAIKEI_KBN) '
+		|| '                LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                         H03.MGR_CD, '
 		|| '                         H03.KAIKEI_KBN, '
-		|| '                         NVL(WT05.KANJI_RATE,0) AS KANJI_RATE, '
+		|| '                         COALESCE(WT05.KANJI_RATE,0) AS KANJI_RATE, '
 		|| '                         SUM(H03.ANBUN_TESU_KNGK_KOMI) AS KANJI_GK, '
 		|| '                         SUM(H03.ANBUN_TESU_SZEI) AS KANJI_SZEI '
-		|| '                    FROM TESURYO_KAIKEI H03, '                    -- 手数料計算結果（会計区分別）
-		|| '                         (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                    FROM TESURYO_KAIKEI H03 '                    -- 手数料計算結果（会計区分別）
+		|| '                    LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                                  H03.MGR_CD, '
 		|| '                                  MAX(H03.RATE_BUNSHI / H03.RATE_BUNBO * 100) AS KANJI_RATE '
  			|| '                         FROM TESURYO_KAIKEI H03 ' -- 手数料計算結果（会計区分別）
@@ -771,16 +880,19 @@ BEGIN
 		|| '                            AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                            AND H03.RATE_BUNBO > 0 '		-- 0除算対策
 		|| '                         GROUP BY H03.ITAKU_KAISHA_CD, H03.MGR_CD) WT05 '
-		|| '                 WHERE H03.ITAKU_KAISHA_CD = WT05.ITAKU_KAISHA_CD(+) '
-		|| '                   AND H03.MGR_CD = WT05.MGR_CD(+) '
-		|| '                   AND H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
+		|| '                    ON (H03.ITAKU_KAISHA_CD = WT05.ITAKU_KAISHA_CD '
+		|| '                   AND H03.MGR_CD = WT05.MGR_CD) '
+		|| '                 WHERE H03.CHOKYU_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 		|| '                   AND H03.TESU_SHURUI_CD = ''32'' '
 		|| '                   AND H03.KAIKEI_KBN <> ''00'' '
 		|| '                 GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                          H03.MGR_CD, '
 		|| '                          H03.KAIKEI_KBN, '
-		|| '                          WT05.KANJI_RATE) WT06, '
-		|| '                (SELECT H03.ITAKU_KAISHA_CD, '
+		|| '                          WT05.KANJI_RATE) WT06 '
+		|| '                    ON (WT01.ITAKU_KAISHA_CD = WT06.ITAKU_KAISHA_CD '
+		|| '                   AND WT01.MGR_CD = WT06.MGR_CD '
+		|| '                   AND WT01.KAIKEI_KBN = WT06.KAIKEI_KBN) '
+		|| '                LEFT OUTER JOIN (SELECT H03.ITAKU_KAISHA_CD, '
 		|| '                         H03.MGR_CD, '
 		|| '                         H03.KAIKEI_KBN, '
 		|| '                         SUM(H03.ANBUN_TESU_KNGK_KOMI) AS SHINKI_GK, '
@@ -805,15 +917,9 @@ BEGIN
 		|| '                 GROUP BY H03.ITAKU_KAISHA_CD, '
 		|| '                          H03.MGR_CD, '
 		|| '                          H03.KAIKEI_KBN) WT08 '
-		|| '         WHERE WT01.ITAKU_KAISHA_CD = WT02.ITAKU_KAISHA_CD(+) '
-		|| '           AND WT01.MGR_CD = WT02.MGR_CD(+) '
-		|| '           AND WT01.KAIKEI_KBN = WT02.KAIKEI_KBN(+) '
-		|| '           AND WT01.ITAKU_KAISHA_CD = WT06.ITAKU_KAISHA_CD(+) '
-		|| '           AND WT01.MGR_CD = WT06.MGR_CD(+) '
-		|| '           AND WT01.KAIKEI_KBN = WT06.KAIKEI_KBN(+) '
-		|| '           AND WT01.ITAKU_KAISHA_CD = WT08.ITAKU_KAISHA_CD(+) '
-		|| '           AND WT01.MGR_CD = WT08.MGR_CD(+) '
-		|| '           AND WT01.KAIKEI_KBN = WT08.KAIKEI_KBN(+)) AT03 '
+		|| '                    ON (WT01.ITAKU_KAISHA_CD = WT08.ITAKU_KAISHA_CD '
+		|| '                   AND WT01.MGR_CD = WT08.MGR_CD '
+		|| '                   AND WT01.KAIKEI_KBN = WT08.KAIKEI_KBN)) AT03 '
 		|| ' WHERE AT01.ITAKU_KAISHA_CD = AT02.ITAKU_KAISHA_CD '
 		|| '   AND AT02.ITAKU_KAISHA_CD = AT03.ITAKU_KAISHA_CD '
 		|| '   AND AT01.MGR_CD = AT03.MGR_CD '
@@ -839,11 +945,11 @@ LANGUAGE PLPGSQL
 
 CREATE OR REPLACE PROCEDURE spiph003k00r01_updateinvoiceitem (
 	in_TsukaCd text,
-	l_inItakuKaishaCd CHAR,
+	l_inItakuKaishaCd TEXT,
 	l_inUserId VARCHAR,
-	l_inChohyoKbn CHAR,
-	l_inGyomuYmd CHAR,
-	REPORT_ID CHAR,
+	l_inChohyoKbn TEXT,
+	l_inGyomuYmd TEXT,
+	REPORT_ID TEXT,
 	INOUT gRtnCd integer,
 	INOUT gSzeiKijunYmd char,
 	INOUT gSzeiRate varchar,

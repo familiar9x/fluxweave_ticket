@@ -1,6 +1,11 @@
+
+
+
+
+
 CREATE OR REPLACE PROCEDURE spipf005k00r03 (
-	l_inItakuId vjiko_itaku.kaiin_id%type,	-- 委託会社コード
-	l_inDataId scode.code_value%type,		-- データ種別
+	l_inItakuId Text,	-- 委託会社コード
+	l_inDataId Text,		-- データ種別
 	l_outSqlCode OUT integer,						-- リターン値
 	l_outSqlErrM OUT text						-- エラーコメント
 ) AS $body$
@@ -48,9 +53,9 @@ DECLARE
 	cGyoumuDt   sreport_wk.sakusei_ymd%type;	-- 業務日付
 	nCount      numeric;							-- 件数カウンタ
 	nRtnCd      numeric;							-- 正常処理フラグ
-	nRtnCd2     numeric;							-- エラーリスト（共通）ＳＰ用
-	cMsgId      char(6);						-- メッセージID
-	vRtnErrMsg  varchar(10);					-- エラーコメント
+	nRtnCd2     integer;							-- エラーリスト（共通）ＳＰ用
+	cMsgId      varchar(6);						-- メッセージID
+	vRtnErrMsg  text;					-- エラーコメント
 	cFlg        char(1);						-- エラーフラグ
 	cRbFlg      char(1);						-- ロールバックフラグ
 --==============================================================================
@@ -383,9 +388,9 @@ DECLARE
 	MSGID_CHECK_KETASU			CONSTANT varchar(6)	:= 'ECM012'	;
 	
 	nRtnCd numeric;
-	nRtnCd2 integer;  -- Changed from numeric to integer for spipf001k00r01 compatibility
-	vRtnErrMsg varchar(10);
-	cMsgId char(6);
+	nRtnCd2 numeric;
+	vRtnErrMsg text;
+	cMsgId varchar(6);
 
 BEGIN
 	-- リターンコードを初期化
@@ -431,16 +436,16 @@ BEGIN
 	-- 共通関数からの戻り値が'1'の場合、エラーリスト（共通）作成ＳＰを呼び出す
 	IF nRtnCd = 1 THEN
 		CALL spipf001k00r01(
-			l_inItakuId    => p_inItakuId::CHAR,
-			l_inUserId     => 'BATCH'::VARCHAR,
-			l_inChyohyoKbn => '1'::CHAR,
-			l_inChyohyoSakuKbn => '3'::CHAR,
-			l_inGyoumuDt   => p_cGyoumuDt::CHAR,
-			l_inDataId     => p_inDataId::VARCHAR,
+			l_inItakuId    => p_inItakuId,
+			l_inUserId     => 'BATCH',
+			l_inChyohyoKbn => '1',
+			l_inChyohyoSakuKbn => '3',
+			l_inGyoumuDt   => p_cGyoumuDt,
+			l_inDataId     => p_inDataId,
 			l_inRowNum     => l_inwk3,
-			l_inColNm      => l_inwk2::VARCHAR,
-			l_inSyuroku    => l_inwk1::VARCHAR,
-			l_inMessageId  => cMsgId::VARCHAR,
+			l_inColNm      => l_inwk2,
+			l_inSyuroku    => l_inwk1,
+			l_inMessageId  => cMsgId,
 			l_outSqlCode   => nRtnCd2,
 			l_outSqlErrM   => vRtnErrMsg
 		);

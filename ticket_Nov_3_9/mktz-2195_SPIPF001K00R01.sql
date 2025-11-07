@@ -1,16 +1,16 @@
 CREATE OR REPLACE PROCEDURE spipf001k00r01 (
-	l_inItakuId        CHAR,                                     -- 委託会社コード
-	l_inUserId         VARCHAR,                                  -- ユーザID
-	l_inChyohyoKbn     CHAR,                                     -- 帳票区分
-	l_inChyohyoSakuKbn CHAR,                                     -- 帳票作成区分
-	l_inGyoumuDt       CHAR,                                     -- 業務日付
-	l_inDataId         VARCHAR,                                  -- データ種別
-	l_inRowNum         NUMERIC,                                  -- 行番号
-	l_inColNm          VARCHAR,                                  -- 項目名称
-	l_inSyuroku        VARCHAR,                                  -- 収録内容
-	l_inMessageId      VARCHAR,                                  -- メッセージID
-	l_outSqlCode       OUT INTEGER,                              -- リターン値
-	l_outSqlErrM       OUT VARCHAR                               -- エラーコメント
+	l_initakuid        TEXT,                                     -- 委託会社コード
+	l_inuserid         VARCHAR,                                  -- ユーザID
+	l_inchyohyokbn     TEXT,                                     -- 帳票区分
+	l_inchyohyosakukbn TEXT,                                     -- 帳票作成区分
+	l_ingyoumudt       TEXT,                                     -- 業務日付
+	l_indataid         VARCHAR,                                  -- データ種別
+	l_inrownum         NUMERIC,                                  -- 行番号
+	l_incolnm          VARCHAR,                                  -- 項目名称
+	l_insyuroku        VARCHAR,                                  -- 収録内容
+	l_inmessageid      varchar(6),                                  -- メッセージID
+	l_outsqlcode       OUT INTEGER,                              -- リターン値
+	l_outsqlerrm       OUT text                               -- エラーコメント
 )
 AS $body$
 DECLARE
@@ -23,18 +23,18 @@ DECLARE
  * @author 小林　弘幸
  * @version $Revision: 1.5 $
  *
- * @param l_inItakuId        IN CHAR 委託会社コード
- *        l_inUserId         IN VARCHAR2 ユーザID
- *        l_inChyohyoKbn     IN CHAR 帳票区分
- *        l_inChyohyoSakuKbn IN CHAR 帳票作成区分
- *        l_inGyoumuDt       IN CHAR 業務日付
- *        l_inDataId         IN VARCHAR2 データ種別
- *        l_inRowNum         IN NUMBER   行番号
- *        l_inColNm          IN VARCHAR2 項目名称
- *        l_inSyuroku        IN VARCHAR2 収録内容
- *        l_inMessageId      IN VARCHAR2 メッセージID
+ * @param l_inItakuId        IN TEXT 委託会社コード
+ *        l_inUserId         IN VARCHAR ユーザID
+ *        l_inChyohyoKbn     IN TEXT 帳票区分
+ *        l_inChyohyoSakuKbn IN TEXT 帳票作成区分
+ *        l_inGyoumuDt       IN TEXT 業務日付
+ *        l_inDataId         IN VARCHAR データ種別
+ *        l_inRowNum         IN NUMERIC   行番号
+ *        l_inColNm          IN VARCHAR 項目名称
+ *        l_inSyuroku        IN VARCHAR 収録内容
+ *        l_inMessageId      IN VARCHAR メッセージID
  *        l_outSqlCode       IN INTEGER  リターン値
- *        l_outSqlErrM       IN VARCHAR2  エラーコメント
+ *        l_outSqlErrM       IN VARCHAR  エラーコメント
  * @return INTEGER
  *                0:正常終了
  *                1:予期したエラー
@@ -366,7 +366,7 @@ CREATE OR REPLACE FUNCTION spipf001k00r01_common_func(
 	l_inwk1        VARCHAR,  -- 項目値
 	l_inwk2        NUMERIC,  -- 項目名称振り分け用数値
 	OUT o_sqlCode INTEGER,   -- リターン値
-	OUT o_sqlErrM VARCHAR,   -- エラーコメント
+	OUT o_sqlErrM TEXT,   -- エラーコメント
 	OUT o_result BOOLEAN     -- 結果フラグ
 )
 AS $nested$

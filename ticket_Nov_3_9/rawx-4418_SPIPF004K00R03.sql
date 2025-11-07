@@ -1,6 +1,6 @@
 CREATE OR REPLACE PROCEDURE spipf004k00r03 (
-	l_inItakuId vjiko_itaku.kaiin_id%type,					 -- 委託者コード
-	l_inDataId scode.code_value%type,						 -- データ種別
+	l_inItakuId text,					 -- 委託者コード
+	l_inDataId text,						 -- データ種別
 	l_outSqlCode OUT integer,									 -- リターン値
 	l_outSqlErrM OUT text				     				 -- エラーコメント
 ) AS $body$

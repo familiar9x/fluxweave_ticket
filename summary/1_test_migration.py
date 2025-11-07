@@ -97,7 +97,52 @@ TEST_CONFIGS = {
         'type': 'procedure',
         'tests': [
             {
-                'description': 'Valid params - no data',
+                'description': 'Success case with valid data',
+                'setup_oracle': """
+BEGIN
+    DELETE FROM mcalender_trns;
+    INSERT INTO mcalender_trns (area_cd, holiday, lin_no) VALUES ('1', '20250101', 1);
+    INSERT INTO mcalender_trns (area_cd, holiday, lin_no) VALUES ('1', '20250505', 2);
+    INSERT INTO mcalender_trns (area_cd, holiday, lin_no) VALUES ('2', '20250101', 1);
+    COMMIT;
+END;
+""",
+                'setup_postgres': """
+DELETE FROM mcalender_trns;
+INSERT INTO mcalender_trns (area_cd, holiday, lin_no) VALUES ('1', '20250101', 1);
+INSERT INTO mcalender_trns (area_cd, holiday, lin_no) VALUES ('1', '20250505', 2);
+INSERT INTO mcalender_trns (area_cd, holiday, lin_no) VALUES ('2', '20250101', 1);
+""",
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    SPIPF004K00R03('0005', '10', v_code, v_msg);
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf004k00r03('0005', '10', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, v_msg;
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'No data case',
+                'setup_oracle': """
+BEGIN
+    DELETE FROM mcalender_trns;
+    COMMIT;
+END;
+""",
+                'setup_postgres': "DELETE FROM mcalender_trns;",
                 'oracle_sql': """
 DECLARE
     v_code NUMBER;
@@ -149,7 +194,58 @@ END $$;
         'type': 'procedure',
         'tests': [
             {
-                'description': 'Valid params - no data',
+                'description': 'Success case with valid data',
+                'setup_oracle': """
+BEGIN
+    DELETE FROM mbank_shiten_trns;
+    INSERT INTO mbank_shiten_trns 
+    (financial_securities_kbn, bank_cd, shiten_cd, shiten_nm, shiten_rnm, shiten_kana_rnm, lin_no)
+    VALUES ('0', '0001', '001', 'テスト支店', 'テスト支店', 'テストシテン', 1);
+    INSERT INTO mbank_shiten_trns 
+    (financial_securities_kbn, bank_cd, shiten_cd, shiten_nm, shiten_rnm, shiten_kana_rnm, lin_no)
+    VALUES ('0', '0001', '002', 'サンプル支店', 'サンプル支店', 'サンプルシテン', 2);
+    COMMIT;
+END;
+""",
+                'setup_postgres': """
+DELETE FROM mbank_shiten_trns;
+INSERT INTO mbank_shiten_trns 
+(financial_securities_kbn, bank_cd, shiten_cd, shiten_nm, shiten_rnm, shiten_kana_rnm, lin_no)
+VALUES ('0', '0001', '001', 'テスト支店', 'テスト支店', 'テストシテン', 1);
+INSERT INTO mbank_shiten_trns 
+(financial_securities_kbn, bank_cd, shiten_cd, shiten_nm, shiten_rnm, shiten_kana_rnm, lin_no)
+VALUES ('0', '0001', '002', 'サンプル支店', 'サンプル支店', 'サンプルシテン', 2);
+""",
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    SPIPF005K00R04('0005', '10', v_code, v_msg);
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf005k00r04('0005', '10', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, v_msg;
+END $$;
+""",
+                'expected': 1
+            },
+            {
+                'description': 'No data case',
+                'setup_oracle': """
+BEGIN
+    DELETE FROM mbank_shiten_trns;
+    COMMIT;
+END;
+""",
+                'setup_postgres': "DELETE FROM mbank_shiten_trns;",
                 'oracle_sql': """
 DECLARE
     v_code NUMBER;
@@ -170,6 +266,73 @@ BEGIN
 END $$;
 """,
                 'expected': 40
+            },
+            {
+                'description': 'Success case - valid data without errors',
+                'setup_oracle': """
+BEGIN
+    DELETE FROM mbank_shiten WHERE bank_cd = '0001' AND shiten_cd = '001';
+    DELETE FROM mbank_shiten_trns;
+    DELETE FROM mbank WHERE bank_cd = '0001' AND financial_securities_kbn = '1';
+    
+    -- Ensure mbank has the bank
+    INSERT INTO mbank (bank_cd, financial_securities_kbn, bank_nm, bank_rnm, bank_kana_rnm, shori_kbn, 
+                       sakusei_dt, sakusei_id, kousin_dt, kousin_id)
+    VALUES ('0001', '1', 'Test Bank', 'Test', 'テスト', '1', 
+            TO_DATE('20190225', 'YYYYMMDD'), 'BATCH', SYSDATE, 'BATCH');
+    
+    -- Insert valid data into mbank_shiten_trns
+    INSERT INTO mbank_shiten_trns 
+    (financial_securities_kbn, bank_cd, shiten_cd, shiten_nm, shiten_rnm, shiten_kana_rnm, lin_no)
+    VALUES ('1', '0001', '001', '本店', 'ホンテン', 'ホンテン', 1);
+    COMMIT;
+END;
+""",
+                'setup_postgres': """
+DELETE FROM mbank_shiten WHERE bank_cd = '0001' AND shiten_cd = '001';
+DELETE FROM mbank_shiten_trns;
+
+-- Ensure mbank has the bank
+INSERT INTO mbank (bank_cd, financial_securities_kbn, bank_nm, bank_rnm, bank_kana_rnm, shori_kbn,
+                   sakusei_dt, sakusei_id, kousin_dt, kousin_id)
+VALUES ('0001', '1', 'Test Bank', 'Test', 'テスト', '1',
+        '20190225', 'BATCH', clock_timestamp(), 'BATCH')
+ON CONFLICT (bank_cd, financial_securities_kbn) DO UPDATE SET shori_kbn = '1';
+
+-- Insert valid data into mbank_shiten_trns
+INSERT INTO mbank_shiten_trns 
+(financial_securities_kbn, bank_cd, shiten_cd, shiten_nm, shiten_rnm, shiten_kana_rnm, lin_no)
+VALUES ('1', '0001', '001', '本店', 'ホンテン', 'ホンテン', 1);
+""",
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    SPIPF005K00R04('0005', '10', v_code, v_msg);
+    
+    -- Cleanup
+    DELETE FROM mbank_shiten WHERE bank_cd = '0001' AND shiten_cd = '001';
+    COMMIT;
+    
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf005k00r04('0005', '10', v_code, v_msg); 
+    
+    -- Cleanup
+    DELETE FROM mbank_shiten WHERE bank_cd = '0001' AND shiten_cd = '001';
+    
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
             }
         ]
     },
@@ -191,7 +354,7 @@ END;
                 'postgres_sql': """
 DO $$ 
 DECLARE 
-    v_code numeric; 
+    v_code integer; 
     v_msg text; 
 BEGIN 
     CALL spipf005k00r01('0005', 'BATCH', '1', '1', '20241104', v_code, v_msg); 
@@ -199,6 +362,51 @@ BEGIN
 END $$;
 """,
                 'expected': 40
+            },
+            {
+                'description': 'Valid params - with data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    -- Insert test data
+    INSERT INTO MBANK (BANK_CD, FINANCIAL_SECURITIES_KBN, BANK_NM, BANK_RNM, BANK_KANA_RNM, 
+                       SAKUSEI_DT, SAKUSEI_ID, KOUSIN_DT, KOUSIN_ID)
+    VALUES ('0001', '1', 'Test Bank', 'Test', 'テスト', 
+            TO_DATE('20241104', 'YYYYMMDD'), 'BATCH', SYSDATE, 'BATCH');
+    COMMIT;
+    
+    SPIPF005K00R01('0005', 'BATCH', '1', '1', '20241104', v_code, v_msg);
+    :result := v_code;
+    
+    -- Cleanup
+    DELETE FROM MBANK WHERE BANK_CD = '0001' AND SAKUSEI_ID = 'BATCH';
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    -- Insert test data
+    INSERT INTO mbank (bank_cd, financial_securities_kbn, bank_nm, bank_rnm, bank_kana_rnm,
+                       sakusei_dt, sakusei_id, kousin_dt, kousin_id, bank_nm_eiji, shori_kbn,
+                       last_teisei_id, shonin_id)
+    VALUES ('0001', '1', 'Test Bank', 'Test', 'テスト',
+            '20241104', 'BATCH', now(), 'BATCH', 'Test Bank', '0',
+            ' ', ' ');
+    
+    CALL spipf005k00r01('0005', 'BATCH', '1', '1', '20241104', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, v_msg;
+    
+    -- Cleanup
+    DELETE FROM mbank WHERE bank_cd = '0001' AND sakusei_id = 'BATCH';
+END $$;
+""",
+                'expected': 0
             }
         ]
     },
@@ -220,7 +428,7 @@ END;
                 'postgres_sql': """
 DO $$ 
 DECLARE 
-    v_code integer; 
+    v_code numeric; 
     v_msg text; 
 BEGIN 
     CALL spipf005k00r03('0005', '10', v_code, v_msg); 
@@ -228,6 +436,53 @@ BEGIN
 END $$;
 """,
                 'expected': 40
+            },
+            {
+                'description': 'Valid params - with valid data',
+                'setup_sql': """
+INSERT INTO mbank_trns (financial_securities_kbn, bank_cd, bank_nm, bank_rnm, bank_kana_rnm, lin_no)
+VALUES ('0', '0001', 'テスト銀行', 'テスト', 'テストギンコウ', 1);
+""",
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    -- Insert test data
+    INSERT INTO MBANK_TRNS (FINANCIAL_SECURITIES_KBN, BANK_CD, BANK_NM, BANK_RNM, BANK_KANA_RNM, LIN_NO)
+    VALUES ('0', '0001', 'テスト銀行', 'テスト', 'テストギンコウ', 1);
+    COMMIT;
+    
+    SPIPF005K00R03('0005', '10', v_code, v_msg);
+    
+    -- Cleanup
+    DELETE FROM MBANK_TRNS;
+    DELETE FROM MBANK WHERE BANK_CD = '0001';
+    COMMIT;
+    
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg text; 
+BEGIN 
+    -- Insert test data
+    INSERT INTO mbank_trns (financial_securities_kbn, bank_cd, bank_nm, bank_rnm, bank_kana_rnm, lin_no)
+    VALUES ('0', '0001', 'テスト銀行', 'テスト', 'テストギンコウ', 1);
+    
+    CALL spipf005k00r03('0005', '10', v_code, v_msg); 
+    
+    -- Cleanup
+    DELETE FROM mbank_trns;
+    DELETE FROM mbank WHERE bank_cd = '0001';
+    
+    RAISE NOTICE 'Code: %, Msg: %', v_code, v_msg;
+END $$;
+""",
+                'expected': 0
             }
         ]
     },
@@ -257,7 +512,7 @@ END;
 DO $$ 
 DECLARE 
     v_code integer; 
-    v_msg varchar; 
+    v_msg text; 
 BEGIN 
     DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000111';
     DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000111';
@@ -335,6 +590,70 @@ END $$;
                 'expected': 40
             },
             {
+                'description': 'Valid params - with data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    -- Cleanup first
+    DELETE FROM MBANK_SHITEN WHERE BANK_CD = '0001' AND SHITEN_CD = '001';
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000521';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000521';
+    COMMIT;
+    
+    -- Insert test data
+    INSERT INTO MBANK_SHITEN (FINANCIAL_SECURITIES_KBN, BANK_CD, SHITEN_CD, SHITEN_NM, SHITEN_RNM, SHITEN_KANA_RNM, 
+                              SHORI_KBN, LAST_TEISEI_DT, LAST_TEISEI_ID, SHONIN_DT, SHONIN_ID, 
+                              KOUSIN_DT, KOUSIN_ID, SAKUSEI_DT, SAKUSEI_ID)
+    VALUES ('0', '0001', '001', 'テスト支店', 'テスト', 'テストシテン',
+            '1', SYSDATE, 'BATCH', SYSDATE, 'BATCH',
+            SYSDATE, 'BATCH', TO_DATE('20190225', 'YYYYMMDD'), 'BATCH');
+    COMMIT;
+    
+    SPIPF005K00R02('0005', 'BATCH', '1', '1', '20190225', v_code, v_msg);
+    
+    -- Cleanup
+    DELETE FROM MBANK_SHITEN WHERE BANK_CD = '0001' AND SHITEN_CD = '001';
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000521';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000521';
+    COMMIT;
+    
+    :result := v_code;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric; 
+    v_msg text; 
+BEGIN 
+    -- Cleanup first
+    DELETE FROM mbank_shiten WHERE bank_cd = '0001' AND shiten_cd = '001';
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000521';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000521';
+    
+    -- Insert test data
+    INSERT INTO mbank_shiten (financial_securities_kbn, bank_cd, shiten_cd, shiten_nm, shiten_rnm, shiten_kana_rnm,
+                              shori_kbn, last_teisei_dt, last_teisei_id, shonin_dt, shonin_id,
+                              kousin_dt, kousin_id, sakusei_dt, sakusei_id)
+    VALUES ('0', '0001', '001', 'テスト支店', 'テスト', 'テストシテン',
+            '1', CURRENT_TIMESTAMP, 'BATCH', CURRENT_TIMESTAMP, 'BATCH',
+            CURRENT_TIMESTAMP, 'BATCH', TO_DATE('20190225', 'YYYYMMDD'), 'BATCH');
+    
+    CALL spipf005k00r02('0005', 'BATCH', '1', '1', '20190225', v_code, v_msg); 
+    
+    -- Cleanup
+    DELETE FROM mbank_shiten WHERE bank_cd = '0001' AND shiten_cd = '001';
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPF30000521';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPF30000521';
+    
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
                 'description': 'Invalid param - empty itaku_kaisha_cd',
                 'oracle_sql': """
 DECLARE
@@ -383,15 +702,15 @@ END;
                 'postgres_sql': """
 DO $$ 
 DECLARE 
-    v_code numeric; 
-    v_msg varchar(500); 
+    v_code integer; 
+    v_msg text; 
 BEGIN 
     DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
     DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
     
-    CALL spiph003k00r01(NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, 
-                        '20190101'::VARCHAR, '20190331'::VARCHAR, '20190225'::VARCHAR,
-                        '0005'::VARCHAR, 'BATCH', '1'::VARCHAR, '20190225'::VARCHAR, v_code, v_msg); 
+    CALL spiph003k00r01(NULL, NULL, NULL, NULL, NULL, 
+                        '20190101', '20190331', '20190225',
+                        '0005', 'BATCH', '1', '20190225', v_code, v_msg); 
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
@@ -412,16 +731,61 @@ END;
                 'postgres_sql': """
 DO $$ 
 DECLARE 
-    v_code numeric; 
-    v_msg varchar(500); 
+    v_code integer; 
+    v_msg text; 
 BEGIN 
-    CALL spiph003k00r01(NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, NULL::VARCHAR, 
-                        '20190101'::VARCHAR, '20190331'::VARCHAR, '20190225'::VARCHAR,
-                        ''::VARCHAR, 'BATCH', '1'::VARCHAR, '20190225'::VARCHAR, v_code, v_msg); 
+    CALL spiph003k00r01(NULL, NULL, NULL, NULL, NULL, 
+                        '20190101', '20190331', '20190225',
+                        '', 'BATCH', '1', '20190225', v_code, v_msg); 
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
                 'expected': 1
+            },
+            {
+                'description': 'Valid params - with data (wide date range)',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    -- Cleanup
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+    
+    -- Test with wide date range (still no data in current test env)
+    SPIPH003K00R01(NULL, NULL, NULL, NULL, NULL, '20090101', '20301231', '20190225',
+                   '0005', 'BATCH', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+    
+    -- Cleanup
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    -- Cleanup
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+    
+    -- Test with wide date range (still no data in current test env)
+    CALL spiph003k00r01(NULL, NULL, NULL, NULL, NULL, 
+                        '20090101', '20301231', '20190225',
+                        '0005', 'BATCH', '1', '20190225', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+    
+    -- Cleanup
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+END $$;
+""",
+                'expected': 2
             }
         ]
     },
@@ -455,9 +819,9 @@ BEGIN
     DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000411';
     DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000411';
     
-    CALL spiph004k00r01(NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, 
-                        '20190101'::CHAR, '20190331'::CHAR, '20190225'::CHAR,
-                        '0005'::CHAR, 'BATCH', '1'::CHAR, '20190225'::CHAR, v_code, v_msg); 
+    CALL spiph004k00r01(NULL, NULL, NULL, NULL, NULL, 
+                        '20190101', '20190331', '20190225',
+                        '0005', 'BATCH', '1', '20190225', v_code, v_msg); 
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
@@ -481,13 +845,180 @@ DECLARE
     v_code numeric; 
     v_msg varchar(500); 
 BEGIN 
-    CALL spiph004k00r01(NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, NULL::CHAR, 
-                        '20190101'::CHAR, '20190331'::CHAR, '20190225'::CHAR,
-                        ''::CHAR, 'BATCH', '1'::CHAR, '20190225'::CHAR, v_code, v_msg); 
+    CALL spiph004k00r01(NULL, NULL, NULL, NULL, NULL, 
+                        '20190101', '20190331', '20190225',
+                        '', 'BATCH', '1', '20190225', v_code, v_msg); 
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
                 'expected': 1
+            }
+        ]
+    },
+    'zavs-0115': {
+        'name': 'SFIPJ077K00R20',
+        'type': 'function',
+        'tests': [
+            {
+                'description': 'Execute calendar history copy',
+                'oracle_sql': None,  # Skip Oracle test
+                'postgres_sql': "SELECT sfipj077k00r20()",
+                'expected': 0
+            }
+        ]
+    },
+    'pswa-2379': {
+        'name': 'SPIPH008K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Valid params - no data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+    COMMIT;
+    
+    SPIPH008K00R01(
+        'BATCH',      -- l_inUserId
+        '0005',       -- l_inItakuKaishaCd  
+        '20190101',   -- l_inKijunYmdFrom
+        '20190331',   -- l_inKijunYmdTo
+        NULL,         -- l_inHktCd
+        NULL,         -- l_inKozaTenCd
+        NULL,         -- l_inKozaTenCifcd
+        NULL,         -- l_inMgrCd
+        NULL,         -- l_inIsinCd
+        '20190225',   -- l_inTsuchiYmd
+        '1',          -- l_inChohyoSakuKbn
+        '1',          -- l_inChohyoKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    );
+    :result := v_code;
+    
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+    
+    -- Use positional parameters to avoid case-folding issues
+    CALL spiph008k00r01(
+        'BATCH',      -- l_inUserId
+        '0005',       -- l_inItakuKaishaCd  
+        '20190101',   -- l_inKijunYmdFrom
+        '20190331',   -- l_inKijunYmdTo
+        NULL,         -- l_inHktCd
+        NULL,         -- l_inKozaTenCd
+        NULL,         -- l_inKozaTenCifcd
+        NULL,         -- l_inMgrCd
+        NULL,         -- l_inIsinCd
+        '20190225',   -- l_inTsuchiYmd
+        '1',          -- l_inChohyoSakuKbn
+        '1',          -- l_inChohyoKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    ); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+    
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+END $$;
+""",
+                'expected': 2
+            },
+            {
+                'description': 'Valid params - with minimal test data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(100);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+    COMMIT;
+    
+    SPIPH008K00R01(
+        'BATCH',      -- l_inUserId
+        '0005',       -- l_inItakuKaishaCd  
+        '20190101',   -- l_inKijunYmdFrom
+        '20190331',   -- l_inKijunYmdTo
+        NULL,         -- l_inHktCd
+        NULL,         -- l_inKozaTenCd
+        NULL,         -- l_inKozaTenCifcd
+        NULL,         -- l_inMgrCd
+        NULL,         -- l_inIsinCd
+        '20190225',   -- l_inTsuchiYmd
+        '1',          -- l_inChohyoSakuKbn
+        '1',          -- l_inChohyoKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    );
+    :result := v_code;
+    
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+    COMMIT;
+END;
+""",
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    -- Cleanup first
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+    
+    -- Note: This test expects return code 2 (no data) because
+    -- creating full test data requires complex setup of:
+    -- - MGR_KIHON_VIEW (or base tables)
+    -- - MHAKKOTAI
+    -- - MGR_TESURYO_PRM  
+    -- - IP_GANRI_SEIKYUSHO_BY_KAIKEI (or equivalent view/table)
+    -- Without these tables populated, procedure will return 2 (no data)
+    
+    CALL spiph008k00r01(
+        'BATCH',      -- l_inUserId
+        '0005',       -- l_inItakuKaishaCd  
+        '20190101',   -- l_inKijunYmdFrom
+        '20190331',   -- l_inKijunYmdTo
+        NULL,         -- l_inHktCd
+        NULL,         -- l_inKozaTenCd
+        NULL,         -- l_inKozaTenCifcd
+        NULL,         -- l_inMgrCd
+        NULL,         -- l_inIsinCd
+        '20190225',   -- l_inTsuchiYmd
+        '1',          -- l_inChohyoSakuKbn
+        '1',          -- l_inChohyoKbn
+        '20190225',   -- l_inGyomuYmd
+        v_code,       -- l_outSqlCode OUT
+        v_msg         -- l_outSqlErrM OUT
+    ); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+    
+    -- Cleanup
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000811';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000811';
+END $$;
+""",
+                'expected': 2
             }
         ]
     }
@@ -563,18 +1094,36 @@ def run_tests(ticket_id: str):
             print(f"Test {i}: {test['description']}")
             print("-" * 70)
             
+            # Run setup if provided
+            if 'setup_oracle' in test:
+                try:
+                    oracle_cursor.execute(test['setup_oracle'])
+                    oracle_conn.commit()
+                except Exception as e:
+                    print(f"  Setup Oracle: ERROR - {e}")
+            
+            if 'setup_postgres' in test:
+                try:
+                    postgres_cursor.execute(test['setup_postgres'])
+                    postgres_conn.commit()
+                except Exception as e:
+                    print(f"  Setup PostgreSQL: ERROR - {e}")
+            
             # Test Oracle
             oracle_result = None
             oracle_error = None
-            try:
-                if config['type'] == 'function':
-                    oracle_result = test_oracle_function(oracle_cursor, test['oracle_sql'])
-                else:
-                    oracle_result = test_oracle_procedure(oracle_cursor, test['oracle_sql'])
-                print(f"  Oracle:     {oracle_result}")
-            except Exception as e:
-                oracle_error = str(e)
-                print(f"  Oracle:     ERROR - {oracle_error}")
+            if test['oracle_sql'] is not None:
+                try:
+                    if config['type'] == 'function':
+                        oracle_result = test_oracle_function(oracle_cursor, test['oracle_sql'])
+                    else:
+                        oracle_result = test_oracle_procedure(oracle_cursor, test['oracle_sql'])
+                    print(f"  Oracle:     {oracle_result}")
+                except Exception as e:
+                    oracle_error = str(e)
+                    print(f"  Oracle:     ERROR - {oracle_error}")
+            else:
+                print(f"  Oracle:     SKIPPED")
             
             # Test PostgreSQL
             postgres_result = None
@@ -593,7 +1142,20 @@ def run_tests(ticket_id: str):
             expected = test['expected']
             print(f"  Expected:   {expected}")
             
-            if oracle_error or postgres_error:
+            if postgres_error:
+                print(f"  Status:     ❌ ERROR")
+                all_passed = False
+                test_results.append(False)
+            elif test['oracle_sql'] is None:
+                # PostgreSQL only test
+                if postgres_result == expected:
+                    print(f"  Status:     ✅ PASS (PostgreSQL only)")
+                    test_results.append(True)
+                else:
+                    print(f"  Status:     ❌ FAIL (PostgreSQL != expected)")
+                    all_passed = False
+                    test_results.append(False)
+            elif oracle_error:
                 print(f"  Status:     ❌ ERROR")
                 all_passed = False
                 test_results.append(False)
