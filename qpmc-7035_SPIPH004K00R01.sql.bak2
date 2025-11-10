@@ -28,21 +28,21 @@ CREATE TYPE spiph004k00r01_type_record AS (
 	);
 
 
-CREATE OR REPLACE PROCEDURE spiph004k00r01 ( l_inHktCd CHAR,		-- 発行体コード
- l_inKozaTenCd CHAR,		-- 口座店コード
- l_inKozaTenCifCd CHAR,		-- 口座店CIFコード
- l_inMgrCd CHAR,		-- 銘柄コード
- l_inIsinCd CHAR,		-- ISINコード
- l_inKijyunYmdF CHAR,		-- 基準日(FROM)
- l_inKijyunYmdT CHAR,		-- 基準日(TO)
- l_inTuchiYmd CHAR,		-- 通知日
- l_inItakuKaishaCd CHAR,		-- 委託会社コード
+CREATE OR REPLACE PROCEDURE spiph004k00r01 ( l_inHktCd TEXT,		-- 発行体コード
+ l_inKozaTenCd TEXT,		-- 口座店コード
+ l_inKozaTenCifCd TEXT,		-- 口座店CIFコード
+ l_inMgrCd TEXT,		-- 銘柄コード
+ l_inIsinCd TEXT,		-- ISINコード
+ l_inKijyunYmdF TEXT,		-- 基準日(FROM)
+ l_inKijyunYmdT TEXT,		-- 基準日(TO)
+ l_inTuchiYmd TEXT,		-- 通知日
+ l_inItakuKaishaCd TEXT,		-- 委託会社コード
  l_inUserId text,	-- ユーザーID
- l_inChohyoKbn CHAR,		-- 帳票区分
- l_inGyomuYmd CHAR,		-- 業務日付
---	l_inStRecKbn		IN	CHAR,		-- 初回レコード区分
- l_outSqlCode OUT numeric,		-- リターン値
- l_outSqlErrM OUT VARCHAR(500) 		-- エラーコメント
+ l_inChohyoKbn TEXT,		-- 帳票区分
+ l_inGyomuYmd TEXT,		-- 業務日付
+--	l_inStRecKbn		IN	TEXT,		-- 初回レコード区分
+ l_outSqlCode OUT integer,		-- リターン値
+ l_outSqlErrM OUT text 		-- エラーコメント
  ) AS $body$
 DECLARE
 
@@ -50,20 +50,20 @@ DECLARE
 --/* 著作権:Copyright(c)2004
 --/* 会社名:JIP
 --/* 概要　:顧客宛帳票出力指示画面の入力条件により、手数料請求書（会計区分別）を作成する。
---/* 引数　:	l_inHktCd			IN	CHAR		発行体コード
---/*			l_inKozaTenCd		IN	CHAR		口座店コード
---/*			l_inKozaTenCifCd	IN	CHAR		口座店CIFコード
---/*			l_inMgrCd			IN	CHAR		銘柄コード
---/*			l_inIsinCd			IN	CHAR		ISINコード
---/*			l_inKijyunYmdF		IN	CHAR		基準日(FROM)
---/*			l_inKijyunYmdT		IN	CHAR		基準日(TO)
---/*			l_inTuchiYmd		IN	CHAR		通知日
---/*			l_inItakuKaishaCd	IN	CHAR		委託会社コード
---/*			l_inUserId			IN	CHAR		ユーザーID
---/*			l_inChohyoKbn		IN	CHAR		帳票区分
---/*			l_inGyomuYmd		IN	CHAR		業務日付
+--/* 引数　:	l_inHktCd			IN	TEXT		発行体コード
+--/*			l_inKozaTenCd		IN	TEXT		口座店コード
+--/*			l_inKozaTenCifCd	IN	TEXT		口座店CIFコード
+--/*			l_inMgrCd			IN	TEXT		銘柄コード
+--/*			l_inIsinCd			IN	TEXT		ISINコード
+--/*			l_inKijyunYmdF		IN	TEXT		基準日(FROM)
+--/*			l_inKijyunYmdT		IN	TEXT		基準日(TO)
+--/*			l_inTuchiYmd		IN	TEXT		通知日
+--/*			l_inItakuKaishaCd	IN	TEXT		委託会社コード
+--/*			l_inUserId			IN	TEXT		ユーザーID
+--/*			l_inChohyoKbn		IN	TEXT		帳票区分
+--/*			l_inGyomuYmd		IN	TEXT		業務日付
 --/*			l_outSqlCode		OUT	INTEGER		リターン値
---/*			l_outSqlErrM		OUT	VARCHAR2	エラーコメント
+--/*			l_outSqlErrM		OUT	VARCHAR	エラーコメント
 --/* 返り値:なし
 -- * @version $Id: SPIPH004K00R01.SQL,v 1.14 2023/07/25 05:57:03 kentaro_ikeda Exp $
 --/*
@@ -104,7 +104,7 @@ DECLARE
 	gSQL				varchar(4500) := NULL;				-- SQL編集
 	-- DB取得項目
 	-- 配列定義
-	recMeisai TYPE_RECORD[];
+	recMeisai spiph004k00r01_type_record[];
 	-- 西暦変換用
 	gWrkStTuchiYmd		varchar(20) := NULL;					-- 通知日
 	gWrkStSiharaiYmd	varchar(20) := NULL;					-- 支払日
@@ -133,12 +133,12 @@ DECLARE
 BEGIN
 	IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, 'SPIPH004K00R01 START');	END IF;
 	-- 入力パラメータのチェック
-	IF coalesce(trim(both l_inKijyunYmdF)::text, '') = ''					-- 基準日(FROM)
-	OR coalesce(trim(both l_inKijyunYmdT)::text, '') = ''					-- 基準日(TO)
-	OR coalesce(trim(both l_inItakuKaishaCd)::text, '') = ''				-- 委託会社コード
-	OR coalesce(trim(both l_inUserId)::text, '') = ''						-- ユーザID
-	OR coalesce(trim(both l_inChohyoKbn)::text, '') = ''					-- 帳票区分
-	OR coalesce(trim(both l_inGyomuYmd)::text, '') = ''					-- 業務日付
+	IF coalesce(trim(both l_inKijyunYmdF), '') = ''					-- 基準日(FROM)
+	OR coalesce(trim(both l_inKijyunYmdT), '') = ''					-- 基準日(TO)
+	OR coalesce(trim(both l_inItakuKaishaCd), '') = ''				-- 委託会社コード
+	OR coalesce(trim(both l_inUserId), '') = ''						-- ユーザID
+	OR coalesce(trim(both l_inChohyoKbn), '') = ''					-- 帳票区分
+	OR coalesce(trim(both l_inGyomuYmd), '') = ''					-- 業務日付
 	THEN
 		-- パラメータエラー
 		IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, 'param error');	END IF;
@@ -180,7 +180,7 @@ BEGIN
 	AND		CHOHYO_ID = REPORT_ID;
 	--gSeqNo := gSeqNoIni;
 	-- SQL編集
-	CALL SPIPH004K00R01_createSQL(gSQL);
+	CALL SPIPH004K00R01_createSQL(gSQL, l_inItakuKaishaCd, l_inMgrCd, l_inKijyunYmdF, l_inKijyunYmdT, l_inHktCd, l_inIsinCd, l_inKozaTenCd, l_inKozaTenCifCd);
 --	TEST_DEBUG_LOG('SPIPH004K00R01',gSQL);  -- SQL LOG
 	-- ヘッダレコードを追加
 	CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, REPORT_ID);
@@ -386,13 +386,13 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spiph004k00r01 ( l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifCd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inKijyunYmdF CHAR, l_inKijyunYmdT CHAR, l_inTuchiYmd CHAR, l_inItakuKaishaCd CHAR, l_inUserId text, l_inChohyoKbn CHAR, l_inGyomuYmd CHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT CHAR  ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spiph004k00r01 ( l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inIsinCd TEXT, l_inKijyunYmdF TEXT, l_inKijyunYmdT TEXT, l_inTuchiYmd TEXT, l_inItakuKaishaCd TEXT, l_inUserId text, l_inChohyoKbn TEXT, l_inGyomuYmd TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT TEXT  ) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE FUNCTION spiph004k00r01_createbun (l_in_ReportID CHAR ) RETURNS varchar AS $body$
+CREATE OR REPLACE FUNCTION spiph004k00r01_createbun (l_in_ReportID TEXT ) RETURNS varchar AS $body$
 DECLARE
 
 	patternCd	char(2) := '20';	-- パターンコード
@@ -418,13 +418,23 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON FUNCTION spiph004k00r01_createbun (l_in_ReportID CHAR ) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spiph004k00r01_createbun (l_in_ReportID TEXT ) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE PROCEDURE spiph004k00r01_createsql (INOUT gSQL varchar(4500)) AS $body$
+CREATE OR REPLACE PROCEDURE spiph004k00r01_createsql (
+    INOUT gSQL varchar(4500),
+    l_inItakuKaishaCd TEXT,
+    l_inMgrCd TEXT,
+    l_inKijyunYmdF TEXT,
+    l_inKijyunYmdT TEXT,
+    l_inHktCd TEXT,
+    l_inIsinCd TEXT,
+    l_inKozaTenCd TEXT,
+    l_inKozaTenCifCd TEXT
+) AS $body$
 BEGIN
 	gSQL := '';
 	gSQL := gSQL || ' SELECT';
@@ -448,7 +458,7 @@ BEGIN
 	gSQL := gSQL || ' 	,MCD1.CODE_NM AS KOZA_NM';									-- 口座科目名称
 	gSQL := gSQL || ' 	,oracle.to_multi_byte(S06.KOZA_NO)';					-- 口座番号
 	gSQL := gSQL || ' 	,S06.KOZAMEIGININ_NM';							-- 口座名義人
-	gSQL := gSQL || ' 	,NVL(WT1.TESURYO_GK,0) AS TESURYO_GK';			-- 手数料金額(税抜)
+	gSQL := gSQL || ' 	,COALESCE(WT1.TESURYO_GK,0) AS TESURYO_GK';			-- 手数料金額(税抜)
 	gSQL := gSQL || ' 	,MG8.SZEI_SEIKYU_KBN';
 	gSQL := gSQL || ' 	,VMG1.HAKKO_YMD';
 	gSQL := gSQL || ' 	,VMG1.HAKKO_TSUKA_CD';
@@ -514,10 +524,10 @@ BEGIN
 	gSQL := gSQL || '   AND MG7.ITAKU_KAISHA_CD = WT1.ITAKU_KAISHA_CD ';
 	gSQL := gSQL || '   AND MG7.MGR_CD = WT1.MGR_CD ';
 	gSQL := gSQL || '   AND MG7.TESU_SHURUI_CD = ''01'' ';
-	gSQL := gSQL || '   AND MG7.ITAKU_KAISHA_CD = S06.ITAKU_KAISHA_CD(+) ';
-	gSQL := gSQL || '   AND MG7.KOZA_FURI_KBN = S06.KOZA_FURI_KBN(+) ';
-	gSQL := gSQL || '   AND MCD1.CODE_SHUBETSU(+) = ''707'' ';
-	gSQL := gSQL || '   AND S06.KOZA_KAMOKU = MCD1.CODE_VALUE(+) ';
+	gSQL := gSQL || '   AND (MG7.ITAKU_KAISHA_CD = S06.ITAKU_KAISHA_CD OR S06.ITAKU_KAISHA_CD IS NULL) ';
+	gSQL := gSQL || '   AND (MG7.KOZA_FURI_KBN = S06.KOZA_FURI_KBN OR S06.KOZA_FURI_KBN IS NULL) ';
+	gSQL := gSQL || '   AND (MCD1.CODE_SHUBETSU = ''707'' OR MCD1.CODE_SHUBETSU IS NULL) ';
+	gSQL := gSQL || '   AND (S06.KOZA_KAMOKU = MCD1.CODE_VALUE OR MCD1.CODE_VALUE IS NULL) ';
 	gSQL := gSQL || '   AND MG8.ITAKU_KAISHA_CD = WT1.ITAKU_KAISHA_CD ';
 	gSQL := gSQL || '   AND MG8.MGR_CD = WT1.MGR_CD ';
 	IF (trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN

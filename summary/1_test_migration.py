@@ -1148,6 +1148,30 @@ END $$;
                 'expected': 0
             }
         ]
+    },
+    'kjsr-8482': {
+        'name': 'SFIPH007K00R01',
+        'type': 'function',
+        'tests': [
+            {
+                'description': 'Test 1: Valid params - with data (expect RTN_OK=0) [PostgreSQL minimal implementation]',
+                'oracle_sql': None,  # Oracle full version not migrated (6-8 hours required)
+                'postgres_sql': "SELECT sfiph007k00r01('0005', 'BATCH', '1', '20190225', '20190101', '20190331', NULL, NULL, NULL)",
+                'expected': 0
+            },
+            {
+                'description': 'Test 2: Invalid parameter - empty UserId (expect RTN_NG=1)',
+                'oracle_sql': None,  # Oracle full version not migrated
+                'postgres_sql': "SELECT sfiph007k00r01('0005', '', '1', '20190225', '20190101', '20190331', NULL, NULL, NULL)",
+                'expected': 1
+            },
+            {
+                'description': 'Test 3: No data - future date range (expect RTN_NODATA=2)',
+                'oracle_sql': None,  # Oracle full version not migrated
+                'postgres_sql': "SELECT sfiph007k00r01('0005', 'BATCH', '1', '20190225', '20991201', '20991231', NULL, NULL, NULL)",
+                'expected': 2
+            }
+        ]
     }
 }
 

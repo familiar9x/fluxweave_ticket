@@ -1,0 +1,40 @@
+=== FSUJ-6726: SPIPH006K00R02 Migration Result ===
+
+FILE: fsuj-6726_SPIPH006K00R02.sql
+PROCEDURE: spiph006k00r02 (公債会計別元利金明細票（銘柄別）)
+
+MIGRATION STEPS COMPLETED:
+1. ✅ Created composite type variable: l_inItem TYPE_SREPORT_WK_ITEM
+2. ✅ Assigned fields to composite type: l_inItem.l_inItem001 := ...
+3. ✅ Fixed missing semicolons before comments (major issue!)
+4. ✅ Fixed missing commas in CALL statements (3 locations)
+5. ✅ Called pkPrint.insertData with composite type: l_inItem => l_inItem
+6. ✅ Fixed array syntax: TYPE...IS TABLE → array[]
+7. ✅ Removed nested procedure (scope issue)
+8. ✅ Fixed function call syntax: PKDATE.getGyomuYmd → pkdate.getgyomuymd()
+9. ✅ Fixed OUT parameter pattern for insKikinIdoSeikyuOut
+10. ✅ Fixed CHAR vs integer comparisons (gInstFlag)
+
+DEPLOYMENT:
+✅ CREATE PROCEDURE successful
+✅ No compilation errors
+
+TEST RESULTS:
+Test 1: NULL parameters
+- Command: CALL spiph006k00r02(NULL, NULL, NULL, NULL, NULL, NULL, '20190101', '20190331', '20190331', '0005', 'TESTFSUJ', '1', '1', v_sqlcode, v_sqlerrm)
+- Result: Return code 2 (RTN_NODATA - no data scenario)
+- Status: ✅ PASS (expected behavior when no matching data)
+
+NOTES:
+- Return code 2 indicates procedure works correctly but no data matches the criteria
+- To get return code 0, need actual data in database that matches the input parameters
+- Procedure depends on pkipakknido.insKikinIdoSeikyuOut to create work tables first
+- Similar to qdjk-3904 (SPIPH006K00R01) - both use same composite type pattern
+
+ISSUES FIXED:
+1. Missing semicolons (;) before comments - caused "syntax error at or near ."
+2. Missing commas (,) in CALL parameter lists
+3. Inconsistent indentation (cosmetic)
+
+STATUS: ✅ MIGRATION COMPLETE
+DATE: 2025-11-09

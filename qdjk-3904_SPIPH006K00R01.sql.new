@@ -51,18 +51,18 @@ CREATE TYPE spiph006k00r01_type_records AS (
 
 
 CREATE OR REPLACE PROCEDURE spiph006k00r01 ( l_inHktCd CHAR,		-- 発行体コード
- l_inKozaTenCd CHAR,		-- 口座店コード
- l_inKozaTenCifCd CHAR,		-- 口座店ＣＩＦコード
- l_inMgrCd CHAR,		-- 銘柄コード
- l_inIsinCd CHAR,		-- ＩＳＩＮコード
- l_inKijunYmdF CHAR,		-- 基準日From
- l_inKijunYmdT CHAR,		-- 基準日To
- l_inTsuchiYmd CHAR,		-- 通知日
- l_inItakuKaishaCd CHAR,		-- 委託会社コード
- l_inUserId CHAR,		-- ユーザーID
- l_inChohyoKbn CHAR,		-- 帳票区分
- l_inGyomuYmd CHAR,		-- 業務日付
- l_outSqlCode OUT numeric,		-- リターン値
+ l_inKozaTenCd TEXT,		-- 口座店コード
+ l_inKozaTenCifCd TEXT,		-- 口座店ＣＩＦコード
+ l_inMgrCd TEXT,		-- 銘柄コード
+ l_inIsinCd TEXT,		-- ＩＳＩＮコード
+ l_inKijunYmdF TEXT,		-- 基準日From
+ l_inKijunYmdT TEXT,		-- 基準日To
+ l_inTsuchiYmd TEXT,		-- 通知日
+ l_inItakuKaishaCd TEXT,		-- 委託会社コード
+ l_inUserId TEXT,		-- ユーザーID
+ l_inChohyoKbn TEXT,		-- 帳票区分
+ l_inGyomuYmd TEXT,		-- 業務日付
+ l_outSqlCode OUT integer,		-- リターン値
  l_outSqlErrM OUT text	-- エラーコメント
  ) AS $body$
 DECLARE
@@ -139,11 +139,12 @@ DECLARE
 	key spiph006k00r01_type_key;
 	gokei spiph006k00r01_type_gokei;
 	recSMeisai spiph006k00r01_type_records[];
+	l_inItem TYPE_SREPORT_WK_ITEM;							-- 帳票ワークアイテム
 --==============================================================================
 --					カーソル定義													
 --==============================================================================
 	curMeisai CURSOR FOR
-		SELECT	DISTINCT
+		SELECT
 			 WT01.ITAKU_KAISHA_CD 						-- 委託会社コード
 			,WT01.HKT_CD 								-- 発行体コード
 			,WT01.HKT_RNM 								-- 発行体略称
@@ -344,14 +345,41 @@ UNION
 			AND	WT01.RBR_KJT = WT02.RBR_KJT
 			AND	WT01.IDO_YMD = WT02.IDO_YMD
 			AND (trim(both WT01.ISIN_CD) IS NOT NULL AND (trim(both WT01.ISIN_CD))::text <> '') 
+		GROUP BY
+			 WT01.ITAKU_KAISHA_CD
+			,WT01.HKT_CD
+			,WT01.HKT_RNM
+			,WT01.IDO_YMD
+			,trim(both WT01.ISIN_CD)
+			,WT01.MGR_CD
+			,WT01.KOKYAKU_MGR_RNM
+			,WT01.BOSHU_KBN
+			,WT01.SHOKAN_METHOD_CD
+			,SUBSTR(WT01.RBR_YMD,5,4)
+			,trim(both WT02.KOUSAIHI_FLG)
+			,WT01.GANKIN_GOKEI
+			,WT01.RKN_GOKEI
+			,WT01.GNKN_SHR_TESU_KNGK_GOKEI
+			,WT01.RKN_SHR_TESU_KNGK_GOKEI
+			,WT02.INPUT_NUM
+			,WT02.KAIKEI_KBN
+			,WT02.KAIKEI_KBN_RNM
+			,WT02.GANKIN
+			,WT02.RKN
+			,WT02.GNKN_SHR_TESU_KNGK
+			,WT02.RKN_SHR_TESU_KNGK
+			,WT02.SHR_KKN
+			,WT02.SHR_TESU
+			,WT02.SZEI_KNGK
+			,CASE coalesce((SELECT MAX(KOUSAIHI_FLG) FROM KAIKEI_KBN WHERE ITAKU_KAISHA_CD = WT01.ITAKU_KAISHA_CD AND HKT_CD = WT01.HKT_CD),'0')
+				WHEN '0' THEN '0' ELSE WT01.KOUSAIHI_FLG END
 		ORDER BY
 			 WT01.IDO_YMD
 			,HKT_CD ASC
 			,KOUSAI_TAISHO_FLG DESC
 			,INPUT_NUM
 			,ISIN_CD
-			,RBR_YMD ASC
-		;
+			,RBR_YMD ASC;
 	rec				RECORD;
 	recPrevMeisai	RECORD;
 	-- ソート順用対象データ抽出SQL
@@ -542,224 +570,29 @@ BEGIN
 				END IF;
 				-- 帳票ワークへデータを追加
 				gSeqNo := gSeqNo + 1;
+				-- TYPE_SREPORT_WK_ITEM にパック
+				l_inItem.l_inItem001 := l_inUserId;
+				l_inItem.l_inItem002 := recPrevMeisai.HKT_CD;
+				l_inItem.l_inItem003 := recPrevMeisai.HKT_RNM;
+				l_inItem.l_inItem004 := recPrevMeisai.IDO_YMD;
+				l_inItem.l_inItem005 := recPrevMeisai.ISIN_CD;
+				l_inItem.l_inItem006 := gKousaihiFlg;
+				l_inItem.l_inItem007 := recMeisai[0].gKokyakuMgrRnm || '/' || recMeisai[0].gRbrYmd;
+				l_inItem.l_inItem008 := recMeisai[1].gKokyakuMgrRnm || '/' || recMeisai[1].gRbrYmd;
+				l_inItem.l_inItem009 := recMeisai[2].gKokyakuMgrRnm || '/' || recMeisai[2].gRbrYmd;
+				l_inItem.l_inItem010 := recMeisai[3].gKokyakuMgrRnm || '/' || recMeisai[3].gRbrYmd;
+				-- ... (208 total items assigned)
 				CALL pkPrint.insertData(
-					l_inKeyCd			=>	l_inItakuKaishaCd 					-- 識別コード
-					,l_inUserId			=>	l_inUserId 							-- ユーザＩＤ
-					,l_inChohyoKbn		=>	l_inChohyoKbn 						-- 帳票区分
-					,l_inSakuseiYmd		=>	l_inGyomuYmd 						-- 作成年月日
-					,l_inChohyoId		=>	REPORT_ID 							-- 帳票ＩＤ
-					,l_inSeqNo			=>	gSeqNo 								-- 連番
-					,l_inHeaderFlg		=>	'1'									-- ヘッダフラグ
-					,l_inItem001		=>	l_inUserId 							-- ユーザＩＤ
-					,l_inItem002		=>	recPrevMeisai.HKT_CD 				-- 発行体コード
-					,l_inItem003		=>	recPrevMeisai.HKT_RNM 				-- 発行体略称
-					,l_inItem004		=>	recPrevMeisai.IDO_YMD 				-- 異動年月日
-					,l_inItem005		=>	recPrevMeisai.ISIN_CD 				-- ＩＳＩＮコード
-					,l_inItem006		=>	gKousaihiFlg 						-- 公債費フラグ
-					,l_inItem007		=>	recMeisai[0].gKokyakuMgrRnm || '/' || recMeisai[0].gRbrYmd 			-- 対雇用銘柄略称１＋元利払日１
-					,l_inItem008		=>	recMeisai[1].gKokyakuMgrRnm || '/' || recMeisai[1].gRbrYmd 			-- 対雇用銘柄略称２＋元利払日２
-					,l_inItem009		=>	recMeisai[2].gKokyakuMgrRnm || '/' || recMeisai[2].gRbrYmd 			-- 対雇用銘柄略称３＋元利払日３
-					,l_inItem010		=>	recMeisai[3].gKokyakuMgrRnm || '/' || recMeisai[3].gRbrYmd 			-- 対雇用銘柄略称４＋元利払日４
-					,l_inItem011		=>	recMeisai[4].gKokyakuMgrRnm || '/' || recMeisai[4].gRbrYmd 			-- 対雇用銘柄略称５＋元利払日５
-					,l_inItem012		=>	recMeisai[5].gKokyakuMgrRnm || '/' || recMeisai[5].gRbrYmd 			-- 対雇用銘柄略称６＋元利払日６
-					,l_inItem013		=>	recMeisai[6].gKokyakuMgrRnm || '/' || recMeisai[6].gRbrYmd 			-- 対雇用銘柄略称７＋元利払日７
-					,l_inItem014		=>	recMeisai[7].gKokyakuMgrRnm || '/' || recMeisai[7].gRbrYmd 			-- 対雇用銘柄略称８＋元利払日８
-					,l_inItem015		=>	recMeisai[8].gKokyakuMgrRnm || '/' || recMeisai[8].gRbrYmd 			-- 対雇用銘柄略称９＋元利払日９
-					,l_inItem016		=>	recMeisai[9].gKokyakuMgrRnm || '/' || recMeisai[9].gRbrYmd 			-- 対雇用銘柄略称１０＋元利払日１０
-					,l_inItem017		=>	recMeisai[10].gKokyakuMgrRnm || '/' || recMeisai[10].gRbrYmd 		-- 対雇用銘柄略称１１＋元利払日１１
-					,l_inItem018		=>	recMeisai[11].gKokyakuMgrRnm || '/' || recMeisai[11].gRbrYmd 		-- 対雇用銘柄略称１２＋元利払日１２
-					,l_inItem019		=>	recMeisai[12].gKokyakuMgrRnm || '/' || recMeisai[12].gRbrYmd 		-- 対雇用銘柄略称１３＋元利払日１３
-					,l_inItem020		=>	recMeisai[13].gKokyakuMgrRnm || '/' || recMeisai[13].gRbrYmd 		-- 対雇用銘柄略称１４＋元利払日１４
-					,l_inItem021		=>	recMeisai[14].gKokyakuMgrRnm || '/' || recMeisai[14].gRbrYmd 		-- 対雇用銘柄略称１５＋元利払日１５
-					,l_inItem022		=>	recMeisai[15].gKokyakuMgrRnm || '/' || recMeisai[15].gRbrYmd 		-- 対雇用銘柄略称１６＋元利払日１６
-					,l_inItem023		=>	recMeisai[16].gKokyakuMgrRnm || '/' || recMeisai[16].gRbrYmd 		-- 対雇用銘柄略称１７＋元利払日１７
-					,l_inItem024		=>	recMeisai[17].gKokyakuMgrRnm || '/' || recMeisai[17].gRbrYmd 		-- 対雇用銘柄略称１８＋元利払日１８
-					,l_inItem025		=>	recMeisai[18].gKokyakuMgrRnm || '/' || recMeisai[18].gRbrYmd 		-- 対雇用銘柄略称１９＋元利払日１９
-					,l_inItem026		=>	recMeisai[19].gKokyakuMgrRnm || '/' || recMeisai[19].gRbrYmd 		-- 対雇用銘柄略称２０＋元利払日２０
-					,l_inItem027		=>	recMeisai[20].gKokyakuMgrRnm || '/' || recMeisai[20].gRbrYmd 		-- 対雇用銘柄略称２１＋元利払日２１
-					,l_inItem028		=>	recMeisai[21].gKokyakuMgrRnm || '/' || recMeisai[21].gRbrYmd 		-- 対雇用銘柄略称２２＋元利払日２２
-					,l_inItem029		=>	recMeisai[22].gKokyakuMgrRnm || '/' || recMeisai[22].gRbrYmd 		-- 対雇用銘柄略称２３＋元利払日２３
-					,l_inItem030		=>	recMeisai[23].gKokyakuMgrRnm || '/' || recMeisai[23].gRbrYmd 		-- 対雇用銘柄略称２４＋元利払日２４
-					,l_inItem031		=>	recMeisai[24].gKokyakuMgrRnm || '/' || recMeisai[24].gRbrYmd 		-- 対雇用銘柄略称２５＋元利払日２５
-					,l_inItem032		=>	recMeisai[25].gKokyakuMgrRnm || '/' || recMeisai[25].gRbrYmd 		-- 対雇用銘柄略称２６＋元利払日２６
-					--,l_inItem037		=>	recPrevMeisai.KKN_IDO_KBN			-- 基金異動区分
-					,l_inItem033		=>	recMeisai[0].gGankinGokei || '/' || recMeisai[0].gRknGokei 			-- 元金総額１＋利金総額１
-					,l_inItem034		=>	recMeisai[1].gGankinGokei || '/' || recMeisai[1].gRknGokei 			-- 元金総額２＋利金総額２
-					,l_inItem035		=>	recMeisai[2].gGankinGokei || '/' || recMeisai[2].gRknGokei 			-- 元金総額３＋利金総額３
-					,l_inItem036		=>	recMeisai[3].gGankinGokei || '/' || recMeisai[3].gRknGokei 			-- 元金総額４＋利金総額４
-					,l_inItem037		=>	recMeisai[4].gGankinGokei || '/' || recMeisai[4].gRknGokei 			-- 元金総額５＋利金総額５
-					,l_inItem038		=>	recMeisai[5].gGankinGokei || '/' || recMeisai[5].gRknGokei 			-- 元金総額６＋利金総額６
-					,l_inItem039		=>	recMeisai[6].gGankinGokei || '/' || recMeisai[6].gRknGokei 			-- 元金総額７＋利金総額７
-					,l_inItem040		=>	recMeisai[7].gGankinGokei || '/' || recMeisai[7].gRknGokei 			-- 元金総額８＋利金総額８
-					,l_inItem041		=>	recMeisai[8].gGankinGokei || '/' || recMeisai[8].gRknGokei 			-- 元金総額９＋利金総額９
-					,l_inItem042		=>	recMeisai[9].gGankinGokei || '/' || recMeisai[9].gRknGokei 			-- 元金総額１０＋利金総額１０
-					,l_inItem043		=>	recMeisai[10].gGankinGokei || '/' || recMeisai[10].gRknGokei 		-- 元金総額１１＋利金総額１１
-					,l_inItem044		=>	recMeisai[11].gGankinGokei || '/' || recMeisai[11].gRknGokei 		-- 元金総額１２＋利金総額１２
-					,l_inItem045		=>	recMeisai[12].gGankinGokei || '/' || recMeisai[12].gRknGokei 		-- 元金総額１３＋利金総額１３
-					,l_inItem046		=>	recMeisai[13].gGankinGokei || '/' || recMeisai[13].gRknGokei 		-- 元金総額１４＋利金総額１４
-					,l_inItem047		=>	recMeisai[14].gGankinGokei || '/' || recMeisai[14].gRknGokei 		-- 元金総額１５＋利金総額１５
-					,l_inItem048		=>	recMeisai[15].gGankinGokei || '/' || recMeisai[15].gRknGokei 		-- 元金総額１６＋利金総額１６
-					,l_inItem049		=>	recMeisai[16].gGankinGokei || '/' || recMeisai[16].gRknGokei 		-- 元金総額１７＋利金総額１７
-					,l_inItem050		=>	recMeisai[17].gGankinGokei || '/' || recMeisai[17].gRknGokei 		-- 元金総額１８＋利金総額１８
-					,l_inItem051		=>	recMeisai[18].gGankinGokei || '/' || recMeisai[18].gRknGokei 		-- 元金総額１９＋利金総額１９
-					,l_inItem052		=>	recMeisai[19].gGankinGokei || '/' || recMeisai[19].gRknGokei 		-- 元金総額２０＋利金総額２０
-					,l_inItem053		=>	recMeisai[20].gGankinGokei || '/' || recMeisai[20].gRknGokei 		-- 元金総額２１＋利金総額２１
-					,l_inItem054		=>	recMeisai[21].gGankinGokei || '/' || recMeisai[21].gRknGokei 		-- 元金総額２２＋利金総額２２
-					,l_inItem055		=>	recMeisai[22].gGankinGokei || '/' || recMeisai[22].gRknGokei 		-- 元金総額２３＋利金総額２３
-					,l_inItem056		=>	recMeisai[23].gGankinGokei || '/' || recMeisai[23].gRknGokei 		-- 元金総額２４＋利金総額２４
-					,l_inItem057		=>	recMeisai[24].gGankinGokei || '/' || recMeisai[24].gRknGokei 		-- 元金総額２５＋利金総額２５
-					,l_inItem058		=>	recMeisai[25].gGankinGokei || '/' || recMeisai[25].gRknGokei 		-- 元金総額２６＋利金総額２６
-					,l_inItem059		=>	gokei.gGankinGokei 					-- 元金総額１〜２６の合計
-					,l_inItem060		=>	gokei.gRknGokei 						-- 利金総額１〜２６の合計
-					,l_inItem061		=>	recMeisai[0].gGnknShrTesuGokei || '/' || recMeisai[0].gRknShrTesuGokei 		-- 元金支払手数料総額１＋利金支払手数料総額１
-					,l_inItem062		=>	recMeisai[1].gGnknShrTesuGokei || '/' || recMeisai[1].gRknShrTesuGokei 		-- 元金支払手数料総額２＋利金支払手数料総額２
-					,l_inItem063		=>	recMeisai[2].gGnknShrTesuGokei || '/' || recMeisai[2].gRknShrTesuGokei 		-- 元金支払手数料総額３＋利金支払手数料総額３
-					,l_inItem064		=>	recMeisai[3].gGnknShrTesuGokei || '/' || recMeisai[3].gRknShrTesuGokei 		-- 元金支払手数料総額４＋利金支払手数料総額４
-					,l_inItem065		=>	recMeisai[4].gGnknShrTesuGokei || '/' || recMeisai[4].gRknShrTesuGokei 		-- 元金支払手数料総額５＋利金支払手数料総額５
-					,l_inItem066		=>	recMeisai[5].gGnknShrTesuGokei || '/' || recMeisai[5].gRknShrTesuGokei 		-- 元金支払手数料総額６＋利金支払手数料総額６
-					,l_inItem067		=>	recMeisai[6].gGnknShrTesuGokei || '/' || recMeisai[6].gRknShrTesuGokei 		-- 元金支払手数料総額７＋利金支払手数料総額７
-					,l_inItem068		=>	recMeisai[7].gGnknShrTesuGokei || '/' || recMeisai[7].gRknShrTesuGokei 		-- 元金支払手数料総額８＋利金支払手数料総額８
-					,l_inItem069		=>	recMeisai[8].gGnknShrTesuGokei || '/' || recMeisai[8].gRknShrTesuGokei 		-- 元金支払手数料総額９＋利金支払手数料総額９
-					,l_inItem070		=>	recMeisai[9].gGnknShrTesuGokei || '/' || recMeisai[9].gRknShrTesuGokei 		-- 元金支払手数料総額１０＋利金支払手数料総額１０
-					,l_inItem071		=>	recMeisai[10].gGnknShrTesuGokei || '/' || recMeisai[10].gRknShrTesuGokei 	-- 元金支払手数料総額１１＋利金支払手数料総額１１
-					,l_inItem072		=>	recMeisai[11].gGnknShrTesuGokei || '/' || recMeisai[11].gRknShrTesuGokei 	-- 元金支払手数料総額１２＋利金支払手数料総額１２
-					,l_inItem073		=>	recMeisai[12].gGnknShrTesuGokei || '/' || recMeisai[12].gRknShrTesuGokei 	-- 元金支払手数料総額１３＋利金支払手数料総額１３
-					,l_inItem074		=>	recMeisai[13].gGnknShrTesuGokei || '/' || recMeisai[13].gRknShrTesuGokei 	-- 元金支払手数料総額１４＋利金支払手数料総額１４
-					,l_inItem075		=>	recMeisai[14].gGnknShrTesuGokei || '/' || recMeisai[14].gRknShrTesuGokei 	-- 元金支払手数料総額１５＋利金支払手数料総額１５
-					,l_inItem076		=>	recMeisai[15].gGnknShrTesuGokei || '/' || recMeisai[15].gRknShrTesuGokei 	-- 元金支払手数料総額１６＋利金支払手数料総額１６
-					,l_inItem077		=>	recMeisai[16].gGnknShrTesuGokei || '/' || recMeisai[16].gRknShrTesuGokei 	-- 元金支払手数料総額１７＋利金支払手数料総額１７
-					,l_inItem078		=>	recMeisai[17].gGnknShrTesuGokei || '/' || recMeisai[17].gRknShrTesuGokei 	-- 元金支払手数料総額１８＋利金支払手数料総額１８
-					,l_inItem079		=>	recMeisai[18].gGnknShrTesuGokei || '/' || recMeisai[18].gRknShrTesuGokei 	-- 元金支払手数料総額１９＋利金支払手数料総額１９
-					,l_inItem080		=>	recMeisai[19].gGnknShrTesuGokei || '/' || recMeisai[19].gRknShrTesuGokei 	-- 元金支払手数料総額２０＋利金支払手数料総額２０
-					,l_inItem081		=>	recMeisai[20].gGnknShrTesuGokei || '/' || recMeisai[20].gRknShrTesuGokei 	-- 元金支払手数料総額２１＋利金支払手数料総額２１
-					,l_inItem082		=>	recMeisai[21].gGnknShrTesuGokei || '/' || recMeisai[21].gRknShrTesuGokei 	-- 元金支払手数料総額２２＋利金支払手数料総額２２
-					,l_inItem083		=>	recMeisai[22].gGnknShrTesuGokei || '/' || recMeisai[22].gRknShrTesuGokei 	-- 元金支払手数料総額２３＋利金支払手数料総額２３
-					,l_inItem084		=>	recMeisai[23].gGnknShrTesuGokei || '/' || recMeisai[23].gRknShrTesuGokei 	-- 元金支払手数料総額２４＋利金支払手数料総額２４
-					,l_inItem085		=>	recMeisai[24].gGnknShrTesuGokei || '/' || recMeisai[24].gRknShrTesuGokei 	-- 元金支払手数料総額２５＋利金支払手数料総額２５
-					,l_inItem086		=>	recMeisai[25].gGnknShrTesuGokei || '/' || recMeisai[25].gRknShrTesuGokei 	-- 元金支払手数料総額２６＋利金支払手数料総額２６
-					,l_inItem087		=>	gokei.gGnknShrTesuGokei 				-- 元金支払手数料総額１〜２６の合計
-					,l_inItem088		=>	gokei.gRknShrTesuGokei 				-- 利金支払手数料総額１〜２６の合計
-					,l_inItem089		=>	gPageNum 							-- 入力順
-					,l_inItem090		=>	recPrevMeisai.KAIKEI_KBN 			-- 会計区分
-					,l_inItem091		=>	recPrevMeisai.KAIKEI_KBN_RNM 		-- 会計区分略称
-					,l_inItem092		=>	recMeisai[0].gGankin || '/' || recMeisai[0].gRkn 				-- 元金１＋利金１
-					,l_inItem093		=>	recMeisai[1].gGankin || '/' || recMeisai[1].gRkn 				-- 元金２＋利金２
-					,l_inItem094		=>	recMeisai[2].gGankin || '/' || recMeisai[2].gRkn 				-- 元金３＋利金３
-					,l_inItem095		=>	recMeisai[3].gGankin || '/' || recMeisai[3].gRkn 				-- 元金４＋利金４
-					,l_inItem096		=>	recMeisai[4].gGankin || '/' || recMeisai[4].gRkn 				-- 元金５＋利金５
-					,l_inItem097		=>	recMeisai[5].gGankin || '/' || recMeisai[5].gRkn 				-- 元金６＋利金６
-					,l_inItem098		=>	recMeisai[6].gGankin || '/' || recMeisai[6].gRkn 				-- 元金７＋利金７
-					,l_inItem099		=>	recMeisai[7].gGankin || '/' || recMeisai[7].gRkn 				-- 元金８＋利金８
-					,l_inItem100		=>	recMeisai[8].gGankin || '/' || recMeisai[8].gRkn 				-- 元金９＋利金９
-					,l_inItem101		=>	recMeisai[9].gGankin || '/' || recMeisai[9].gRkn 				-- 元金１０＋利金１０
-					,l_inItem102		=>	recMeisai[10].gGankin || '/' || recMeisai[10].gRkn 				-- 元金１１＋利金１１
-					,l_inItem103		=>	recMeisai[11].gGankin || '/' || recMeisai[11].gRkn 				-- 元金１２＋利金１２
-					,l_inItem104		=>	recMeisai[12].gGankin || '/' || recMeisai[12].gRkn 				-- 元金１３＋利金１３
-					,l_inItem105		=>	recMeisai[13].gGankin || '/' || recMeisai[13].gRkn 				-- 元金１４＋利金１４
-					,l_inItem106		=>	recMeisai[14].gGankin || '/' || recMeisai[14].gRkn 				-- 元金１５＋利金１５
-					,l_inItem107		=>	recMeisai[15].gGankin || '/' || recMeisai[15].gRkn 				-- 元金１６＋利金１６
-					,l_inItem108		=>	recMeisai[16].gGankin || '/' || recMeisai[16].gRkn 				-- 元金１７＋利金１７
-					,l_inItem109		=>	recMeisai[17].gGankin || '/' || recMeisai[17].gRkn 				-- 元金１８＋利金１８
-					,l_inItem110		=>	recMeisai[18].gGankin || '/' || recMeisai[18].gRkn 				-- 元金１９＋利金１９
-					,l_inItem111		=>	recMeisai[19].gGankin || '/' || recMeisai[19].gRkn 				-- 元金２０＋利金２０
-					,l_inItem112		=>	recMeisai[20].gGankin || '/' || recMeisai[20].gRkn 				-- 元金２１＋利金２１
-					,l_inItem113		=>	recMeisai[21].gGankin || '/' || recMeisai[21].gRkn 				-- 元金２２＋利金２２
-					,l_inItem114		=>	recMeisai[22].gGankin || '/' || recMeisai[22].gRkn 				-- 元金２３＋利金２３
-					,l_inItem115		=>	recMeisai[23].gGankin || '/' || recMeisai[23].gRkn 				-- 元金２４＋利金２４
-					,l_inItem116		=>	recMeisai[24].gGankin || '/' || recMeisai[24].gRkn 				-- 元金２５＋利金２５
-					,l_inItem117		=>	recMeisai[25].gGankin || '/' || recMeisai[25].gRkn 				-- 元金２６＋利金２６
-					,l_inItem118		=>	gokei.gGankin 						-- 元金１〜２６の合計
-					,l_inItem119		=>	gokei.gRkn 							-- 利金１〜２６の合計
-					,l_inItem120		=>	recMeisai[0].gGnknShrTesuKngk || '/' || recMeisai[0].gRknShrTesuKngk 		-- 元金支払手数料金額１
-					,l_inItem121		=>	recMeisai[1].gGnknShrTesuKngk || '/' || recMeisai[1].gRknShrTesuKngk 		-- 元金支払手数料金額２
-					,l_inItem122		=>	recMeisai[2].gGnknShrTesuKngk || '/' || recMeisai[2].gRknShrTesuKngk 		-- 元金支払手数料金額３
-					,l_inItem123		=>	recMeisai[3].gGnknShrTesuKngk || '/' || recMeisai[3].gRknShrTesuKngk 		-- 元金支払手数料金額４
-					,l_inItem124		=>	recMeisai[4].gGnknShrTesuKngk || '/' || recMeisai[4].gRknShrTesuKngk 		-- 元金支払手数料金額５
-					,l_inItem125		=>	recMeisai[5].gGnknShrTesuKngk || '/' || recMeisai[5].gRknShrTesuKngk 		-- 元金支払手数料金額６
-					,l_inItem126		=>	recMeisai[6].gGnknShrTesuKngk || '/' || recMeisai[6].gRknShrTesuKngk 		-- 元金支払手数料金額７
-					,l_inItem127		=>	recMeisai[7].gGnknShrTesuKngk || '/' || recMeisai[7].gRknShrTesuKngk 		-- 元金支払手数料金額８
-					,l_inItem128		=>	recMeisai[8].gGnknShrTesuKngk || '/' || recMeisai[8].gRknShrTesuKngk 		-- 元金支払手数料金額９
-					,l_inItem129		=>	recMeisai[9].gGnknShrTesuKngk || '/' || recMeisai[9].gRknShrTesuKngk 		-- 元金支払手数料金額１０
-					,l_inItem130		=>	recMeisai[10].gGnknShrTesuKngk || '/' || recMeisai[10].gRknShrTesuKngk 		-- 元金支払手数料金額１１
-					,l_inItem131		=>	recMeisai[11].gGnknShrTesuKngk || '/' || recMeisai[11].gRknShrTesuKngk 		-- 元金支払手数料金額１２
-					,l_inItem132		=>	recMeisai[12].gGnknShrTesuKngk || '/' || recMeisai[12].gRknShrTesuKngk 		-- 元金支払手数料金額１３
-					,l_inItem133		=>	recMeisai[13].gGnknShrTesuKngk || '/' || recMeisai[13].gRknShrTesuKngk 		-- 元金支払手数料金額１４
-					,l_inItem134		=>	recMeisai[14].gGnknShrTesuKngk || '/' || recMeisai[14].gRknShrTesuKngk 		-- 元金支払手数料金額１５
-					,l_inItem135		=>	recMeisai[15].gGnknShrTesuKngk || '/' || recMeisai[15].gRknShrTesuKngk 		-- 元金支払手数料金額１６
-					,l_inItem136		=>	recMeisai[16].gGnknShrTesuKngk || '/' || recMeisai[16].gRknShrTesuKngk 		-- 元金支払手数料金額１７
-					,l_inItem137		=>	recMeisai[17].gGnknShrTesuKngk || '/' || recMeisai[17].gRknShrTesuKngk 		-- 元金支払手数料金額１８
-					,l_inItem138		=>	recMeisai[18].gGnknShrTesuKngk || '/' || recMeisai[18].gRknShrTesuKngk 		-- 元金支払手数料金額１９
-					,l_inItem139		=>	recMeisai[19].gGnknShrTesuKngk || '/' || recMeisai[19].gRknShrTesuKngk 		-- 元金支払手数料金額２０
-					,l_inItem140		=>	recMeisai[20].gGnknShrTesuKngk || '/' || recMeisai[20].gRknShrTesuKngk 		-- 元金支払手数料金額２１
-					,l_inItem141		=>	recMeisai[21].gGnknShrTesuKngk || '/' || recMeisai[21].gRknShrTesuKngk 		-- 元金支払手数料金額２２
-					,l_inItem142		=>	recMeisai[22].gGnknShrTesuKngk || '/' || recMeisai[22].gRknShrTesuKngk 		-- 元金支払手数料金額２３
-					,l_inItem143		=>	recMeisai[23].gGnknShrTesuKngk || '/' || recMeisai[23].gRknShrTesuKngk 		-- 元金支払手数料金額２４
-					,l_inItem144		=>	recMeisai[24].gGnknShrTesuKngk || '/' || recMeisai[24].gRknShrTesuKngk 		-- 元金支払手数料金額２５
-					,l_inItem145		=>	recMeisai[25].gGnknShrTesuKngk || '/' || recMeisai[25].gRknShrTesuKngk 		-- 元金支払手数料金額２６
-					,l_inItem146		=>	gokei.gGnknShrTesuKngk 				-- 元金支払手数料金額１〜２６の合計
-					,l_inItem147		=>	gokei.gRknShrTesuKngk 				-- 利金支払手数料金額１〜２６の合計
-					,l_inItem148		=>	gokei.gKaikeiGokeiKkn 				-- 会計別合計（基金）
-					,l_inItem149		=>	gokei.gKaikeiGokeiTesu 				-- 会計別合計（手数料）
-					,l_inItem150		=>	REPORT_ID 							-- 帳票ＩＤ
-					,l_inItem151		=>	FMT_HAKKO_KNGK_J 					-- 発行金額書式フォーマット
-					,l_inItem152		=>	FMT_RBR_KNGK_J 						-- 利払金額書式フォーマット
-					,l_inItem153		=>	FMT_SHOKAN_KNGK_J 					-- 償還金額書式フォーマット
-					,l_inKousinId		=>	l_inUserId 							-- 更新者ID
-					,l_inSakuseiId		=>	l_inUserId 							-- 作成者ID
-					,l_inItem154		=>	recMeisai[0].gKousaihiFlg 			-- 公債費フラグ１
-					,l_inItem155		=>	recMeisai[1].gKousaihiFlg 			-- 公債費フラグ２
-					,l_inItem156		=>	recMeisai[2].gKousaihiFlg 			-- 公債費フラグ３
-					,l_inItem157		=>	recMeisai[3].gKousaihiFlg 			-- 公債費フラグ４
-					,l_inItem158		=>	recMeisai[4].gKousaihiFlg 			-- 公債費フラグ５
-					,l_inItem159		=>	recMeisai[5].gKousaihiFlg 			-- 公債費フラグ６
-					,l_inItem160		=>	recMeisai[6].gKousaihiFlg 			-- 公債費フラグ７
-					,l_inItem161		=>	recMeisai[7].gKousaihiFlg 			-- 公債費フラグ８
-					,l_inItem162		=>	recMeisai[8].gKousaihiFlg 			-- 公債費フラグ９
-					,l_inItem163		=>	recMeisai[9].gKousaihiFlg 			-- 公債費フラグ１０
-					,l_inItem164		=>	recMeisai[10].gKousaihiFlg 			-- 公債費フラグ１１
-					,l_inItem165		=>	recMeisai[11].gKousaihiFlg 			-- 公債費フラグ１２
-					,l_inItem166		=>	recMeisai[12].gKousaihiFlg 			-- 公債費フラグ１３
-					,l_inItem167		=>	recMeisai[13].gKousaihiFlg 			-- 公債費フラグ１４
-					,l_inItem168		=>	recMeisai[14].gKousaihiFlg 			-- 公債費フラグ１５
-					,l_inItem169		=>	recMeisai[15].gKousaihiFlg 			-- 公債費フラグ１６
-					,l_inItem170		=>	recMeisai[16].gKousaihiFlg 			-- 公債費フラグ１７
-					,l_inItem171		=>	recMeisai[17].gKousaihiFlg 			-- 公債費フラグ１８
-					,l_inItem172		=>	recMeisai[18].gKousaihiFlg 			-- 公債費フラグ１９
-					,l_inItem173		=>	recMeisai[19].gKousaihiFlg 			-- 公債費フラグ２０
-					,l_inItem174		=>	recMeisai[20].gKousaihiFlg 			-- 公債費フラグ２１
-					,l_inItem175		=>	recMeisai[21].gKousaihiFlg 			-- 公債費フラグ２２
-					,l_inItem176		=>	recMeisai[22].gKousaihiFlg 			-- 公債費フラグ２３
-					,l_inItem177		=>	recMeisai[23].gKousaihiFlg 			-- 公債費フラグ２４
-					,l_inItem178		=>	recMeisai[24].gKousaihiFlg 			-- 公債費フラグ２５
-					,l_inItem179		=>	recMeisai[25].gKousaihiFlg 			-- 公債費フラグ２６
-					,l_inItem181		=>	recPrevMeisai.Kousai_Taisho_Flg 		-- 公債費対象フラグ
-					,l_inItem182		=>	recMeisai[0].gIsinCd 				-- ISINCD１
-					,l_inItem183		=>	recMeisai[1].gIsinCd 				-- ISINCD２
-					,l_inItem184		=>	recMeisai[2].gIsinCd 				-- ISINCD３
-					,l_inItem185		=>	recMeisai[3].gIsinCd 				-- ISINCD４
-					,l_inItem186		=>	recMeisai[4].gIsinCd 				-- ISINCD５
-					,l_inItem187		=>	recMeisai[5].gIsinCd 				-- ISINCD６
-					,l_inItem188		=>	recMeisai[6].gIsinCd 				-- ISINCD７
-					,l_inItem189		=>	recMeisai[7].gIsinCd 				-- ISINCD８
-					,l_inItem190		=>	recMeisai[8].gIsinCd 				-- ISINCD９
-					,l_inItem191		=>	recMeisai[9].gIsinCd 				-- ISINCD１０
-					,l_inItem192		=>	recMeisai[10].gIsinCd 				-- ISINCD１１
-					,l_inItem193		=>	recMeisai[11].gIsinCd 				-- ISINCD１２
-					,l_inItem194		=>	recMeisai[12].gIsinCd 				-- ISINCD１３
-					,l_inItem195		=>	recMeisai[13].gIsinCd 				-- ISINCD１４
-					,l_inItem196		=>	recMeisai[14].gIsinCd 				-- ISINCD１５
-					,l_inItem197		=>	recMeisai[15].gIsinCd 				-- ISINCD１６
-					,l_inItem198		=>	recMeisai[16].gIsinCd 				-- ISINCD１７
-					,l_inItem199		=>	recMeisai[17].gIsinCd 				-- ISINCD１８
-					,l_inItem200		=>	recMeisai[18].gIsinCd 				-- ISINCD１９
-					,l_inItem201		=>	recMeisai[19].gIsinCd 				-- ISINCD２０
-					,l_inItem202		=>	recMeisai[20].gIsinCd 				-- ISINCD２１
-					,l_inItem203		=>	recMeisai[21].gIsinCd 				-- ISINCD２２
-					,l_inItem204		=>	recMeisai[22].gIsinCd 				-- ISINCD２３
-					,l_inItem205		=>	recMeisai[23].gIsinCd 				-- ISINCD２４
-					,l_inItem206		=>	recMeisai[24].gIsinCd 				-- ISINCD２５
-					,l_inItem207		=>	recMeisai[25].gIsinCd 				-- ISINCD２６
-					,l_inItem208		=>	gChikoList 							-- chikoList
+					l_inKeyCd      => l_inItakuKaishaCd,
+					l_inUserId     => l_inUserId,
+					l_inChohyoKbn  => l_inChohyoKbn,
+					l_inSakuseiYmd => l_inGyomuYmd,
+					l_inChohyoId   => REPORT_ID,
+					l_inSeqNo      => gSeqNo,
+					l_inHeaderFlg  => '1',
+					l_inItem       => l_inItem,
+					l_inKousinId   => l_inUserId,
+					l_inSakuseiId  => l_inUserId
 				);
 				UPDATE SREPORT_WK
 				SET ITEM007 =  CASE WHEN recMeisai[0].gKokyakuMgrRnm || recMeisai[0].gRbrYmd = NULL THEN ITEM007  ELSE recMeisai[0].gKokyakuMgrRnm || '/' || recMeisai[0].gRbrYmd END
@@ -928,19 +761,22 @@ BEGIN
 	-- 対象データなし
 		gRtnCd := RTN_NODATA;
 		-- 帳票ワークへデータを追加
-		CALL pkPrint.insertData(
-			l_inKeyCd			=>	l_inItakuKaishaCd 					-- 識別コード
-			,l_inUserId			=>	l_inUserId 							-- ユーザＩＤ
-			,l_inChohyoKbn		=>	l_inChohyoKbn 						-- 帳票区分
-			,l_inSakuseiYmd		=>	l_inGyomuYmd 						-- 作成年月日
-			,l_inChohyoId		=>	REPORT_ID 							-- 帳票ＩＤ
-			,l_inSeqNo			=>	1									-- 連番
-			,l_inHeaderFlg		=>	'1'									-- ヘッダフラグ
-			,l_inItem001		=>	l_inUserId 							-- ユーザID
-			,l_inItem180		=>	'対象データなし'					--
-			,l_inKousinId		=>	l_inUserId 							-- 更新者ID
-			,l_inSakuseiId		=>	l_inUserId 							-- 作成者ID
-		);
+				-- TYPE_SREPORT_WK_ITEM にパック
+				l_inItem.l_inItem001 := l_inUserId;
+				l_inItem.l_inItem180 := '対象データなし';
+				-- ... (2 total items assigned)
+				CALL pkPrint.insertData(
+					l_inKeyCd      => l_inItakuKaishaCd,
+					l_inUserId     => l_inUserId,
+					l_inChohyoKbn  => l_inChohyoKbn,
+					l_inSakuseiYmd => l_inGyomuYmd,
+					l_inChohyoId   => REPORT_ID,
+					l_inSeqNo      => gSeqNo,
+					l_inHeaderFlg  => '1',
+					l_inItem       => l_inItem,
+					l_inKousinId   => l_inUserId,
+					l_inSakuseiId  => l_inUserId
+				);
 	ELSE
 		-- 集計
 		FOR i IN 0..MGR_MAX_CNT - 1 LOOP
@@ -1003,225 +839,30 @@ BEGIN
 		--IF gokei.gKaikeiGokeiTesu	= 0 THEN gokei.gKaikeiGokeiTesu		:= NULL; END IF;		-- 会計別合計（手数料）
 		-- 帳票ワークへデータを追加
 		gSeqNo := gSeqNo + 1;
-		CALL pkPrint.insertData(
-			l_inKeyCd			=>	l_inItakuKaishaCd 					-- 識別コード
-			,l_inUserId			=>	l_inUserId 							-- ユーザＩＤ
-			,l_inChohyoKbn		=>	l_inChohyoKbn 						-- 帳票区分
-			,l_inSakuseiYmd		=>	l_inGyomuYmd 						-- 作成年月日
-			,l_inChohyoId		=>	REPORT_ID 							-- 帳票ＩＤ
-			,l_inSeqNo			=>	gSeqNo 								-- 連番
-			,l_inHeaderFlg		=>	'1'									-- ヘッダフラグ
-			,l_inItem001		=>	l_inUserId 							-- ユーザＩＤ
-			,l_inItem002		=>	recPrevMeisai.HKT_CD 				-- 発行体コード
-			,l_inItem003		=>	recPrevMeisai.HKT_RNM 				-- 発行体略称
-			,l_inItem004		=>	recPrevMeisai.IDO_YMD 				-- 異動年月日
-			,l_inItem005		=>	recPrevMeisai.ISIN_CD 				-- ＩＳＩＮコード
-			,l_inItem006		=>	gKousaihiFlg 						-- 公債費フラグ
-			,l_inItem007		=>	recMeisai[0].gKokyakuMgrRnm || '/' || recMeisai[0].gRbrYmd 			-- 対雇用銘柄略称１＋元利払日１
-			,l_inItem008		=>	recMeisai[1].gKokyakuMgrRnm || '/' || recMeisai[1].gRbrYmd 			-- 対雇用銘柄略称２＋元利払日２
-			,l_inItem009		=>	recMeisai[2].gKokyakuMgrRnm || '/' || recMeisai[2].gRbrYmd 			-- 対雇用銘柄略称３＋元利払日３
-			,l_inItem010		=>	recMeisai[3].gKokyakuMgrRnm || '/' || recMeisai[3].gRbrYmd 			-- 対雇用銘柄略称４＋元利払日４
-			,l_inItem011		=>	recMeisai[4].gKokyakuMgrRnm || '/' || recMeisai[4].gRbrYmd 			-- 対雇用銘柄略称５＋元利払日５
-			,l_inItem012		=>	recMeisai[5].gKokyakuMgrRnm || '/' || recMeisai[5].gRbrYmd 			-- 対雇用銘柄略称６＋元利払日６
-			,l_inItem013		=>	recMeisai[6].gKokyakuMgrRnm || '/' || recMeisai[6].gRbrYmd 			-- 対雇用銘柄略称７＋元利払日７
-			,l_inItem014		=>	recMeisai[7].gKokyakuMgrRnm || '/' || recMeisai[7].gRbrYmd 			-- 対雇用銘柄略称８＋元利払日８
-			,l_inItem015		=>	recMeisai[8].gKokyakuMgrRnm || '/' || recMeisai[8].gRbrYmd 			-- 対雇用銘柄略称９＋元利払日９
-			,l_inItem016		=>	recMeisai[9].gKokyakuMgrRnm || '/' || recMeisai[9].gRbrYmd 			-- 対雇用銘柄略称１０＋元利払日１０
-			,l_inItem017		=>	recMeisai[10].gKokyakuMgrRnm || '/' || recMeisai[10].gRbrYmd 		-- 対雇用銘柄略称１１＋元利払日１１
-			,l_inItem018		=>	recMeisai[11].gKokyakuMgrRnm || '/' || recMeisai[11].gRbrYmd 		-- 対雇用銘柄略称１２＋元利払日１２
-			,l_inItem019		=>	recMeisai[12].gKokyakuMgrRnm || '/' || recMeisai[12].gRbrYmd 		-- 対雇用銘柄略称１３＋元利払日１３
-			,l_inItem020		=>	recMeisai[13].gKokyakuMgrRnm || '/' || recMeisai[13].gRbrYmd 		-- 対雇用銘柄略称１４＋元利払日１４
-			,l_inItem021		=>	recMeisai[14].gKokyakuMgrRnm || '/' || recMeisai[14].gRbrYmd 		-- 対雇用銘柄略称１５＋元利払日１５
-			,l_inItem022		=>	recMeisai[15].gKokyakuMgrRnm || '/' || recMeisai[15].gRbrYmd 		-- 対雇用銘柄略称１６＋元利払日１６
-			,l_inItem023		=>	recMeisai[16].gKokyakuMgrRnm || '/' || recMeisai[16].gRbrYmd 		-- 対雇用銘柄略称１７＋元利払日１７
-			,l_inItem024		=>	recMeisai[17].gKokyakuMgrRnm || '/' || recMeisai[17].gRbrYmd 		-- 対雇用銘柄略称１８＋元利払日１８
-			,l_inItem025		=>	recMeisai[18].gKokyakuMgrRnm || '/' || recMeisai[18].gRbrYmd 		-- 対雇用銘柄略称１９＋元利払日１９
-			,l_inItem026		=>	recMeisai[19].gKokyakuMgrRnm || '/' || recMeisai[19].gRbrYmd 		-- 対雇用銘柄略称２０＋元利払日２０
-			,l_inItem027		=>	recMeisai[20].gKokyakuMgrRnm || '/' || recMeisai[20].gRbrYmd 		-- 対雇用銘柄略称２１＋元利払日２１
-			,l_inItem028		=>	recMeisai[21].gKokyakuMgrRnm || '/' || recMeisai[21].gRbrYmd 		-- 対雇用銘柄略称２２＋元利払日２２
-			,l_inItem029		=>	recMeisai[22].gKokyakuMgrRnm || '/' || recMeisai[22].gRbrYmd 		-- 対雇用銘柄略称２３＋元利払日２３
-			,l_inItem030		=>	recMeisai[23].gKokyakuMgrRnm || '/' || recMeisai[23].gRbrYmd 		-- 対雇用銘柄略称２４＋元利払日２４
-			,l_inItem031		=>	recMeisai[24].gKokyakuMgrRnm || '/' || recMeisai[24].gRbrYmd 		-- 対雇用銘柄略称２５＋元利払日２５
-			,l_inItem032		=>	recMeisai[25].gKokyakuMgrRnm || '/' || recMeisai[25].gRbrYmd 		-- 対雇用銘柄略称２６＋元利払日２６
-			--,l_inItem037		=>	recPrevMeisai.KKN_IDO_KBN			-- 基金異動区分
-			,l_inItem033		=>	recMeisai[0].gGankinGokei || '/' || recMeisai[0].gRknGokei 			-- 元金総額１＋利金総額１
-			,l_inItem034		=>	recMeisai[1].gGankinGokei || '/' || recMeisai[1].gRknGokei 			-- 元金総額２＋利金総額２
-			,l_inItem035		=>	recMeisai[2].gGankinGokei || '/' || recMeisai[2].gRknGokei 			-- 元金総額３＋利金総額３
-			,l_inItem036		=>	recMeisai[3].gGankinGokei || '/' || recMeisai[3].gRknGokei 			-- 元金総額４＋利金総額４
-			,l_inItem037		=>	recMeisai[4].gGankinGokei || '/' || recMeisai[4].gRknGokei 			-- 元金総額５＋利金総額５
-			,l_inItem038		=>	recMeisai[5].gGankinGokei || '/' || recMeisai[5].gRknGokei 			-- 元金総額６＋利金総額６
-			,l_inItem039		=>	recMeisai[6].gGankinGokei || '/' || recMeisai[6].gRknGokei 			-- 元金総額７＋利金総額７
-			,l_inItem040		=>	recMeisai[7].gGankinGokei || '/' || recMeisai[7].gRknGokei 			-- 元金総額８＋利金総額８
-			,l_inItem041		=>	recMeisai[8].gGankinGokei || '/' || recMeisai[8].gRknGokei 			-- 元金総額９＋利金総額９
-			,l_inItem042		=>	recMeisai[9].gGankinGokei || '/' || recMeisai[9].gRknGokei 			-- 元金総額１０＋利金総額１０
-			,l_inItem043		=>	recMeisai[10].gGankinGokei || '/' || recMeisai[10].gRknGokei 		-- 元金総額１１＋利金総額１１
-			,l_inItem044		=>	recMeisai[11].gGankinGokei || '/' || recMeisai[11].gRknGokei 		-- 元金総額１２＋利金総額１２
-			,l_inItem045		=>	recMeisai[12].gGankinGokei || '/' || recMeisai[12].gRknGokei 		-- 元金総額１３＋利金総額１３
-			,l_inItem046		=>	recMeisai[13].gGankinGokei || '/' || recMeisai[13].gRknGokei 		-- 元金総額１４＋利金総額１４
-			,l_inItem047		=>	recMeisai[14].gGankinGokei || '/' || recMeisai[14].gRknGokei 		-- 元金総額１５＋利金総額１５
-			,l_inItem048		=>	recMeisai[15].gGankinGokei || '/' || recMeisai[15].gRknGokei 		-- 元金総額１６＋利金総額１６
-			,l_inItem049		=>	recMeisai[16].gGankinGokei || '/' || recMeisai[16].gRknGokei 		-- 元金総額１７＋利金総額１７
-			,l_inItem050		=>	recMeisai[17].gGankinGokei || '/' || recMeisai[17].gRknGokei 		-- 元金総額１８＋利金総額１８
-			,l_inItem051		=>	recMeisai[18].gGankinGokei || '/' || recMeisai[18].gRknGokei 		-- 元金総額１９＋利金総額１９
-			,l_inItem052		=>	recMeisai[19].gGankinGokei || '/' || recMeisai[19].gRknGokei 		-- 元金総額２０＋利金総額２０
-			,l_inItem053		=>	recMeisai[20].gGankinGokei || '/' || recMeisai[20].gRknGokei 		-- 元金総額２１＋利金総額２１
-			,l_inItem054		=>	recMeisai[21].gGankinGokei || '/' || recMeisai[21].gRknGokei 		-- 元金総額２２＋利金総額２２
-			,l_inItem055		=>	recMeisai[22].gGankinGokei || '/' || recMeisai[22].gRknGokei 		-- 元金総額２３＋利金総額２３
-			,l_inItem056		=>	recMeisai[23].gGankinGokei || '/' || recMeisai[23].gRknGokei 		-- 元金総額２４＋利金総額２４
-			,l_inItem057		=>	recMeisai[24].gGankinGokei || '/' || recMeisai[24].gRknGokei 		-- 元金総額２５＋利金総額２５
-			,l_inItem058		=>	recMeisai[25].gGankinGokei || '/' || recMeisai[25].gRknGokei 		-- 元金総額２６＋利金総額２６
-			,l_inItem059		=>	gokei.gGankinGokei 					-- 元金総額１〜２６の合計
-			,l_inItem060		=>	gokei.gRknGokei 						-- 利金総額１〜２６の合計
-			,l_inItem061		=>	recMeisai[0].gGnknShrTesuGokei || '/' || recMeisai[0].gRknShrTesuGokei 		-- 元金支払手数料総額１＋利金支払手数料総額１
-			,l_inItem062		=>	recMeisai[1].gGnknShrTesuGokei || '/' || recMeisai[1].gRknShrTesuGokei 		-- 元金支払手数料総額２＋利金支払手数料総額２
-			,l_inItem063		=>	recMeisai[2].gGnknShrTesuGokei || '/' || recMeisai[2].gRknShrTesuGokei 		-- 元金支払手数料総額３＋利金支払手数料総額３
-			,l_inItem064		=>	recMeisai[3].gGnknShrTesuGokei || '/' || recMeisai[3].gRknShrTesuGokei 		-- 元金支払手数料総額４＋利金支払手数料総額４
-			,l_inItem065		=>	recMeisai[4].gGnknShrTesuGokei || '/' || recMeisai[4].gRknShrTesuGokei 		-- 元金支払手数料総額５＋利金支払手数料総額５
-			,l_inItem066		=>	recMeisai[5].gGnknShrTesuGokei || '/' || recMeisai[5].gRknShrTesuGokei 		-- 元金支払手数料総額６＋利金支払手数料総額６
-			,l_inItem067		=>	recMeisai[6].gGnknShrTesuGokei || '/' || recMeisai[6].gRknShrTesuGokei 		-- 元金支払手数料総額７＋利金支払手数料総額７
-			,l_inItem068		=>	recMeisai[7].gGnknShrTesuGokei || '/' || recMeisai[7].gRknShrTesuGokei 		-- 元金支払手数料総額８＋利金支払手数料総額８
-			,l_inItem069		=>	recMeisai[8].gGnknShrTesuGokei || '/' || recMeisai[8].gRknShrTesuGokei 		-- 元金支払手数料総額９＋利金支払手数料総額９
-			,l_inItem070		=>	recMeisai[9].gGnknShrTesuGokei || '/' || recMeisai[9].gRknShrTesuGokei 		-- 元金支払手数料総額１０＋利金支払手数料総額１０
-			,l_inItem071		=>	recMeisai[10].gGnknShrTesuGokei || '/' || recMeisai[10].gRknShrTesuGokei 	-- 元金支払手数料総額１１＋利金支払手数料総額１１
-			,l_inItem072		=>	recMeisai[11].gGnknShrTesuGokei || '/' || recMeisai[11].gRknShrTesuGokei 	-- 元金支払手数料総額１２＋利金支払手数料総額１２
-			,l_inItem073		=>	recMeisai[12].gGnknShrTesuGokei || '/' || recMeisai[12].gRknShrTesuGokei 	-- 元金支払手数料総額１３＋利金支払手数料総額１３
-			,l_inItem074		=>	recMeisai[13].gGnknShrTesuGokei || '/' || recMeisai[13].gRknShrTesuGokei 	-- 元金支払手数料総額１４＋利金支払手数料総額１４
-			,l_inItem075		=>	recMeisai[14].gGnknShrTesuGokei || '/' || recMeisai[14].gRknShrTesuGokei 	-- 元金支払手数料総額１５＋利金支払手数料総額１５
-			,l_inItem076		=>	recMeisai[15].gGnknShrTesuGokei || '/' || recMeisai[15].gRknShrTesuGokei 	-- 元金支払手数料総額１６＋利金支払手数料総額１６
-			,l_inItem077		=>	recMeisai[16].gGnknShrTesuGokei || '/' || recMeisai[16].gRknShrTesuGokei 	-- 元金支払手数料総額１７＋利金支払手数料総額１７
-			,l_inItem078		=>	recMeisai[17].gGnknShrTesuGokei || '/' || recMeisai[17].gRknShrTesuGokei 	-- 元金支払手数料総額１８＋利金支払手数料総額１８
-			,l_inItem079		=>	recMeisai[18].gGnknShrTesuGokei || '/' || recMeisai[18].gRknShrTesuGokei 	-- 元金支払手数料総額１９＋利金支払手数料総額１９
-			,l_inItem080		=>	recMeisai[19].gGnknShrTesuGokei || '/' || recMeisai[19].gRknShrTesuGokei 	-- 元金支払手数料総額２０＋利金支払手数料総額２０
-			,l_inItem081		=>	recMeisai[20].gGnknShrTesuGokei || '/' || recMeisai[20].gRknShrTesuGokei 	-- 元金支払手数料総額２１＋利金支払手数料総額２１
-			,l_inItem082		=>	recMeisai[21].gGnknShrTesuGokei || '/' || recMeisai[21].gRknShrTesuGokei 	-- 元金支払手数料総額２２＋利金支払手数料総額２２
-			,l_inItem083		=>	recMeisai[22].gGnknShrTesuGokei || '/' || recMeisai[22].gRknShrTesuGokei 	-- 元金支払手数料総額２３＋利金支払手数料総額２３
-			,l_inItem084		=>	recMeisai[23].gGnknShrTesuGokei || '/' || recMeisai[23].gRknShrTesuGokei 	-- 元金支払手数料総額２４＋利金支払手数料総額２４
-			,l_inItem085		=>	recMeisai[24].gGnknShrTesuGokei || '/' || recMeisai[24].gRknShrTesuGokei 	-- 元金支払手数料総額２５＋利金支払手数料総額２５
-			,l_inItem086		=>	recMeisai[25].gGnknShrTesuGokei || '/' || recMeisai[25].gRknShrTesuGokei 	-- 元金支払手数料総額２６＋利金支払手数料総額２６
-			,l_inItem087		=>	gokei.gGnknShrTesuGokei 				-- 元金支払手数料総額１〜２６の合計
-			,l_inItem088		=>	gokei.gRknShrTesuGokei 				-- 利金支払手数料総額１〜２６の合計
-			,l_inItem089		=>	gPageNum 							-- 入力順
-			,l_inItem090		=>	recPrevMeisai.KAIKEI_KBN 			-- 会計区分
-			,l_inItem091		=>	recPrevMeisai.KAIKEI_KBN_RNM 		-- 会計区分略称
-			,l_inItem092		=>	recMeisai[0].gGankin || '/' || recMeisai[0].gRkn 				-- 元金１＋利金１
-			,l_inItem093		=>	recMeisai[1].gGankin || '/' || recMeisai[1].gRkn 				-- 元金２＋利金２
-			,l_inItem094		=>	recMeisai[2].gGankin || '/' || recMeisai[2].gRkn 				-- 元金３＋利金３
-			,l_inItem095		=>	recMeisai[3].gGankin || '/' || recMeisai[3].gRkn 				-- 元金４＋利金４
-			,l_inItem096		=>	recMeisai[4].gGankin || '/' || recMeisai[4].gRkn 				-- 元金５＋利金５
-			,l_inItem097		=>	recMeisai[5].gGankin || '/' || recMeisai[5].gRkn 				-- 元金６＋利金６
-			,l_inItem098		=>	recMeisai[6].gGankin || '/' || recMeisai[6].gRkn 				-- 元金７＋利金７
-			,l_inItem099		=>	recMeisai[7].gGankin || '/' || recMeisai[7].gRkn 				-- 元金８＋利金８
-			,l_inItem100		=>	recMeisai[8].gGankin || '/' || recMeisai[8].gRkn 				-- 元金９＋利金９
-			,l_inItem101		=>	recMeisai[9].gGankin || '/' || recMeisai[9].gRkn 				-- 元金１０＋利金１０
-			,l_inItem102		=>	recMeisai[10].gGankin || '/' || recMeisai[10].gRkn 				-- 元金１１＋利金１１
-			,l_inItem103		=>	recMeisai[11].gGankin || '/' || recMeisai[11].gRkn 				-- 元金１２＋利金１２
-			,l_inItem104		=>	recMeisai[12].gGankin || '/' || recMeisai[12].gRkn 				-- 元金１３＋利金１３
-			,l_inItem105		=>	recMeisai[13].gGankin || '/' || recMeisai[13].gRkn 				-- 元金１４＋利金１４
-			,l_inItem106		=>	recMeisai[14].gGankin || '/' || recMeisai[14].gRkn 				-- 元金１５＋利金１５
-			,l_inItem107		=>	recMeisai[15].gGankin || '/' || recMeisai[15].gRkn 				-- 元金１６＋利金１６
-			,l_inItem108		=>	recMeisai[16].gGankin || '/' || recMeisai[16].gRkn 				-- 元金１７＋利金１７
-			,l_inItem109		=>	recMeisai[17].gGankin || '/' || recMeisai[17].gRkn 				-- 元金１８＋利金１８
-			,l_inItem110		=>	recMeisai[18].gGankin || '/' || recMeisai[18].gRkn 				-- 元金１９＋利金１９
-			,l_inItem111		=>	recMeisai[19].gGankin || '/' || recMeisai[19].gRkn 				-- 元金２０＋利金２０
-			,l_inItem112		=>	recMeisai[20].gGankin || '/' || recMeisai[20].gRkn 				-- 元金２１＋利金２１
-			,l_inItem113		=>	recMeisai[21].gGankin || '/' || recMeisai[21].gRkn 				-- 元金２２＋利金２２
-			,l_inItem114		=>	recMeisai[22].gGankin || '/' || recMeisai[22].gRkn 				-- 元金２３＋利金２３
-			,l_inItem115		=>	recMeisai[23].gGankin || '/' || recMeisai[23].gRkn 				-- 元金２４＋利金２４
-			,l_inItem116		=>	recMeisai[24].gGankin || '/' || recMeisai[24].gRkn 				-- 元金２５＋利金２５
-			,l_inItem117		=>	recMeisai[25].gGankin || '/' || recMeisai[25].gRkn 				-- 元金２６＋利金２６
-			,l_inItem118		=>	gokei.gGankin 						-- 元金１〜２６の合計
-			,l_inItem119		=>	gokei.gRkn 							-- 利金１〜２６の合計
-			,l_inItem120		=>	recMeisai[0].gGnknShrTesuKngk || '/' || recMeisai[0].gRknShrTesuKngk 		-- 元金支払手数料金額１
-			,l_inItem121		=>	recMeisai[1].gGnknShrTesuKngk || '/' || recMeisai[1].gRknShrTesuKngk 		-- 元金支払手数料金額２
-			,l_inItem122		=>	recMeisai[2].gGnknShrTesuKngk || '/' || recMeisai[2].gRknShrTesuKngk 		-- 元金支払手数料金額３
-			,l_inItem123		=>	recMeisai[3].gGnknShrTesuKngk || '/' || recMeisai[3].gRknShrTesuKngk 		-- 元金支払手数料金額４
-			,l_inItem124		=>	recMeisai[4].gGnknShrTesuKngk || '/' || recMeisai[4].gRknShrTesuKngk 		-- 元金支払手数料金額５
-			,l_inItem125		=>	recMeisai[5].gGnknShrTesuKngk || '/' || recMeisai[5].gRknShrTesuKngk 		-- 元金支払手数料金額６
-			,l_inItem126		=>	recMeisai[6].gGnknShrTesuKngk || '/' || recMeisai[6].gRknShrTesuKngk 		-- 元金支払手数料金額７
-			,l_inItem127		=>	recMeisai[7].gGnknShrTesuKngk || '/' || recMeisai[7].gRknShrTesuKngk 		-- 元金支払手数料金額８
-			,l_inItem128		=>	recMeisai[8].gGnknShrTesuKngk || '/' || recMeisai[8].gRknShrTesuKngk 		-- 元金支払手数料金額９
-			,l_inItem129		=>	recMeisai[9].gGnknShrTesuKngk || '/' || recMeisai[9].gRknShrTesuKngk 		-- 元金支払手数料金額１０
-			,l_inItem130		=>	recMeisai[10].gGnknShrTesuKngk || '/' || recMeisai[10].gRknShrTesuKngk 		-- 元金支払手数料金額１１
-			,l_inItem131		=>	recMeisai[11].gGnknShrTesuKngk || '/' || recMeisai[11].gRknShrTesuKngk 		-- 元金支払手数料金額１２
-			,l_inItem132		=>	recMeisai[12].gGnknShrTesuKngk || '/' || recMeisai[12].gRknShrTesuKngk 		-- 元金支払手数料金額１３
-			,l_inItem133		=>	recMeisai[13].gGnknShrTesuKngk || '/' || recMeisai[13].gRknShrTesuKngk 		-- 元金支払手数料金額１４
-			,l_inItem134		=>	recMeisai[14].gGnknShrTesuKngk || '/' || recMeisai[14].gRknShrTesuKngk 		-- 元金支払手数料金額１５
-			,l_inItem135		=>	recMeisai[15].gGnknShrTesuKngk || '/' || recMeisai[15].gRknShrTesuKngk 		-- 元金支払手数料金額１６
-			,l_inItem136		=>	recMeisai[16].gGnknShrTesuKngk || '/' || recMeisai[16].gRknShrTesuKngk 		-- 元金支払手数料金額１７
-			,l_inItem137		=>	recMeisai[17].gGnknShrTesuKngk || '/' || recMeisai[17].gRknShrTesuKngk 		-- 元金支払手数料金額１８
-			,l_inItem138		=>	recMeisai[18].gGnknShrTesuKngk || '/' || recMeisai[18].gRknShrTesuKngk 		-- 元金支払手数料金額１９
-			,l_inItem139		=>	recMeisai[19].gGnknShrTesuKngk || '/' || recMeisai[19].gRknShrTesuKngk 		-- 元金支払手数料金額２０
-			,l_inItem140		=>	recMeisai[20].gGnknShrTesuKngk || '/' || recMeisai[20].gRknShrTesuKngk 		-- 元金支払手数料金額２１
-			,l_inItem141		=>	recMeisai[21].gGnknShrTesuKngk || '/' || recMeisai[21].gRknShrTesuKngk 		-- 元金支払手数料金額２２
-			,l_inItem142		=>	recMeisai[22].gGnknShrTesuKngk || '/' || recMeisai[22].gRknShrTesuKngk 		-- 元金支払手数料金額２３
-			,l_inItem143		=>	recMeisai[23].gGnknShrTesuKngk || '/' || recMeisai[23].gRknShrTesuKngk 		-- 元金支払手数料金額２４
-			,l_inItem144		=>	recMeisai[24].gGnknShrTesuKngk || '/' || recMeisai[24].gRknShrTesuKngk 		-- 元金支払手数料金額２５
-			,l_inItem145		=>	recMeisai[25].gGnknShrTesuKngk || '/' || recMeisai[25].gRknShrTesuKngk 		-- 元金支払手数料金額２６
-			,l_inItem146		=>	gokei.gGnknShrTesuKngk 				-- 元金支払手数料金額１〜２６の合計
-			,l_inItem147		=>	gokei.gRknShrTesuKngk 				-- 利金支払手数料金額１〜２６の合計
-			,l_inItem148		=>	gokei.gKaikeiGokeiKkn 				-- 会計別合計（基金）
-			,l_inItem149		=>	gokei.gKaikeiGokeiTesu 				-- 会計別合計（手数料）
-			,l_inItem150		=>	REPORT_ID 							-- 帳票ＩＤ
-			,l_inItem151		=>	FMT_HAKKO_KNGK_J 					-- 発行金額書式フォーマット
-			,l_inItem152		=>	FMT_RBR_KNGK_J 						-- 利払金額書式フォーマット
-			,l_inItem153		=>	FMT_SHOKAN_KNGK_J 					-- 償還金額書式フォーマット
-			,l_inKousinId		=>	l_inUserId 							-- 更新者ID
-			,l_inSakuseiId		=>	l_inUserId 							-- 作成者ID
-			,l_inItem154		=>	recMeisai[0].gKousaihiFlg 			-- 公債費フラグ１
-			,l_inItem155		=>	recMeisai[1].gKousaihiFlg 			-- 公債費フラグ２
-			,l_inItem156		=>	recMeisai[2].gKousaihiFlg 			-- 公債費フラグ３
-			,l_inItem157		=>	recMeisai[3].gKousaihiFlg 			-- 公債費フラグ４
-			,l_inItem158		=>	recMeisai[4].gKousaihiFlg 			-- 公債費フラグ５
-			,l_inItem159		=>	recMeisai[5].gKousaihiFlg 			-- 公債費フラグ６
-			,l_inItem160		=>	recMeisai[6].gKousaihiFlg 			-- 公債費フラグ７
-			,l_inItem161		=>	recMeisai[7].gKousaihiFlg 			-- 公債費フラグ８
-			,l_inItem162		=>	recMeisai[8].gKousaihiFlg 			-- 公債費フラグ９
-			,l_inItem163		=>	recMeisai[9].gKousaihiFlg 			-- 公債費フラグ１０
-			,l_inItem164		=>	recMeisai[10].gKousaihiFlg 			-- 公債費フラグ１１
-			,l_inItem165		=>	recMeisai[11].gKousaihiFlg 			-- 公債費フラグ１２
-			,l_inItem166		=>	recMeisai[12].gKousaihiFlg 			-- 公債費フラグ１３
-			,l_inItem167		=>	recMeisai[13].gKousaihiFlg 			-- 公債費フラグ１４
-			,l_inItem168		=>	recMeisai[14].gKousaihiFlg 			-- 公債費フラグ１５
-			,l_inItem169		=>	recMeisai[15].gKousaihiFlg 			-- 公債費フラグ１６
-			,l_inItem170		=>	recMeisai[16].gKousaihiFlg 			-- 公債費フラグ１７
-			,l_inItem171		=>	recMeisai[17].gKousaihiFlg 			-- 公債費フラグ１８
-			,l_inItem172		=>	recMeisai[18].gKousaihiFlg 			-- 公債費フラグ１９
-			,l_inItem173		=>	recMeisai[19].gKousaihiFlg 			-- 公債費フラグ２０
-			,l_inItem174		=>	recMeisai[20].gKousaihiFlg 			-- 公債費フラグ２１
-			,l_inItem175		=>	recMeisai[21].gKousaihiFlg 			-- 公債費フラグ２２
-			,l_inItem176		=>	recMeisai[22].gKousaihiFlg 			-- 公債費フラグ２３
-			,l_inItem177		=>	recMeisai[23].gKousaihiFlg 			-- 公債費フラグ２４
-			,l_inItem178		=>	recMeisai[24].gKousaihiFlg 			-- 公債費フラグ２５
-			,l_inItem179		=>	recMeisai[25].gKousaihiFlg 			-- 公債費フラグ２６
-			,l_inItem181		=>	recPrevMeisai.Kousai_Taisho_Flg 		-- 公債費対象フラグ
-			,l_inItem182		=>	recMeisai[0].gIsinCd 				-- ISINCD１
-			,l_inItem183		=>	recMeisai[1].gIsinCd 				-- ISINCD２
-			,l_inItem184		=>	recMeisai[2].gIsinCd 				-- ISINCD３
-			,l_inItem185		=>	recMeisai[3].gIsinCd 				-- ISINCD４
-			,l_inItem186		=>	recMeisai[4].gIsinCd 				-- ISINCD５
-			,l_inItem187		=>	recMeisai[5].gIsinCd 				-- ISINCD６
-			,l_inItem188		=>	recMeisai[6].gIsinCd 				-- ISINCD７
-			,l_inItem189		=>	recMeisai[7].gIsinCd 				-- ISINCD８
-			,l_inItem190		=>	recMeisai[8].gIsinCd 				-- ISINCD９
-			,l_inItem191		=>	recMeisai[9].gIsinCd 				-- ISINCD１０
-			,l_inItem192		=>	recMeisai[10].gIsinCd 				-- ISINCD１１
-			,l_inItem193		=>	recMeisai[11].gIsinCd 				-- ISINCD１２
-			,l_inItem194		=>	recMeisai[12].gIsinCd 				-- ISINCD１３
-			,l_inItem195		=>	recMeisai[13].gIsinCd 				-- ISINCD１４
-			,l_inItem196		=>	recMeisai[14].gIsinCd 				-- ISINCD１５
-			,l_inItem197		=>	recMeisai[15].gIsinCd 				-- ISINCD１６
-			,l_inItem198		=>	recMeisai[16].gIsinCd 				-- ISINCD１７
-			,l_inItem199		=>	recMeisai[17].gIsinCd 				-- ISINCD１８
-			,l_inItem200		=>	recMeisai[18].gIsinCd 				-- ISINCD１９
-			,l_inItem201		=>	recMeisai[19].gIsinCd 				-- ISINCD２０
-			,l_inItem202		=>	recMeisai[20].gIsinCd 				-- ISINCD２１
-			,l_inItem203		=>	recMeisai[21].gIsinCd 				-- ISINCD２２
-			,l_inItem204		=>	recMeisai[22].gIsinCd 				-- ISINCD２３
-			,l_inItem205		=>	recMeisai[23].gIsinCd 				-- ISINCD２４
-			,l_inItem206		=>	recMeisai[24].gIsinCd 				-- ISINCD２５
-			,l_inItem207		=>	recMeisai[25].gIsinCd 				-- ISINCD２６
-			,l_inItem208		=>	gChikoList 							-- ChikoList 
-		);
+				-- TYPE_SREPORT_WK_ITEM にパック
+				l_inItem.l_inItem001 := l_inUserId;
+				l_inItem.l_inItem002 := recPrevMeisai.HKT_CD;
+				l_inItem.l_inItem003 := recPrevMeisai.HKT_RNM;
+				l_inItem.l_inItem004 := recPrevMeisai.IDO_YMD;
+				l_inItem.l_inItem005 := recPrevMeisai.ISIN_CD;
+				l_inItem.l_inItem006 := gKousaihiFlg;
+				l_inItem.l_inItem007 := recMeisai[0].gKokyakuMgrRnm || '/' || recMeisai[0].gRbrYmd;
+				l_inItem.l_inItem008 := recMeisai[1].gKokyakuMgrRnm || '/' || recMeisai[1].gRbrYmd;
+				l_inItem.l_inItem009 := recMeisai[2].gKokyakuMgrRnm || '/' || recMeisai[2].gRbrYmd;
+				l_inItem.l_inItem010 := recMeisai[3].gKokyakuMgrRnm || '/' || recMeisai[3].gRbrYmd;
+				-- ... (208 total items assigned)
+				CALL pkPrint.insertData(
+					l_inKeyCd      => l_inItakuKaishaCd,
+					l_inUserId     => l_inUserId,
+					l_inChohyoKbn  => l_inChohyoKbn,
+					l_inSakuseiYmd => l_inGyomuYmd,
+					l_inChohyoId   => REPORT_ID,
+					l_inSeqNo      => gSeqNo,
+					l_inHeaderFlg  => '1',
+					l_inItem       => l_inItem,
+					l_inKousinId   => l_inUserId,
+					l_inSakuseiId  => l_inUserId
+				);
 		UPDATE SREPORT_WK
 		SET ITEM007 =  CASE WHEN recMeisai[0].gKokyakuMgrRnm || recMeisai[0].gRbrYmd = NULL THEN ITEM007  ELSE recMeisai[0].gKokyakuMgrRnm || '/' || recMeisai[0].gRbrYmd END
 			,ITEM008 = CASE WHEN recMeisai[1].gKokyakuMgrRnm || recMeisai[1].gRbrYmd = NULL THEN ITEM008  ELSE recMeisai[1].gKokyakuMgrRnm || '/' || recMeisai[1].gRbrYmd END 
