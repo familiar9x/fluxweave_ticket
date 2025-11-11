@@ -1,7 +1,7 @@
 
 
 
-DROP TYPE IF EXISTS sfiph007k00r01_type_rec_header;
+DROP TYPE IF EXISTS sfiph007k00r01_type_rec_header CASCADE;
 CREATE TYPE sfiph007k00r01_type_rec_header AS (
 		ITAKU_KAISHA_CD		char(4),
 		HKT_CD				char(6),						-- 発行体コード
@@ -9,7 +9,7 @@ CREATE TYPE sfiph007k00r01_type_rec_header AS (
 		KAIKEI_KBN_RNM		varchar(70),	-- 会計区分略称
 		KOUSAIHI_FLG		char(1)										-- 公債費フラグ
 	);
-DROP TYPE IF EXISTS sfiph007k00r01_type_rec_meisai;
+DROP TYPE IF EXISTS sfiph007k00r01_type_rec_meisai CASCADE;
 CREATE TYPE sfiph007k00r01_type_rec_meisai AS (
 		HKT_CD					char(6),	-- 発行体コード
 		HKT_RNM					varchar(40),	-- 発行体略称
@@ -32,7 +32,7 @@ CREATE TYPE sfiph007k00r01_type_rec_meisai AS (
 		SZEI_KNGK				varchar(100),	-- 消費税金額
 		KOUSAIHI_FLG			varchar(100)	-- 公社債フラグ
 	);
-DROP TYPE IF EXISTS sfiph007k00r01_type_rec_kbn_total;
+DROP TYPE IF EXISTS sfiph007k00r01_type_rec_kbn_total CASCADE;
 CREATE TYPE sfiph007k00r01_type_rec_kbn_total AS (
 		HKT_CD					char(6),	-- 発行体コード
 		HKT_RNM					varchar(40),	-- 発行体略称
@@ -63,12 +63,6 @@ CREATE OR REPLACE FUNCTION sfiph007k00r01 ( l_inItakuKaishaCd MGR_KIHON.ITAKU_KA
  l_inIsinCd MGR_KIHON.ISIN_CD%TYPE 			-- ISINコード
  ) RETURNS numeric AS $body$
 DECLARE
-	RTN_OK CONSTANT integer := 0;
-	RTN_NG CONSTANT integer := 1;
-	RTN_NODATA CONSTANT integer := 2;
-	RTN_FATAL CONSTANT integer := 99;
-	tmpRecHeader sfiph007k00r01_type_rec_header;
-	tmpRecMeisai sfiph007k00r01_type_rec_meisai;
 
 --
 -- * 著作権: COPYRIGHT (C) 2005
@@ -82,7 +76,11 @@ DECLARE
 --****************************************************************************************************
 --    定数定義                                                                                        
 --****************************************************************************************************
-	C_BLOCK_MAX		CONSTANT integer := 17;	-- 会計区分の最大ブロック数(の最大配列= C_BLOCK_MAX + 1)
+	RTN_OK      CONSTANT INTEGER := 0;		-- 正常
+	RTN_NG      CONSTANT INTEGER := 1;		-- 予期したエラー  
+	RTN_NODATA  CONSTANT INTEGER := 2;		-- データなし
+	RTN_FATAL   CONSTANT INTEGER := 99;		-- 予期せぬエラー
+	C_BLOCK_MAX	CONSTANT integer := 17;		-- 会計区分の最大ブロック数(の最大配列= C_BLOCK_MAX + 1)
 --****************************************************************************************************
 --    変数定義                                                                                        
 --****************************************************************************************************
@@ -126,25 +124,19 @@ DECLARE
 	l_sqlMT			varchar(4000); -- 銘柄合計用（縦罫合計）
 	l_sqlInsC		varchar(4000); -- Insert用固定部分
 	-- 出力文字列(会計区分別)
-	TYPE SFIPH007K00R01_VCR_ARRAY10K IS TABLE OF varchar(10000) INDEX BY integer;
-	l_outstr SFIPH007K00R01_VCR_ARRAY10K;
+	l_outstr		varchar(10000)[];
 	-- 合計行出力用一時文字列
 	l_tmpstr		varchar(10000);
 	-- 出力行のヘッダフラグ
-	TYPE SFIPH007K00R01_CHR_ARRAY01 IS TABLE OF char(1) INDEX BY integer;
-	l_outHeaderFlg SFIPH007K00R01_CHR_ARRAY01;
+	l_outHeaderFlg	char(1)[];
 	-- 発行体ごとの会計区分列のコレクション
-	TYPE SFIPH007K00R01_CHR_ARRAY2 IS TABLE OF char(2)        INDEX BY integer;
-	l_kaikeiKbnArr SFIPH007K00R01_CHR_ARRAY2;
+	l_kaikeiKbnArr	char(2)[];
 	l_kaikeiKbnIdx	integer;	-- Index
 	-- カーソル
-	TYPE SFIPH007K00R01_CURSOR_TYPE 	-- Index
-	-- カーソル
-	TYPE CURSOR_TYPE REFCURSOR;
-	curRecH SFIPH007K00R01_CURSOR_TYPE; -- ヘッダ用
-	curRecM SFIPH007K00R01_CURSOR_TYPE; -- 明細用
-	curRecKT SFIPH007K00R01_CURSOR_TYPE; -- 会計区分合計用（横罫合計）
-	curRecMT SFIPH007K00R01_CURSOR_TYPE; -- 銘柄合計用（縦罫合計）
+	curRecH			REFCURSOR; -- ヘッダ用
+	curRecM			REFCURSOR; -- 明細用
+	curRecKT		REFCURSOR; -- 会計区分合計用（横罫合計）
+	curRecMT		REFCURSOR; -- 銘柄合計用（縦罫合計）
 	-- デバッグログ用
 --	debugStrLength	INTEGER DEFAULT 1;		-- テスト用に出力する時だけコメントを外してください。
 --****************************************************************************************************
@@ -152,31 +144,33 @@ DECLARE
 --****************************************************************************************************
 	------------------------------------------------------------------------------------
 	-- レコードヘッダ用　タイプ宣言
-	TYPE SFIPH007K00R01_TYPE_TBL_REC_HEADER IS TABLE OF TYPE_REC_HEADER INDEX BY integer;
-	-- レコードヘッダ
-	recHeader SFIPH007K00R01_TYPE_TBL_REC_HEADER;
+	recHeader		sfiph007k00r01_type_rec_header[];
 	------------------------------------------------------------------------------------
 	-- レコード明細用　タイプ宣言
-	TYPE SFIPH007K00R01_TYPE_TBL_REC_MEISAI IS TABLE OF TYPE_REC_MEISAI INDEX BY integer;
-	-- レコード明細
-	recMeisai SFIPH007K00R01_TYPE_TBL_REC_MEISAI;
+	recMeisai		sfiph007k00r01_type_rec_meisai[];
 	------------------------------------------------------------------------------------
 	-- レコード合計行用　タイプ宣言（縦罫合計用）
 	-- 会計区分ごとの合計レコード
-	recKbnTotal SFIPH007K00R01_TYPE_REC_KBN_TOTAL;
+	recKbnTotal		sfiph007k00r01_type_rec_kbn_total;
 	------------------------------------------------------------------------------------
 	-- レコード合計列用　タイプ宣言（横罫合計用）
 	-- タイプ宣言は、明細と共用 
 	-- 銘柄、徴求日単位ごとの合計レコード
-	recMgrTotal SFIPH007K00R01_TYPE_REC_MEISAI
+	recMgrTotal		sfiph007k00r01_type_rec_meisai;
+	------------------------------------------------------------------------------------
+	-- Temporary variables for FETCH INTO array elements
+	tmpRecHeader	sfiph007k00r01_type_rec_header;
+	tmpRecMeisai	sfiph007k00r01_type_rec_meisai;
 --****************************************************************************************************
 --    メイン処理                                                                                      
 --****************************************************************************************************
 BEGIN
+	RAISE NOTICE 'SFIPH007K00R01: START';
 	--** パラメータチェック ***********************************************
 	-- 基準日From-Toをセット
 	l_kjnYmdFrom	:= l_inKjnYmdFrom;
 	l_kjnYmdTo		:= l_inKjnYmdTo;
+	RAISE NOTICE 'SFIPH007K00R01: Parameters set';
 	-- 入力チェック
 	IF coalesce(trim(both l_kjnYmdFrom)::text, '') = '' THEN
 		l_kjnYmdFrom := '00000000';
@@ -189,28 +183,59 @@ BEGIN
 		-- CALL PKLOG.ERROR('ECM701','SFIPH007K00R01','エラーメッセージ：' || errmsg);
 		RETURN RTN_NG;
 	END IF;
+	IF coalesce(trim(both l_inUserId)::text, '') = '' THEN
+		errmsg := 'ユーザーIDが未入力です。';
+		-- CALL PKLOG.ERROR('ECM701','SFIPH007K00R01','エラーメッセージ：' || errmsg);
+		RETURN RTN_NG;
+	END IF;
+	RAISE NOTICE 'SFIPH007K00R01: Creating header SQL';
 	--** ヘッダ用カーソル作成 ***********************************************
-	l_sqlH := SFIPH007K00R01_createSqlHeader(l_kjnYmdFrom,
-							  l_kjnYmdTo,
-							  l_inHktCd,
-							  l_inMgrCd,
-							  l_inIsinCd,
-							  l_inItakuKaishaCd
-							  );
+	BEGIN
+		l_sqlH := SFIPH007K00R01_createSqlHeader(l_kjnYmdFrom,
+								  l_kjnYmdTo,
+								  l_inHktCd,
+								  l_inMgrCd,
+								  l_inIsinCd,
+								  l_inItakuKaishaCd
+								  );
+		RAISE NOTICE 'SFIPH007K00R01: Header SQL created, length=%', length(l_sqlH);
+		RAISE NOTICE 'SQL HEADER = %', l_sqlH;
+	EXCEPTION
+		WHEN OTHERS THEN
+			RAISE NOTICE 'SFIPH007K00R01: Error in createSqlHeader - %', SQLERRM;
+			RETURN RTN_FATAL;
+	END;
 	recCntH := 0;
+	RAISE NOTICE 'SFIPH007K00R01: Opening cursor for header';
 	--** カーソルオープン ***************************************************
-	OPEN curRecH FOR EXECUTE l_sqlH;
+	BEGIN
+		OPEN curRecH FOR EXECUTE l_sqlH;
+		RAISE NOTICE 'SFIPH007K00R01: Cursor opened, fetching data';
+	EXCEPTION
+		WHEN OTHERS THEN
+			RAISE NOTICE 'SFIPH007K00R01: Error opening cursor - %', SQLERRM;
+			RAISE NOTICE 'SQL: %', substring(l_sqlH from 1 for 200);
+			RETURN RTN_FATAL;
+	END;
 	LOOP
 		-- ヘッダデータを格納
-		FETCH curRecH INTO
-			recHeader[recCntH);
+		FETCH curRecH INTO tmpRecHeader;
 		-- データが無くなったらループを抜ける
 		EXIT WHEN NOT FOUND;/* apply on curRecH */
+		recHeader[recCntH] := tmpRecHeader;
+		RAISE NOTICE 'SFIPH007K00R01: Fetched header record %', recCntH;
 		IF recHeader[recCntH].KAIKEI_KBN = '00' THEN
 			recHeader[recCntH].KAIKEI_KBN_RNM := '公債費特別会計';
 		END IF;
 		recCntH := recCntH + 1;
 	END LOOP;
+	-- Close cursor
+	CLOSE curRecH;
+	-- Check if no data found
+	IF recCntH = 0 THEN
+		RAISE NOTICE 'SFIPH007K00R01: No data found';
+		RETURN RTN_NODATA;
+	END IF;
 	-- 最終行の次行判定用ヘッダ配列の初期化
 	recHeader[recCntH].ITAKU_KAISHA_CD := '';
 	recHeader[recCntH].HKT_CD := '';
@@ -225,11 +250,11 @@ BEGIN
 		IF flgRowCng = 0 THEN
 			-- 会計区分配列の初期化(最大30までシステム上登録可能だが、DL可能は「C_BLOCK_MAX + 1 会計区分」まで)
 			FOR l_kaikeiKbnIdx IN 0..30 LOOP
-				l_kaikeiKbnArr[l_kaikeiKbnIdx) := '';
+				l_kaikeiKbnArr[l_kaikeiKbnIdx] := '';
 			END LOOP;
 			l_kaikeiKbnIdx := 0;
 			recCntOut := recCntOut + 1; -- 出力行カウント
-			l_outstr[recCntOut) := '''No'',''発行体コード'',''発行体名称'',''徴求日'',''ISINコード'',''元利払日'',''銘柄名称'''
+			l_outstr[recCntOut] := '''No'',''発行体コード'',''発行体名称'',''徴求日'',''ISINコード'',''元利払日'',''銘柄名称'''
 			-- 総合計列タイトル
 								|| ',''元金合計'',''利金合計'',''元金手数料合計'',''利金手数料合計'',''総合計'''
 			-- 振替債・現登債合計列タイトル
@@ -242,20 +267,20 @@ BEGIN
 		-- 会計区分が最大ブロック数以上(=C_BLOCK_MAX + 1 列)の場合は、DLしない為無視する
 		IF colCnt <= C_BLOCK_MAX THEN
 			-- 会計区分が存在する場合
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recHeader[recCntN].KAIKEI_KBN_RNM || '元金''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''利金''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''元金支払手数料''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''利金支払手数料''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''現登債元金''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''現登債利金''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''現登債元金支払手数料''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''現登債利金支払手数料''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''請求額''';
-			l_outstr[recCntOut) := l_outstr[recCntOut) || ',''消費税金額''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recHeader[recCntN].KAIKEI_KBN_RNM || '元金''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''利金''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''元金支払手数料''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''利金支払手数料''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''現登債元金''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''現登債利金''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''現登債元金支払手数料''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''現登債利金支払手数料''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''請求額''';
+			l_outstr[recCntOut] := l_outstr[recCntOut] || ',''消費税金額''';
 			-- ヘッダフラグに「ヘッダ行(=1)」をセット
-			l_outHeaderFlg[recCntOut) := '1';
+			l_outHeaderFlg[recCntOut] := '1';
 			-- 会計区分をセット(明細レコードをセットする判定用)
-			l_kaikeiKbnArr[l_kaikeiKbnIdx) := recHeader[recCntN].KAIKEI_KBN;
+			l_kaikeiKbnArr[l_kaikeiKbnIdx] := recHeader[recCntN].KAIKEI_KBN;
 			l_kaikeiKbnIdx := l_kaikeiKbnIdx + 1;
 		END IF;
 		colCnt	  := colCnt + 1;	-- 列カウント
@@ -272,7 +297,7 @@ BEGIN
 			-- データが存在しないタイトル列は空をセット（会計区分は最大C_BLOCK_MAX + 1ブロック）
 			FOR colCntTmp IN colCnt..C_BLOCK_MAX LOOP
 				-- 会計区分の有無により、列に０またはNULLをセット
-				l_outstr[recCntOut) := l_outstr[recCntOut) || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCntTmp);
+				l_outstr[recCntOut] := l_outstr[recCntOut] || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCntTmp);
 			END LOOP;
 			colCnt := 0;				-- 列カウント
 			flgRowCng := 0;				-- 行切替フラグ
@@ -292,16 +317,9 @@ BEGIN
 			OPEN curRecM FOR EXECUTE l_sqlM;
 			LOOP
 				-- 明細データを格納
-				FETCH curRecM INTO	recMeisai[recCntM);
-				IF NOT FOUND THEN
-					-- 対象銘柄の会計区分が無くなった場合、残りフィールドに空をセット（会計区分は最大C_BLOCK_MAX + 1 ブロック）
-					FOR colCntTmp IN colCnt..C_BLOCK_MAX LOOP
-						-- 会計区分の有無により、列に０またはNULLをセット
-						l_outstr[recCntOut) := l_outstr[recCntOut) || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCntTmp);
-					END LOOP;
-					colCnt	  := 0;				-- 列カウント
-				END IF;
+				FETCH curRecM INTO tmpRecMeisai;
 				EXIT WHEN NOT FOUND;/* apply on curRecM */
+				recMeisai[recCntM] := tmpRecMeisai;
 				IF recCntM > 0 THEN
 					-- 開始行以外でレコードが切り替わったら、改行
 					IF     recMeisai[recCntM].CHOKYU_YMD <> recMeisai[recCntM - 1].CHOKYU_YMD
@@ -311,7 +329,7 @@ BEGIN
 						-- 改行する条件になったら、残りの空いている列に空をセットする（会計区分は最大C_BLOCK_MAX + 1 ブロック）
 						FOR colCntTmp IN colCnt..C_BLOCK_MAX LOOP
 							-- 会計区分の有無により、列に０またはNULLをセット
-							l_outstr[recCntOut) := l_outstr[recCntOut) || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCntTmp);
+							l_outstr[recCntOut] := l_outstr[recCntOut] || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCntTmp);
 						END LOOP;
 						colCnt	  := 0;				-- 列カウント
 						flgRowCng := 0;				-- 行切替フラグ
@@ -322,8 +340,8 @@ BEGIN
 					recCntOut := recCntOut + 1; -- 出力行カウント
 					rowNo := rowNo + 1;			-- 行番号(発行体ごとにリセットする番号)
 					-- ヘッダフラグに「明細行(=0)」をセット
-					l_outHeaderFlg[recCntOut) := '0';
-					l_outstr[recCntOut) := '''' ||	rowNo	|| ''','''||						-- 行番号
+					l_outHeaderFlg[recCntOut] := '0';
+					l_outstr[recCntOut] := '''' ||	rowNo	|| ''','''||						-- 行番号
 													recMeisai[recCntM].HKT_CD ||''','''||		-- 発行体コード
 													recMeisai[recCntM].HKT_RNM ||''','''||		-- 発行体名称
 													recMeisai[recCntM].CHOKYU_YMD ||''','''||	-- 徴求日
@@ -381,7 +399,7 @@ BEGIN
 					l_allGnkTesuKngk	:=	l_allFrkGnkTesuKngk	+	l_allGntGnkTesuKngk;
 					l_allRknTesuKngk	:=	l_allFrkRknTesuKngk	+	l_allGntRknTesuKngk;
 					l_allKngk			:=	l_allGknKngk + l_allRknKngk + l_allGnkTesuKngk + l_allRknTesuKngk;
-					l_outstr[recCntOut) :=	l_outstr[recCntOut)	|| ','''||
+					l_outstr[recCntOut] :=	l_outstr[recCntOut]	|| ','''||
 											-- 総合計のブロック
 											l_allGknKngk		||''','''||	-- 元金総合計
 											l_allRknKngk		||''','''||	-- 利金総合計
@@ -403,19 +421,19 @@ BEGIN
 				-- 会計区分がタイトル列と一致する列を検索
 				LOOP
 					-- 一致したらデータセットして列セット用のループを抜ける
-					IF l_kaikeiKbnArr[colCnt) = recMeisai[recCntM].KAIKEI_KBN THEN
+					IF l_kaikeiKbnArr[colCnt] = recMeisai[recCntM].KAIKEI_KBN THEN
 						-- 公債費フラグONの会計区分には、金額の先頭に「*」を付加する（…ように、すぐできるようにしておく）
---						SELECT DECODE(recMeisai[recCntM).KOUSAIHI_FLG,'0','','1','*') INTO flgkosaihi FROM DUAL;
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi || recMeisai[recCntM].GANKIN                  || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].RKN                     || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].GNKN_SHR_TESU_KNGK      || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].RKN_SHR_TESU_KNGK       || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_GNKN                || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_RKN                 || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_GNKN_SHR_TESU_KNGK  || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_RKN_SHR_TESU_KNGK   || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].SEIKYU_KNGK             || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || flgkosaihi ||  recMeisai[recCntM].SZEI_KNGK               || '''';
+--						SELECT DECODE(recMeisai[recCntM].KOUSAIHI_FLG,'0','','1','*') INTO flgkosaihi FROM DUAL;
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi || recMeisai[recCntM].GANKIN                  || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].RKN                     || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].GNKN_SHR_TESU_KNGK      || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].RKN_SHR_TESU_KNGK       || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_GNKN                || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_RKN                 || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_GNKN_SHR_TESU_KNGK  || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].GNT_RKN_SHR_TESU_KNGK   || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].SEIKYU_KNGK             || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || flgkosaihi ||  recMeisai[recCntM].SZEI_KNGK               || '''';
 						colCnt	:= colCnt  + 1;	-- 列カウント
 						EXIT;
 					END IF;
@@ -424,7 +442,7 @@ BEGIN
 					colCnt := colCnt + 1; -- 列カウント
 					-- 一致しない場合(その会計区分のレコードが無い場合)空の列をセットして次の列へ
 					-- 会計区分の有無により、列に０またはNULLをセット
-					l_outstr[recCntOut) := l_outstr[recCntOut) || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCnt);
+					l_outstr[recCntOut] := l_outstr[recCntOut] || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCnt);
 				END LOOP;
 				recCntM := recCntM + 1;
 			END LOOP;
@@ -442,8 +460,8 @@ BEGIN
 										);
 			-- 合計行用に 行カウントを + 1
 			recCntOut := recCntOut + 1;
-			l_outHeaderFlg[recCntOut) := '0';	-- ヘッダフラグに「明細行(=0)」をセット
-			l_outstr[recCntOut) := '';			-- 合計行のレコードを初期化
+			l_outHeaderFlg[recCntOut] := '0';	-- ヘッダフラグに「明細行(=0)」をセット
+			l_outstr[recCntOut] := '';			-- 合計行のレコードを初期化
 			colCnt	  := 0;						-- 列カウント
 			l_befKaikaiKbn	:= '00';
 			-- 合計金額の初期化
@@ -482,17 +500,17 @@ BEGIN
 				-- 会計区分がタイトル列と一致する列を検索
 				LOOP
 					-- 一致したらデータセットして列セット用のループを抜ける
-					IF l_kaikeiKbnArr[colCnt) = recKbnTotal.KAIKEI_KBN THEN
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.GANKIN                  || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.RKN                     || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.GNKN_SHR_TESU_KNGK      || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.RKN_SHR_TESU_KNGK       || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.GNT_GNKN                || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.GNT_RKN                 || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.GNT_GNKN_SHR_TESU_KNGK  || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.GNT_RKN_SHR_TESU_KNGK   || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.SEIKYU_KNGK             || '''';
-						l_outstr[recCntOut) := l_outstr[recCntOut) || ',''' || recKbnTotal.SZEI_KNGK               || '''';
+					IF l_kaikeiKbnArr[colCnt] = recKbnTotal.KAIKEI_KBN THEN
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.GANKIN                  || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.RKN                     || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.GNKN_SHR_TESU_KNGK      || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.RKN_SHR_TESU_KNGK       || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.GNT_GNKN                || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.GNT_RKN                 || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.GNT_GNKN_SHR_TESU_KNGK  || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.GNT_RKN_SHR_TESU_KNGK   || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.SEIKYU_KNGK             || '''';
+						l_outstr[recCntOut] := l_outstr[recCntOut] || ',''' || recKbnTotal.SZEI_KNGK               || '''';
 						colCnt	:= colCnt  + 1;	-- 列カウント
 						EXIT;
 					END IF;
@@ -500,7 +518,7 @@ BEGIN
 					EXIT WHEN colCnt >= C_BLOCK_MAX;
 					-- 一致しない場合(その会計区分のレコードが無い場合)空の列をセットして次の列へ
 					-- 会計区分の有無により、列に０またはNULLをセット
-					l_outstr[recCntOut) := l_outstr[recCntOut) || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCnt);
+					l_outstr[recCntOut] := l_outstr[recCntOut] || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCnt);
 					colCnt := colCnt + 1; -- 列カウント
 				END LOOP;
 				EXIT WHEN NOT FOUND;/* apply on curRecKT */
@@ -508,7 +526,7 @@ BEGIN
 			-- 改行する条件になったら、残りの空いている列に空をセットする（会計区分は最大C_BLOCK_MAX + 1 ブロック）
 			FOR colCntTmp IN colCnt..C_BLOCK_MAX LOOP
 				-- 会計区分の有無により、列に０またはNULLをセット
-				l_outstr[recCntOut) := l_outstr[recCntOut) || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCntTmp);
+				l_outstr[recCntOut] := l_outstr[recCntOut] || SFIPH007K00R01_setNodataKaikeiKbn(l_kaikeiKbnIdx,colCntTmp);
 			END LOOP;
 			-- 総合計
 			l_allGknKngk		:=	l_allFrkGknKngk		+	l_allGntGknKngk;
@@ -524,7 +542,7 @@ BEGIN
 					--			現登債元金合計					利金合計						元金手数料合計						利金手数料合計
 					|| ',''' ||	l_allGntGknKngk || ''',''' ||	l_allGntRknKngk || ''',''' ||	l_allGntGnkTesuKngk || ''',''' ||	l_allGntRknTesuKngk || '''';
 			--「合計」と 総合計ブロック・振替債/現登債合計ブロックを、会計区分別のブロックの前にドッキング
-			l_outstr[recCntOut) := l_tmpstr || l_outstr[recCntOut);
+			l_outstr[recCntOut] := l_tmpstr || l_outstr[recCntOut];
 			-- 複数発行体がある場合、次の行でまた会計区分名称をセットする用 
 			flgRowCng := 0;				-- 行切替フラグ
 		END IF;
@@ -581,8 +599,8 @@ BEGIN
 							|| l_gyomuYmd                || ''',''' -- 作成日(=業務日付)
 							|| 'IPH30000711'             || ''',''' --
 							|| recCntOut                 || ''',''' -- SeqNo(=ループカウンタ)
-							|| l_outHeaderFlg[recCntOut) || ''',  ' -- ヘッダフラグ
-							|| l_outstr[recCntOut)       || ','''   -- 明細行の追加データ部分SQL(会計区分別)
+							|| l_outHeaderFlg[recCntOut] || ''',  ' -- ヘッダフラグ
+							|| l_outstr[recCntOut]       || ','''   -- 明細行の追加データ部分SQL(会計区分別)
 							|| l_inUserId                || ''',''' -- 更新者ID
 							|| l_inUserId                || '''   ' -- 作成者ID
 							|| ')';
@@ -596,8 +614,8 @@ BEGIN
 --							|| l_gyomuYmd                || ''',''' -- 作成日(=業務日付)
 --							|| 'IPH30000711'             || ''',''' --
 --							|| recCntOut                 || ''',''' -- SeqNo(=ループカウンタ)
---							|| l_outHeaderFlg[recCntOut) || ''',  ' -- ヘッダフラグ
---							|| l_outstr[recCntOut)       || ','''   -- 明細行の追加データ部分SQL
+--							|| l_outHeaderFlg[recCntOut] || ''',  ' -- ヘッダフラグ
+--							|| l_outstr[recCntOut]       || ','''   -- 明細行の追加データ部分SQL
 --							|| l_inUserId                || ''',''' -- 更新者ID
 --							|| l_inUserId                || '''   ' -- 作成者ID
 --							|| ')',debugStrLength,100));
@@ -635,200 +653,96 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE FUNCTION sfiph007k00r01_createsqlheader ( l_inKjnYmdFrom MGR_KIHON.HAKKO_YMD%TYPE,		-- 基準日From
- l_inKjnYmdTo MGR_KIHON.HAKKO_YMD%TYPE,		-- 基準日To
- l_inHktCd MGR_KIHON.HKT_CD%TYPE,			-- 発行体コード
- l_inMgrCd MGR_KIHON.MGR_CD%TYPE,			-- 銘柄コード
- l_inIsinCd MGR_KIHON.ISIN_CD%TYPE,			-- ISINコード
- l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE 	-- 委託会社コード
- ) RETURNS varchar AS $body$
+CREATE OR REPLACE FUNCTION sfiph007k00r01_createsqlheader (
+    l_inKjnYmdFrom       MGR_KIHON.HAKKO_YMD%TYPE,
+    l_inKjnYmdTo         MGR_KIHON.HAKKO_YMD%TYPE,
+    l_inHktCd            MGR_KIHON.HKT_CD%TYPE,
+    l_inMgrCd            MGR_KIHON.MGR_CD%TYPE,
+    l_inIsinCd           MGR_KIHON.ISIN_CD%TYPE,
+    l_inItakuKaishaCd    MGR_KIHON.ITAKU_KAISHA_CD%TYPE
+) RETURNS varchar AS $body$
 DECLARE
-	RTN_OK CONSTANT integer := 0;
-	RTN_NG CONSTANT integer := 1;
-	RTN_NODATA CONSTANT integer := 2;
-	RTN_FATAL CONSTANT integer := 99;
-	tmpRecHeader sfiph007k00r01_type_rec_header;
-	tmpRecMeisai sfiph007k00r01_type_rec_meisai;
-
-	l_sql	varchar(4000);
-
+    l_sql varchar(8000);
 BEGIN
-	l_sql :=			'SELECT DISTINCT'
-					||	'	 ITAKU_KAISHA_CD'
-					||	'	,HKT_CD'
-					||	'	,KAIKEI_KBN'
-					||	'	,KAIKEI_KBN_RNM'
-					||	'	,KOSAI_TOKKAI'
-					||	' FROM (SELECT'
-					||	'	 WT01.ITAKU_KAISHA_CD'
-					||	'	,WT01.HKT_CD'
-					||	'	,WT01.KAIKEI_KBN'
-					||	'	,WT01.KAIKEI_KBN_RNM'
-					||	'	,CASE COALESCE((SELECT MAX(KOUSAIHI_FLG) FROM KAIKEI_KBN WHERE ITAKU_KAISHA_CD = WT01.ITAKU_KAISHA_CD AND HKT_CD = WT01.HKT_CD),''0'')'
-					||	'		WHEN ''0'' THEN'
-					||	'			''2'' '				-- 会計区分マスタで公債費フラグを使用していない発行体
-					||	'		ELSE'
-					||	'			WMG1.KOSAI_TOKKAI'	-- 公債費フラグを使用している場合は銘柄の属性により判定
-					||	'	END AS KOSAI_TOKKAI'
-					||	'	FROM'
-					-- 会計区分を取得するサブクエリ
-					-- 一般会計を取得'
-					||	'	(SELECT DISTINCT'
-					||	'		H05.ITAKU_KAISHA_CD,'
-					||	'		H05.HKT_CD,'
-					||	'		H05.KAIKEI_KBN,'
-					||	'		H01.KAIKEI_KBN_RNM'
-					||	'	FROM'
-					||	'		KIKIN_SEIKYU_KAIKEI H05,'
-					||	'		KAIKEI_KBN H01,'
-					||	'		MGR_KIHON_VIEW VMG1'
-					||	'	WHERE'
-					||	'			H05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo ||	''' '
-					||	'		AND H01.ITAKU_KAISHA_CD(+)	= H05.ITAKU_KAISHA_CD'
-					||	'		AND H01.HKT_CD(+)			= H05.HKT_CD'
-					||	'		AND H01.KAIKEI_KBN(+)		= H05.KAIKEI_KBN'
-					||	'		AND H05.ITAKU_KAISHA_CD		= VMG1.ITAKU_KAISHA_CD'
-					||	'		AND TRIM(VMG1.ISIN_CD) IS NOT NULL'
-					||	'		AND VMG1.MGR_STAT_KBN = ''1'''
-					   -- 会計按分テーブルの承認済み銘柄のみ抽出対象にする
-					||	'		AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 '
-					||	'		AND H05.ISIN_CD				= VMG1.ISIN_CD';
---	委託会社コードの指定有り	
-IF	(trim(both l_inItakuKaishaCd) IS NOT NULL AND (trim(both l_inItakuKaishaCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND H05.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' ';
-END IF;
---	発行体コードの指定有り	
-IF	(trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND H05.HKT_CD = ''' || l_inHktCd || ''' ';
-END IF;
---	銘柄コードの指定有り	
-IF	(trim(both l_inMgrCd) IS NOT NULL AND (trim(both l_inMgrCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND VMG1.MGR_CD = ''' || l_inMgrCd || ''' ';
-END IF;
---	ISINコードの指定有り	
-IF	(trim(both l_inIsinCd) IS NOT NULL AND (trim(both l_inIsinCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND H05.ISIN_CD = ''' || l_inIsinCd || ''' ';
-END IF;
-	l_sql := l_sql	||	'	UNION'
-					-- 公債費特別会計を取得'
-					||	'	 SELECT DISTINCT'
-					||	'		H05.ITAKU_KAISHA_CD,'
-					||	'		H05.HKT_CD,'
-					||	'		MAX(''00'') AS KAIKEI_KBN,'
-					||	'		MAX(''公債費特別会計'') AS KAIKEI_KBN_NM'
-					||	'	FROM'
-					||	'		KIKIN_SEIKYU_KAIKEI H05,'
-					||	'		KAIKEI_KBN H01,'
-					||	'		MGR_KIHON_VIEW VMG1'
-					||	'	WHERE'
-					||	'			H05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo ||	''' '
-					||	'		AND H05.KOUSAIHI_FLG = ''1'' '
-					||	'		AND H01.ITAKU_KAISHA_CD(+)	= H05.ITAKU_KAISHA_CD'
-					||	'		AND H01.HKT_CD(+)			= H05.HKT_CD'
-					||	'		AND H01.KAIKEI_KBN(+)		= H05.KAIKEI_KBN'
-					||	'		AND H05.ITAKU_KAISHA_CD		= VMG1.ITAKU_KAISHA_CD'
-					||	'		AND TRIM(VMG1.ISIN_CD) IS NOT NULL'
-					||	'		AND VMG1.MGR_STAT_KBN = ''1'''
-					   -- 会計按分テーブルの承認済み銘柄のみ抽出対象にする
-					||	'		AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 '
-					||	'		AND H05.ISIN_CD				= VMG1.ISIN_CD';
---	委託会社コードの指定有り	
-IF	(trim(both l_inItakuKaishaCd) IS NOT NULL AND (trim(both l_inItakuKaishaCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND H05.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' ';
-END IF;
---	発行体コードの指定有り	
-IF	(trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND H05.HKT_CD = ''' || l_inHktCd || ''' ';
-END IF;
---	銘柄コードの指定有り	
-IF	(trim(both l_inMgrCd) IS NOT NULL AND (trim(both l_inMgrCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND VMG1.MGR_CD = ''' || l_inMgrCd || ''' ';
-END IF;
---	ISINコードの指定有り	
-IF	(trim(both l_inIsinCd) IS NOT NULL AND (trim(both l_inIsinCd))::text <> '') THEN
-	l_sql := l_sql	|| ' AND H05.ISIN_CD = ''' || l_inIsinCd || ''' ';
-END IF;
-	l_sql := l_sql	||	'	GROUP BY H05.ITAKU_KAISHA_CD,H05.HKT_CD) WT01,'
-					-- その発行体に、公債費特別会計の対象になる銘柄が存在するかどうかを取得するサブクエリ
-					||	'		(SELECT DISTINCT T.ITAKU_KAISHA_CD, T.HKT_CD, ''0'' AS KOSAI_TOKKAI'
-					||	'			FROM MGR_KIHON_VIEW T, '
-										-- 基金請求会計テーブルで、有効な銘柄の公債費フラグを取得する
-					||	'				(SELECT '
-					||	'	            	T.ITAKU_KAISHA_CD, T.HKT_CD, T.ISIN_CD, T.CHOKYU_YMD, MAX(T.KOUSAIHI_FLG) AS KOUSAIHI_FLG '
-					||	'	            	FROM  '
-					||	'	            	KIKIN_SEIKYU_KAIKEI T '
- 						||	'	           		GROUP BY '
-					||	'          			T.ITAKU_KAISHA_CD, T.HKT_CD, T.ISIN_CD, T.CHOKYU_YMD '
-					||	'	            ) TH05 '
-					||	'		WHERE TH05.ITAKU_KAISHA_CD = T.ITAKU_KAISHA_CD'
-					||	'			AND TH05.HKT_CD = T.HKT_CD'
-					||	'			AND TH05.ISIN_CD = T.ISIN_CD'
-					||	'			AND TH05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo ||	''' '
-					||	'			AND TRIM(T.ISIN_CD) IS NOT NULL'
-					||	'			AND T.MGR_STAT_KBN = ''1'''
-					||	'			AND TH05.KOUSAIHI_FLG = ''0''';
---	委託会社コードの指定有り	
-IF	(trim(both l_inItakuKaishaCd) IS NOT NULL AND (trim(both l_inItakuKaishaCd))::text <> '') THEN
-	l_sql := l_sql	|| 			'	AND T.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' ';
-END IF;
---	発行体コードの指定有り	
-IF	(trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN
-	l_sql := l_sql	||			'	AND T.HKT_CD = ''' || l_inHktCd || ''' ';
-END IF;
---	銘柄コードの指定有り	
-IF	(trim(both l_inMgrCd) IS NOT NULL AND (trim(both l_inMgrCd))::text <> '') THEN
-	l_sql := l_sql	||			'	AND T.MGR_CD = ''' || l_inMgrCd || ''' ';
-END IF;
---	ISINコードの指定有り	
-IF	(trim(both l_inIsinCd) IS NOT NULL AND (trim(both l_inIsinCd))::text <> '') THEN
-	l_sql := l_sql	||			'	AND T.ISIN_CD = ''' || l_inIsinCd || ''' ';
-END IF;
-	l_sql := l_sql	||	'		UNION'
-					||	'		SELECT DISTINCT T.ITAKU_KAISHA_CD, T.HKT_CD, ''1'' AS KOSAI_TOKKAI'
-					||	'			FROM MGR_KIHON_VIEW T, '
-										-- 基金請求会計テーブルで、有効な銘柄の公債費フラグを取得する
-					||	'				(SELECT '
-					||	'	            	T.ITAKU_KAISHA_CD, T.HKT_CD, T.ISIN_CD, T.CHOKYU_YMD, MAX(T.KOUSAIHI_FLG) AS KOUSAIHI_FLG '
-					||	'	            	FROM  '
-					||	'	            	KIKIN_SEIKYU_KAIKEI T '
- 						||	'	           		GROUP BY '
-					||	'          			T.ITAKU_KAISHA_CD, T.HKT_CD, T.ISIN_CD, T.CHOKYU_YMD '
-					||	'	            ) TH05 '
-					||	'		WHERE TH05.ITAKU_KAISHA_CD = T.ITAKU_KAISHA_CD'
-					||	'			AND TH05.HKT_CD = T.HKT_CD'
-					||	'			AND TH05.ISIN_CD = T.ISIN_CD'
-					||	'			AND TH05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo ||	''' '
-					||	'			AND TRIM(T.ISIN_CD) IS NOT NULL'
-					||	'			AND T.MGR_STAT_KBN = ''1'''
-					||	'			AND TH05.KOUSAIHI_FLG = ''1''';
---	委託会社コードの指定有り	
-IF	(trim(both l_inItakuKaishaCd) IS NOT NULL AND (trim(both l_inItakuKaishaCd))::text <> '') THEN
-	l_sql := l_sql	|| 			'	AND T.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' ';
-END IF;
---	発行体コードの指定有り	
-IF	(trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN
-	l_sql := l_sql	||			'	AND T.HKT_CD = ''' || l_inHktCd || ''' ';
-END IF;
---	銘柄コードの指定有り	
-IF	(trim(both l_inMgrCd) IS NOT NULL AND (trim(both l_inMgrCd))::text <> '') THEN
-	l_sql := l_sql	||			'	AND T.MGR_CD = ''' || l_inMgrCd || ''' ';
-END IF;
---	ISINコードの指定有り	
-IF	(trim(both l_inIsinCd) IS NOT NULL AND (trim(both l_inIsinCd))::text <> '') THEN
-	l_sql := l_sql	||			'	AND T.ISIN_CD = ''' || l_inIsinCd || ''' ';
-END IF;
-	l_sql := l_sql	||	'			) WMG1'
-					||	'	WHERE	WT01.ITAKU_KAISHA_CD	= WMG1.ITAKU_KAISHA_CD'
-					||	'	AND		WT01.HKT_CD				= WMG1.HKT_CD)'
-					||	'	WHERE'
-					||	'		NOT(KOSAI_TOKKAI = ''2'' AND KAIKEI_KBN = ''00'')'	-- 公債費を使用していない発行体には交際費特別会計列は不要
-					||	'	ORDER BY'
-					||	'	ITAKU_KAISHA_CD,HKT_CD ASC ,KOSAI_TOKKAI DESC ,KAIKEI_KBN ASC';
-	RETURN l_sql;
+    l_sql := 
+        'SELECT DISTINCT ' ||
+        ' WT01.ITAKU_KAISHA_CD, WT01.HKT_CD, WT01.KAIKEI_KBN, WT01.KAIKEI_KBN_RNM, WMG1.KOSAI_TOKKAI ' ||
+        'FROM (' ||
+        ' SELECT H05.ITAKU_KAISHA_CD, H05.HKT_CD, H01.KAIKEI_KBN, H01.KAIKEI_KBN_RNM ' ||
+        ' FROM KIKIN_SEIKYU_KAIKEI H05 ' ||
+        ' LEFT JOIN KAIKEI_KBN H01 ' ||
+        '   ON H01.ITAKU_KAISHA_CD = H05.ITAKU_KAISHA_CD ' ||
+        '  AND H01.HKT_CD = H05.HKT_CD ' ||
+        '  AND H01.KAIKEI_KBN = H05.KAIKEI_KBN ' ||
+        ' JOIN MGR_KIHON_VIEW VMG1 ' ||
+        '   ON H05.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD ' ||
+        '  AND H05.ISIN_CD = VMG1.ISIN_CD ' ||
+        ' WHERE H05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo || ''' ' ||
+        '   AND TRIM(VMG1.ISIN_CD) IS NOT NULL ' ||
+        '   AND VMG1.MGR_STAT_KBN = ''1'' ' ||
+        '   AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 ' ||
+        '   AND H05.ISIN_CD = VMG1.ISIN_CD ';
+
+    IF trim(both l_inItakuKaishaCd)::text <> '' THEN
+        l_sql := l_sql || ' AND H05.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || '''';
+    END IF;
+    IF trim(both l_inHktCd)::text <> '' THEN
+        l_sql := l_sql || ' AND H05.HKT_CD = ''' || l_inHktCd || '''';
+    END IF;
+    IF trim(both l_inMgrCd)::text <> '' THEN
+        l_sql := l_sql || ' AND VMG1.MGR_CD = ''' || l_inMgrCd || '''';
+    END IF;
+    IF trim(both l_inIsinCd)::text <> '' THEN
+        l_sql := l_sql || ' AND H05.ISIN_CD = ''' || l_inIsinCd || '''';
+    END IF;
+
+    -- UNION 公債費特別会計
+    l_sql := l_sql ||
+        ' UNION ALL ' ||
+        ' SELECT H05.ITAKU_KAISHA_CD, H05.HKT_CD, ''00'' AS KAIKEI_KBN, ''公債費特別会計'' AS KAIKEI_KBN_RNM ' ||
+        ' FROM KIKIN_SEIKYU_KAIKEI H05 ' ||
+        ' JOIN MGR_KIHON_VIEW VMG1 ' ||
+        '   ON H05.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD ' ||
+        '  AND H05.ISIN_CD = VMG1.ISIN_CD ' ||
+        ' WHERE H05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo || ''' ' ||
+        '   AND H05.KOUSAIHI_FLG = ''1'' ' ||
+        '   AND TRIM(VMG1.ISIN_CD) IS NOT NULL ' ||
+        '   AND VMG1.MGR_STAT_KBN = ''1'' ' ||
+        '   AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 ';
+
+    IF trim(both l_inItakuKaishaCd)::text <> '' THEN
+        l_sql := l_sql || ' AND H05.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || '''';
+    END IF;
+    IF trim(both l_inHktCd)::text <> '' THEN
+        l_sql := l_sql || ' AND H05.HKT_CD = ''' || l_inHktCd || '''';
+    END IF;
+    IF trim(both l_inMgrCd)::text <> '' THEN
+        l_sql := l_sql || ' AND VMG1.MGR_CD = ''' || l_inMgrCd || '''';
+    END IF;
+    IF trim(both l_inIsinCd)::text <> '' THEN
+        l_sql := l_sql || ' AND H05.ISIN_CD = ''' || l_inIsinCd || '''';
+    END IF;
+
+    l_sql := l_sql || 
+        ' GROUP BY H05.ITAKU_KAISHA_CD, H05.HKT_CD ' ||
+        ') WT01 ' ||
+        'JOIN (' ||
+        '  SELECT DISTINCT T.ITAKU_KAISHA_CD, T.HKT_CD, MAX(T.KOUSAIHI_FLG) AS KOSAI_TOKKAI ' ||
+        '  FROM KIKIN_SEIKYU_KAIKEI T ' ||
+        '  WHERE T.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo || ''' ' ||
+        '  GROUP BY T.ITAKU_KAISHA_CD, T.HKT_CD ' ||
+        ') WMG1 ' ||
+        ' ON WT01.ITAKU_KAISHA_CD = WMG1.ITAKU_KAISHA_CD ' ||
+        'AND WT01.HKT_CD = WMG1.HKT_CD ' ||
+        'WHERE NOT (WMG1.KOSAI_TOKKAI = ''2'' AND WT01.KAIKEI_KBN = ''00'') ' ||
+        'ORDER BY WT01.ITAKU_KAISHA_CD, WT01.HKT_CD, WMG1.KOSAI_TOKKAI DESC, WT01.KAIKEI_KBN ASC';
+
+    RETURN l_sql;
 END;
 $body$
-LANGUAGE PLPGSQL
-;
+LANGUAGE plpgsql;
+
+
 -- REVOKE ALL ON FUNCTION sfiph007k00r01_createsqlheader ( l_inKjnYmdFrom MGR_KIHON.HAKKO_YMD%TYPE, l_inKjnYmdTo MGR_KIHON.HAKKO_YMD%TYPE, l_inHktCd MGR_KIHON.HKT_CD%TYPE, l_inMgrCd MGR_KIHON.MGR_CD%TYPE, l_inIsinCd MGR_KIHON.ISIN_CD%TYPE, l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE  ) FROM PUBLIC;
 
 
@@ -842,16 +756,10 @@ CREATE OR REPLACE FUNCTION sfiph007k00r01_createsqlmeisai ( l_inKjnYmdFrom MGR_K
  l_inMgrCd MGR_KIHON.MGR_CD%TYPE,			-- 銘柄コード
  l_inIsinCd MGR_KIHON.ISIN_CD%TYPE,			-- ISINコード
  l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE,	-- 委託会社コード
- l_inKousaihiFlg CHAR,							-- 公債費フラグ（0：一般会計　1：公債費特別会計　2：公債費特会は使用しない）
- l_inTotalFlg CHAR 								-- 合計行取得フラグ(０：明細行　１：縦罫合計行)
+ l_inKousaihiFlg text,							-- 公債費フラグ（0：一般会計　1：公債費特別会計　2：公債費特会は使用しない）
+ l_inTotalFlg text 								-- 合計行取得フラグ(０：明細行　１：縦罫合計行)
  ) RETURNS varchar AS $body$
 DECLARE
-	RTN_OK CONSTANT integer := 0;
-	RTN_NG CONSTANT integer := 1;
-	RTN_NODATA CONSTANT integer := 2;
-	RTN_FATAL CONSTANT integer := 99;
-	tmpRecHeader sfiph007k00r01_type_rec_header;
-	tmpRecMeisai sfiph007k00r01_type_rec_meisai;
 
 	l_sql	varchar(4000);
 
@@ -905,17 +813,20 @@ BEGIN
 					||	' SUM(H05.SZEI_KNGK) AS SZEI_KNGK,'
 					||	' MAX(H05.KOUSAIHI_FLG) AS KOUSAIHI_FLG'
 					||	',H05.KAIKEI_KBN,'
-					||	' H01.KAIKEI_KBN_RNM'
 					||	' FROM'
-					||	'  KIKIN_SEIKYU_KAIKEI H05,'
-					||	'  KAIKEI_KBN H01,'
-					||	'  MGR_KIHON_VIEW VMG1';
+					||	'  KIKIN_SEIKYU_KAIKEI H05'
+					||	' LEFT JOIN KAIKEI_KBN H01'
+					||	'  ON H01.ITAKU_KAISHA_CD = H05.ITAKU_KAISHA_CD'
+					||	'  AND H01.HKT_CD = H05.HKT_CD'
+					||	'  AND H01.KAIKEI_KBN = H05.KAIKEI_KBN'
+					||	' JOIN MGR_KIHON_VIEW VMG1'
+					||	'  ON H05.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD'
+					||	'  AND H05.ISIN_CD = VMG1.ISIN_CD';
 	--	WHERH文	
 	l_sql := l_sql	||	' WHERE'
 					||	'      H05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo ||	''' '
-					||	'  AND H01.ITAKU_KAISHA_CD(+) = H05.ITAKU_KAISHA_CD'
-					||	'  AND H01.HKT_CD(+)          = H05.HKT_CD'
-					||	'  AND H01.KAIKEI_KBN(+)      = H05.KAIKEI_KBN'
+					||	'  AND TRIM(VMG1.ISIN_CD) IS NOT NULL'
+					||	'  AND VMG1.MGR_STAT_KBN = ''1'''
 					||	'  AND H05.ITAKU_KAISHA_CD    = VMG1.ITAKU_KAISHA_CD'
 					||	'  AND H05.ISIN_CD            = VMG1.ISIN_CD'
 					||	'  AND TRIM(VMG1.ISIN_CD) IS NOT NULL'
@@ -983,18 +894,20 @@ BEGIN
 						||	' ''00'' AS KAIKEI_KBN,'
 						||	' ''公債費特別会計'' AS KAIKEI_KBN_NM'
 						||	' FROM'
-						||	'  KIKIN_SEIKYU_KAIKEI H05,'
-						||	'  KAIKEI_KBN H01,'
-						||	'  MGR_KIHON_VIEW VMG1';
+						||	'  KIKIN_SEIKYU_KAIKEI H05'
+						||	' LEFT JOIN KAIKEI_KBN H01'
+						||	'  ON H01.ITAKU_KAISHA_CD = H05.ITAKU_KAISHA_CD'
+						||	'  AND H01.HKT_CD = H05.HKT_CD'
+						||	'  AND H01.KAIKEI_KBN = H05.KAIKEI_KBN'
+						||	' JOIN MGR_KIHON_VIEW VMG1'
+						||	'  ON H05.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD'
+						||	'  AND H05.ISIN_CD = VMG1.ISIN_CD';
 		--	WHERH文	
 		l_sql := l_sql	||	' WHERE'
 						||	'      H05.CHOKYU_YMD BETWEEN ''' || l_inKjnYmdFrom || ''' AND ''' || l_inKjnYmdTo ||	''' '
 						||	'  AND H05.KOUSAIHI_FLG = ''1'' '
-						||	'  AND H01.ITAKU_KAISHA_CD(+) = H05.ITAKU_KAISHA_CD'
-						||	'  AND H01.HKT_CD(+)          = H05.HKT_CD'
-						||	'  AND H01.KAIKEI_KBN(+)      = H05.KAIKEI_KBN'
-						||	'  AND H05.ITAKU_KAISHA_CD    = VMG1.ITAKU_KAISHA_CD'
-						||	'  AND H05.ISIN_CD            = VMG1.ISIN_CD'
+						||	'  AND TRIM(VMG1.ISIN_CD) IS NOT NULL'
+						||	'  AND VMG1.MGR_STAT_KBN = ''1'''
 						||	'  AND TRIM(VMG1.ISIN_CD) IS NOT NULL'
 						||	'  AND VMG1.MGR_STAT_KBN = ''1'''
 						   -- 会計按分テーブルの承認済み銘柄のみ抽出対象にする
@@ -1037,7 +950,7 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON FUNCTION sfiph007k00r01_createsqlmeisai ( l_inKjnYmdFrom MGR_KIHON.HAKKO_YMD%TYPE, l_inKjnYmdTo MGR_KIHON.HAKKO_YMD%TYPE, l_inGnrYmd MGR_KIHON.HAKKO_YMD%TYPE, l_inHktCd MGR_KIHON.HKT_CD%TYPE, l_inMgrCd MGR_KIHON.MGR_CD%TYPE, l_inIsinCd MGR_KIHON.ISIN_CD%TYPE, l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE, l_inKousaihiFlg CHAR, l_inTotalFlg CHAR  ) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION sfiph007k00r01_createsqlmeisai ( l_inKjnYmdFrom MGR_KIHON.HAKKO_YMD%TYPE, l_inKjnYmdTo MGR_KIHON.HAKKO_YMD%TYPE, l_inGnrYmd MGR_KIHON.HAKKO_YMD%TYPE, l_inHktCd MGR_KIHON.HKT_CD%TYPE, l_inMgrCd MGR_KIHON.MGR_CD%TYPE, l_inIsinCd MGR_KIHON.ISIN_CD%TYPE, l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE, l_inKousaihiFlg text, l_inTotalFlg text  ) FROM PUBLIC;
 
 
 
@@ -1047,12 +960,6 @@ CREATE OR REPLACE FUNCTION sfiph007k00r01_setnodatakaikeikbn ( l_inMaxKaikeiKbnI
  l_inTmpKaikeiKbnIdx integer 	-- 現在参照中の会計区分INDEX
  ) RETURNS varchar AS $body$
 DECLARE
-	RTN_OK CONSTANT integer := 0;
-	RTN_NG CONSTANT integer := 1;
-	RTN_NODATA CONSTANT integer := 2;
-	RTN_FATAL CONSTANT integer := 99;
-	tmpRecHeader sfiph007k00r01_type_rec_header;
-	tmpRecMeisai sfiph007k00r01_type_rec_meisai;
 
 	l_ret	varchar(100);
 

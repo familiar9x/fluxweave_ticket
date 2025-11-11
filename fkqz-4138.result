@@ -1,0 +1,41 @@
+=== FKQZ-4138: SPIPF001K00R02 Migration Result ===
+
+FILE: fkqz-4138.SPIPF001K00R02.sql
+PROCEDURE: spipf001k00r02 (発行体マスタ一覧)
+
+MIGRATION STEPS COMPLETED:
+1. ✅ Created composite type variable: l_inItem TYPE_SREPORT_WK_ITEM
+2. ✅ Converted 61 item assignments from individual parameters to composite type
+3. ✅ Called pkPrint.insertData with composite type pattern
+4. ✅ Fixed procedure signature (OUT parameter changed from numeric to integer)
+
+DEPLOYMENT:
+✅ CREATE PROCEDURE successful
+✅ No compilation errors
+
+TEST RESULTS:
+Test 1: No matching data
+- Parameters: itaku='0005', user='TESTFKQZ', date='20190401'
+- Result: Return code 40 (RTN_NODATA - no matching data)
+- Status: ✅ PASS (expected behavior)
+
+Test 2: With real data
+- Parameters: itaku='0005', user='JIP1', date='20250612'
+- Result: ✅ Return code 0 (RTN_OK - SUCCESS!)
+- Status: ✅ PASS (procedure executed successfully with data)
+- Records processed: 2 records
+
+DATA REQUIREMENTS:
+- ITAKU_KAISHA_CD must match
+- SAKUSEI_ID must match (user who created the records)
+- SAKUSEI_DT must match (creation date)
+- All 3 conditions required in WHERE clause
+
+COMPOSITE TYPE CONVERSION:
+- Before: 61 individual l_inItem001-061 parameters
+- After: Single l_inItem composite type with 61 fields
+- Pattern follows rule: TYPE_SREPORT_WK_ITEM composite type usage
+
+STATUS: ✅ MIGRATION COMPLETE
+DATE: 2025-11-09
+RETURN CODE 0 ACHIEVED: ✅ YES

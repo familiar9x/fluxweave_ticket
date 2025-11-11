@@ -56,21 +56,38 @@ CREATE TYPE spiph005k00r01_type_record AS (
 		,gWkKozaNo				char(7)											-- 口座番号
 		,gWkKozaMeigininNm		varchar(70)				-- 口座名義人
 );
-CREATE OR REPLACE PROCEDURE spiph005k00r01 ( l_inChohyoSakuKbn CHAR,		-- 帳票作成区分
- l_inHktCd CHAR,		-- 発行体コード
- l_inKozaTenCd CHAR,		-- 口座店コード
- l_inKozaTenCifCd CHAR,		-- 口座店CIFコード
- l_inMgrCd CHAR,		-- 銘柄コード
- l_inIsinCd CHAR,		-- ISINコード
- l_inKijyunYmdF CHAR,		-- 基準日(FROM)
- l_inKijyunYmdT CHAR,		-- 基準日(TO)
- l_inTuchiYmd CHAR,		-- 通知日
- l_inItakuKaishaCd CHAR,		-- 委託会社コード
+
+-- Drop existing procedures with all versions
+DO $$ 
+DECLARE
+    r RECORD;
+BEGIN
+    FOR r IN 
+        SELECT proname, oidvectortypes(proargtypes) as argtypes
+        FROM pg_proc 
+        WHERE proname IN ('spiph005k00r01', 'spiph005k00r01_createsql', 'spiph005k00r01_updateinvoiceitem', 'spiph005k00r01_changezero2space')
+        AND pronamespace = (SELECT oid FROM pg_namespace WHERE nspname = 'rh_mufg_ipa')
+    LOOP
+        EXECUTE 'DROP FUNCTION IF EXISTS rh_mufg_ipa.' || r.proname || '(' || r.argtypes || ') CASCADE';
+        EXECUTE 'DROP PROCEDURE IF EXISTS rh_mufg_ipa.' || r.proname || '(' || r.argtypes || ') CASCADE';
+    END LOOP;
+END $$;
+
+CREATE OR REPLACE PROCEDURE spiph005k00r01 ( l_inChohyoSakuKbn TEXT,		-- 帳票作成区分
+ l_inHktCd TEXT,		-- 発行体コード
+ l_inKozaTenCd TEXT,		-- 口座店コード
+ l_inKozaTenCifCd TEXT,		-- 口座店CIFコード
+ l_inMgrCd TEXT,		-- 銘柄コード
+ l_inIsinCd TEXT,		-- ISINコード
+ l_inKijyunYmdF TEXT,		-- 基準日(FROM)
+ l_inKijyunYmdT TEXT,		-- 基準日(TO)
+ l_inTuchiYmd TEXT,		-- 通知日
+ l_inItakuKaishaCd TEXT,		-- 委託会社コード
  l_inUserId text,	-- ユーザーID
- l_inChohyoKbn CHAR,		-- 帳票区分
- l_inGyomuYmd CHAR,		-- 業務日付
- l_outSqlCode OUT numeric,		-- リターン値
- l_outSqlErrM OUT CHAR 		-- エラーコメント
+ l_inChohyoKbn TEXT,		-- 帳票区分
+ l_inGyomuYmd TEXT,		-- 業務日付
+ l_outSqlCode OUT integer,		-- リターン値
+ l_outSqlErrM OUT TEXT 		-- エラーコメント
  ) AS $body$
 DECLARE
 
@@ -79,18 +96,18 @@ DECLARE
 --/* 会社名:JIP
 --/* 概要　:各種バッチ帳票出力指示画面および顧客宛帳票出力指示画面の入力条件により、
 --/*		  公社債元利金支払基金請求書（会計区分別）を作成する。
---/* 引数　:	l_inChohyoSakuKbn	IN	CHAR		帳票作成区分
---/*			l_inHktCd			IN	CHAR		発行体コード/
---/*			l_inMgrCd			IN	CHAR		銘柄コード
---/*			l_inKijyunYmdF		IN	CHAR		基準日(FROM)
---/*			l_inKijyunYmdT		IN	CHAR		基準日(TO)
---/*			l_inTuchiYmd		IN	CHAR		通知日
---/*			l_inItakuKaishaCd	IN	CHAR		委託会社コード
---/*			l_inUserId			IN	CHAR		ユーザーID
---/*			l_inChohyoKbn		IN	CHAR		帳票区分
---/*			l_inGyomuYmd		IN	CHAR		業務日付
+--/* 引数　:	l_inChohyoSakuKbn	IN	TEXT		帳票作成区分
+--/*			l_inHktCd			IN	TEXT		発行体コード/
+--/*			l_inMgrCd			IN	TEXT		銘柄コード
+--/*			l_inKijyunYmdF		IN	TEXT		基準日(FROM)
+--/*			l_inKijyunYmdT		IN	TEXT		基準日(TO)
+--/*			l_inTuchiYmd		IN	TEXT		通知日
+--/*			l_inItakuKaishaCd	IN	TEXT		委託会社コード
+--/*			l_inUserId			IN	TEXT		ユーザーID
+--/*			l_inChohyoKbn		IN	TEXT		帳票区分
+--/*			l_inGyomuYmd		IN	TEXT		業務日付
 --/*			l_outSqlCode		OUT	INTEGER		リターン値
---/*			l_outSqlErrM		OUT	VARCHAR2	エラーコメント
+--/*			l_outSqlErrM		OUT	VARCHAR	エラーコメント
 --/* 返り値:なし
 --/*
 --/* @version $Id: SPIPH005K00R01.SQL,v 1.35 2023/07/25 05:57:03 kentaro_ikeda Exp $
@@ -132,7 +149,7 @@ DECLARE
 	gRtnCd				integer :=	RTN_OK;						-- リターンコード
 	gSeqNo				integer :=	0;							-- シーケンス
 	gLopNo				integer :=	0;							-- ループ番号
-	gSQL				varchar(10000)	:= NULL;				-- SQL編集
+	gSQL				text	:= NULL;				-- SQL編集
 	-- DB取得項目
 	-- 配列定義
 	recMeisai spiph005k00r01_type_record[];
@@ -163,7 +180,7 @@ DECLARE
 	-- インボイス用
 	gAryBun					varchar[];						-- インボイス文章(請求書)配列
 	gInvoiceBun				varchar(400);					-- インボイス文章
-	gInvoiceTourokuNo		varchar(13);	-- 適格請求書発行事業者登録番号
+	gInvoiceTourokuNo		varchar(14);	-- 適格請求書発行事業者登録番号
 	gInvoiceKknTesuLabel	varchar(20);							-- 基金および手数料ラベル
 	gInvoiceTesuLabel		varchar(20);							-- 手数料ラベル
 	gWrkHikazeiFlg			varchar(1);			-- 非課税免税フラグ
@@ -206,7 +223,7 @@ BEGIN
 	-- 処理制御値取得
 	gresult := pkControl.getCtlValue( l_inItakuKaishaCd, 'ChikoList', '0');
 	-- SQL編集
-	CALL SPIPH005K00R01_createSQL(l_inItakuKaishaCd, l_inHktCd, l_inKozaTenCd, l_inKozaTenCifCd, l_inMgrCd, l_inIsinCd, l_inKijyunYmdF, l_inKijyunYmdT, l_inChohyoKbn, l_inGyomuYmd, gSQL);
+	CALL rh_mufg_ipa.SPIPH005K00R01_createSQL(l_inItakuKaishaCd, l_inHktCd, l_inKozaTenCd, l_inKozaTenCifCd, l_inMgrCd, l_inIsinCd, l_inKijyunYmdF, l_inKijyunYmdT, l_inChohyoKbn, l_inGyomuYmd, gresult, gSQL);
 	-- 地公体請求書顧客口座出力フラグ、適格請求書発行事業者登録番号(自行情報マスタ)を取得する。
 	SELECT CHIKOKOZA_PRINT_FLG, INVOICE_TOUROKU_NO
 	INTO STRICT gChikokozaPrintFlg, gInvoiceTourokuNo
@@ -604,7 +621,7 @@ BEGIN
 			gInvoiceTesuKngkSum := gWrkKazeiTotal;
 			-- 最終ページの合計レコード出力前に、最終ページの明細レコードのインボイス項目を更新
 			gSzeiKijunYmd := recMeisai[coalesce(cardinality(recMeisai), 0)-1].gRbrYmd;
-			CALL spiph005k00r01_updateinvoiceitem(recMeisai[recMeisai.COUNT-1].gTsukaCd, l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, REPORT_ID, TITLE_OUTPUT, gRtnCd, gSzeiRate, gSzeiKijunYmd, gInvoiceTesuLabel, gInvoiceTesuKngkSum, gInvoiceUchiSzei, gSeikyuTotal, gInvoiceKknTesuKngkSum, gWrkStSiharaiYmd, gWrkHktCd, gWrkKikiKbn, gWrkTukaCd, gWrkKozaFuriKbn);
+			CALL spiph005k00r01_updateinvoiceitem(recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gTsukaCd, l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, REPORT_ID, TITLE_OUTPUT, gRtnCd, gSzeiRate, gSzeiKijunYmd, gInvoiceTesuLabel, gInvoiceTesuKngkSum, gInvoiceUchiSzei, gSeikyuTotal, gInvoiceKknTesuKngkSum, gWrkStSiharaiYmd, gWrkHktCd, gWrkKikiKbn, gWrkTukaCd, gWrkKozaFuriKbn);
 			IF gRtnCd <> pkconstant.success() THEN
 				l_outSqlCode := gRtnCd;
 				RETURN;
@@ -621,18 +638,18 @@ BEGIN
 				,l_inItem001		=>	TITLE_OUTPUT 									-- 帳票タイトル：請求書
 				,l_inItem002		=>	gWrkStSiharaiYmd 								-- 支払日
 				,l_inItem003		=>	gWrkStTuchiYmd 									-- 通知日
-				,l_inItem004		=>	recMeisai[recMeisai.COUNT-1].gKaikeiKbn 			-- 会計区分
-				,l_inItem005		=>	recMeisai[recMeisai.COUNT-1].gKaikeiKbnNm 		-- 会計区分名称
-				,l_inItem006		=>	recMeisai[recMeisai.COUNT-1].gHktCd 				-- 発行体コード
-				,l_inItem007		=>	recMeisai[recMeisai.COUNT-1].gTokijoYakushokuNm 	-- 登記上役職名称
+				,l_inItem004		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gKaikeiKbn 			-- 会計区分
+				,l_inItem005		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gKaikeiKbnNm 		-- 会計区分名称
+				,l_inItem006		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gHktCd 				-- 発行体コード
+				,l_inItem007		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gTokijoYakushokuNm 	-- 登記上役職名称
 				,l_inItem008		=>	gTokiDelegateNm 									-- 登記上代表者名称
-				,l_inItem009		=>	recMeisai[recMeisai.COUNT-1].gAdd1x1			-- 住所１−１
-				,l_inItem010		=>	recMeisai[recMeisai.COUNT-1].gAdd1x2			-- 住所１−２
-				,l_inItem011		=>	recMeisai[recMeisai.COUNT-1].gAdd1x3			-- 住所１−３
-				,l_inItem012		=>	recMeisai[recMeisai.COUNT-1].gBankNm 			-- 銀行名称
-				,l_inItem013		=>	recMeisai[recMeisai.COUNT-1].gDelegateNm 		-- 代表者名称
-				,l_inItem014		=>	recMeisai[recMeisai.COUNT-1].gTsukaCd 			-- 通貨コード
-				,l_inItem015		=>	recMeisai[recMeisai.COUNT-1].gTsukaNm 			-- 通貨名称
+				,l_inItem009		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gAdd1x1			-- 住所１−１
+				,l_inItem010		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gAdd1x2			-- 住所１−２
+				,l_inItem011		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gAdd1x3			-- 住所１−３
+				,l_inItem012		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gBankNm 			-- 銀行名称
+				,l_inItem013		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gDelegateNm 		-- 代表者名称
+				,l_inItem014		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gTsukaCd 			-- 通貨コード
+				,l_inItem015		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gTsukaNm 			-- 通貨名称
 				,l_inItem037		=>	gSeikyuTotal 									-- 請求金額合計
 				,l_inItem038		=>	FMT_HAKKO_KNGK_J2								-- 発行金額書式フォーマット（インボイス項目用）
 				,l_inItem039		=>	FMT_HAKKO_KNGK_J 								-- 発行金額書式フォーマット
@@ -641,11 +658,11 @@ BEGIN
 				,l_inItem043		=>	FMT_TSUKA_CD_J 									-- 通貨コードフォーマット
 				,l_inItem044		=>	FMT_TESU_RITSU_BUNSHI 							-- 手数料率分子フォーマット
 				,l_inItem045		=>	gKozaPrintFlg  									-- 地公体請求書顧客口座出力フラグ
-				,l_inItem046		=>	recMeisai[recMeisai.COUNT-1].gWkKozaTenNm 		-- 口座店
-				,l_inItem047		=>	recMeisai[recMeisai.COUNT-1].gWkKozaKamokuNm 	-- 口座科目
-				,l_inItem048		=>	recMeisai[recMeisai.COUNT-1].gWkKozaNo 			-- 口座番号
-				--,l_inItem049		=>	recMeisai(recMeisai.COUNT-1).gWkKozaMeigininNm	-- 口座名義人
-				,l_inItem049		=>	recMeisai[recMeisai.COUNT-1].gKozaFuriKbn 		-- 口座振替区分
+				,l_inItem046		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gWkKozaTenNm 		-- 口座店
+				,l_inItem047		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gWkKozaKamokuNm 	-- 口座科目
+				,l_inItem048		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gWkKozaNo 			-- 口座番号
+				--,l_inItem049		=>	recMeisai(COALESCE(cardinality(recMeisai), 0)-1).gWkKozaMeigininNm	-- 口座名義人
+				,l_inItem049		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gKozaFuriKbn 		-- 口座振替区分
 				,l_inItem051		=>	gInvoiceTourokuNo 								-- 適格請求書発行事業者登録番号
 				,l_inItem052		=>	gInvoiceKknTesuLabel 							-- 適格請求書_基金および手数料ラベル
 				,l_inItem053		=>	gInvoiceTesuLabel 								-- 適格請求書_手数料ラベル
@@ -656,7 +673,7 @@ BEGIN
 				,l_inItem058 		=>	gSzeiKijunYmd 									-- 消費税基準日(ジャーナル)
 				,l_inItem059 		=>	gSzeiRate 										-- 消費税率(ジャーナル)
 				,l_inItem060		=>	gInvoiceBun 										-- インボイス文章
-				,l_inItem061		=>	recMeisai[recMeisai.COUNT-1].gTokijoYakushokuNm 	-- 登記上役職名称(ジャーナル)
+				,l_inItem061		=>	recMeisai[COALESCE(cardinality(recMeisai), 0)-1].gTokijoYakushokuNm 	-- 登記上役職名称(ジャーナル)
 				,l_inItem062		=>	gTokiDelegateNm || '　殿'						-- 登記上代表者名称(ジャーナル)
 				,l_inKousinId		=>	l_inUserId 										-- 更新者ID
 				,l_inSakuseiId		=>	l_inUserId 										-- 作成者ID
@@ -689,13 +706,13 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spiph005k00r01 ( l_inChohyoSakuKbn CHAR, l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifCd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inKijyunYmdF CHAR, l_inKijyunYmdT CHAR, l_inTuchiYmd CHAR, l_inItakuKaishaCd CHAR, l_inUserId text, l_inChohyoKbn CHAR, l_inGyomuYmd CHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT CHAR  ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spiph005k00r01 ( l_inChohyoSakuKbn TEXT, l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inIsinCd TEXT, l_inKijyunYmdF TEXT, l_inKijyunYmdT TEXT, l_inTuchiYmd TEXT, l_inItakuKaishaCd TEXT, l_inUserId text, l_inChohyoKbn TEXT, l_inGyomuYmd TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT TEXT  ) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE FUNCTION spiph005k00r01_changezero2space (inChar CHAR) RETURNS char AS $body$
+CREATE OR REPLACE FUNCTION spiph005k00r01_changezero2space (inChar TEXT) RETURNS text AS $body$
 BEGIN
 	-- 一桁目が0の場合にスペースに付け替え
 	IF SUBSTR(inChar,1,1) = '0' THEN
@@ -707,13 +724,13 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON FUNCTION spiph005k00r01_changezero2space (inChar CHAR) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spiph005k00r01_changezero2space (inChar TEXT) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE PROCEDURE spiph005k00r01_createsql (l_inItakuKaishaCd CHAR, l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifCd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inKijyunYmdF CHAR, l_inKijyunYmdT CHAR, l_inChohyoKbn CHAR, l_inGyomuYmd CHAR, INOUT gSQL varchar) AS $body$
+CREATE OR REPLACE PROCEDURE spiph005k00r01_createsql (l_inItakuKaishaCd TEXT, l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inIsinCd TEXT, l_inKijyunYmdF TEXT, l_inKijyunYmdT TEXT, l_inChohyoKbn TEXT, l_inGyomuYmd TEXT, l_inGresult TEXT, OUT gSQL text) AS $body$
 BEGIN
 	gSQL := '';
 	gSQL := 'SELECT WT02.IDO_YMD, '					-- 異動年月日
@@ -737,9 +754,9 @@ BEGIN
 		|| '		WT02.RBR_YMD, '					-- 元利払日
 		|| '		WT02.RBR_KJT, '					-- 元利払期日
 		|| '		WT02.CODE_RNM, '				-- 基金請求種類略称
-		|| '		DECODE(WT02.FUNIT_SKN_SHR_KNGK, 0, NULL, WT02.FUNIT_SKN_SHR_KNGK), '	-- 振替単位償還支払金額
-		|| '		DECODE(WT02.KAKUSHASAI_KNGK, 0, NULL, WT02.KAKUSHASAI_KNGK), '			-- 各社債の金額
-		|| '		DECODE(WT02.SHOKAN_PREMIUM, 0, NULL, WT02.SHOKAN_PREMIUM), '			-- 償還プレミアム
+		|| '		CASE WHEN WT02.FUNIT_SKN_SHR_KNGK = 0 THEN NULL ELSE WT02.FUNIT_SKN_SHR_KNGK END, '	-- 振替単位償還支払金額
+		|| '		CASE WHEN WT02.KAKUSHASAI_KNGK = 0 THEN NULL ELSE WT02.KAKUSHASAI_KNGK END, '			-- 各社債の金額
+		|| '		CASE WHEN WT02.SHOKAN_PREMIUM = 0 THEN NULL ELSE WT02.SHOKAN_PREMIUM END, '			-- 償還プレミアム
 		|| '		WT02.TSUKARISHI_KNGK, '			-- １通貨あたりの利子金額
 		|| '		WT02.KIJUN_ZNDK, '				-- 基準残高
 		|| '		WT02.ZNDK_KIJUN_YMD, '			-- 残高基準日
@@ -789,29 +806,30 @@ BEGIN
 		|| '				M01.HKO_KOZA_NO, '
 		|| '				S06.KOZAMEIGININ_NM, '
 		|| '				M01.HKO_KOZA_MEIGININ_NM '
-		|| '		FROM MHAKKOTAI M01, '			-- 発行体マスタ
-		|| '				VJIKO_ITAKU VJI, '		-- 自行・委託VIEW
-		|| '				MGR_KIHON_VIEW	VMG1, ' -- 銘柄_基本VIEW
-		|| '				MGR_TESURYO_PRM	MG8, '  -- 銘柄_手数料（計算情報）
-		|| '				KOZA_FRK		S06, '  -- 口座振替区分情報
-		|| '				MBUTEN			M040, ' -- 部店マスタ
-		|| '				MBUTEN			M041, '
-		|| '				SCODE			SC01, ' -- コードマスタ
-		|| '				SCODE			SC02 '
+		|| '		FROM MGR_KIHON_VIEW	VMG1 ' -- 銘柄_基本VIEW
+		|| '				INNER JOIN MHAKKOTAI M01 '			-- 発行体マスタ
+		|| '					ON VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD '
+		|| '					AND VMG1.HKT_CD = M01.HKT_CD '
+		|| '				INNER JOIN VJIKO_ITAKU VJI '		-- 自行・委託VIEW
+		|| '					ON 1=1 '
+		|| '				INNER JOIN MGR_TESURYO_PRM	MG8 '  -- 銘柄_手数料（計算情報）
+		|| '					ON VMG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD '
+		|| '					AND VMG1.MGR_CD = MG8.MGR_CD '
+		|| '				LEFT JOIN KOZA_FRK		S06 '  -- 口座振替区分情報
+		|| '					ON VMG1.ITAKU_KAISHA_CD = S06.ITAKU_KAISHA_CD '
+		|| '					AND VMG1.KOZA_FURI_KBN = S06.KOZA_FURI_KBN '
+		|| '				LEFT JOIN MBUTEN		M040 ' -- 部店マスタ
+		|| '					ON S06.KOZA_TEN_CD = M040.BUTEN_CD '
+		|| '				INNER JOIN MBUTEN		M041 '
+		|| '					ON M01.KOZA_TEN_CD = M041.BUTEN_CD '
+		|| '				LEFT JOIN SCODE			SC01 ' -- コードマスタ
+		|| '					ON S06.KOZA_KAMOKU = SC01.CODE_VALUE '
+		|| '					AND SC01.CODE_SHUBETSU = ''707'' '
+		|| '				LEFT JOIN SCODE			SC02 '
+		|| '					ON M01.HKO_KAMOKU_CD = SC02.CODE_VALUE '
+		|| '					AND SC02.CODE_SHUBETSU = ''707'' '
 		|| '		WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' '
-		|| '			AND VMG1.MGR_STAT_KBN = ''1'' '
-		|| '			AND VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD '
-		|| '			AND VMG1.ITAKU_KAISHA_CD = S06.ITAKU_KAISHA_CD(+)'
-		|| '			AND VMG1.HKT_CD = M01.HKT_CD '
-		|| '			AND VMG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD '
-		|| '			AND VMG1.MGR_CD = MG8.MGR_CD '
-		|| '			AND VMG1.KOZA_FURI_KBN = S06.KOZA_FURI_KBN(+)'
-		|| '			AND S06.KOZA_TEN_CD = M040.BUTEN_CD(+)'
-		|| '			AND M01.KOZA_TEN_CD = M041.BUTEN_CD '
-		|| '			AND S06.KOZA_KAMOKU = SC01.CODE_VALUE(+) '
-		|| '			AND SC01.CODE_SHUBETSU(+) = ''707'' '
-		|| '			AND M01.HKO_KAMOKU_CD = SC02.CODE_VALUE(+) '
-		|| '			AND SC02.CODE_SHUBETSU(+) = ''707'' ';
+		|| '			AND VMG1.MGR_STAT_KBN = ''1'' ';
 	IF (trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN
 		gSQL := gSQL || ' AND	VMG1.HKT_CD			= ''' || l_inHktCd || '''';
 	END IF;
@@ -859,7 +877,7 @@ BEGIN
 		|| '				RKN_SHR_TESU_KNGK, '
 		|| '				SEIKYU_KNGK, '
 		|| '				SZEI_KNGK '
-		|| '				,DECODE(TESU_SHURUI_CD, ''61'', ''元'', ''82'', ''利'',''　'')  AS TESU_SHURUI_NM '-- 手数料種類名
+		|| '				,CASE TESU_SHURUI_CD WHEN ''61'' THEN ''元'' WHEN ''82'' THEN ''利'' ELSE ''　'' END AS TESU_SHURUI_NM '-- 手数料種類名
 		|| '			FROM ( '
 		|| '				SELECT	VMG1.ITAKU_KAISHA_CD, '
 		|| '						VMG1.MGR_CD, '
@@ -890,17 +908,27 @@ BEGIN
 		|| '						H04.SEIKYU_KNGK, '
 		|| '						H04.SZEI_KNGK '
 		|| '                       ,MG7.TESU_SHURUI_CD '                  -- 手数料種類コード
-		|| '				FROM MHAKKOTAI				M01, '		 -- 発行体マスタ
-		|| '						MGR_KIHON_VIEW		VMG1,'		 -- 銘柄_基本VIEW
-		|| '						KAIKEI_KBN			H01, '		 -- 会計区分マスタ
-		|| '						KIKIN_IDO_KAIKEI	H04, '		 -- 基金異動履歴（会計区分別）
-		|| '						MTSUKA				M64, '		 -- 通貨マスタ
-		|| '						SCODE				MCD1 '		 -- コードマスタ
-		|| '						,(SELECT * FROM MGR_TESURYO_CTL WHERE TESU_SHURUI_CD IN (''61'',''82'') AND CHOOSE_FLG = ''1'') MG7 '  -- 銘柄_手数料（制御情報）
+		|| '				FROM MGR_KIHON_VIEW		VMG1 '		 -- 銘柄_基本VIEW
+		|| '						INNER JOIN MHAKKOTAI		M01 '		 -- 発行体マスタ
+		|| '							ON VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD '
+		|| '							AND VMG1.HKT_CD = M01.HKT_CD '
+		|| '						INNER JOIN KAIKEI_KBN		H01 '		 -- 会計区分マスタ
+		|| '							ON VMG1.ITAKU_KAISHA_CD = H01.ITAKU_KAISHA_CD '
+		|| '							AND VMG1.HKT_CD = H01.HKT_CD '
+		|| '						INNER JOIN KIKIN_IDO_KAIKEI	H04 '		 -- 基金異動履歴（会計区分別）
+		|| '							ON VMG1.ITAKU_KAISHA_CD = H04.ITAKU_KAISHA_CD '
+		|| '							AND VMG1.MGR_CD = H04.MGR_CD '
+		|| '							AND H01.KAIKEI_KBN = H04.KAIKEI_KBN '
+		|| '						INNER JOIN MTSUKA			M64 '		 -- 通貨マスタ
+		|| '							ON H04.TSUKA_CD = M64.TSUKA_CD '
+		|| '						LEFT JOIN SCODE				MCD1 '		 -- コードマスタ
+		|| '							ON H04.KKNBILL_SHURUI = MCD1.CODE_VALUE '
+		|| '							AND MCD1.CODE_SHUBETSU = ''139'' '
+		|| '						LEFT JOIN (SELECT * FROM MGR_TESURYO_CTL WHERE TESU_SHURUI_CD IN (''61'',''82'') AND CHOOSE_FLG = ''1'') MG7 '  -- 銘柄_手数料（制御情報）
+		|| '							ON H04.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD '
+		|| '							AND H04.MGR_CD = MG7.MGR_CD '
 		|| '				WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' '
-		|| '					AND VMG1.MGR_STAT_KBN = ''1'' '
-		|| '					AND VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD '
-		|| '					AND VMG1.HKT_CD = M01.HKT_CD ';
+		|| '					AND VMG1.MGR_STAT_KBN = ''1'' ';
 	IF (trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN
 		gSQL := gSQL || '		AND	 VMG1.HKT_CD		= ''' || l_inHktCd || '''';
 	END IF;
@@ -916,21 +944,10 @@ BEGIN
 	IF (trim(both l_inIsinCd) IS NOT NULL AND (trim(both l_inIsinCd))::text <> '') THEN
 		gSQL := gSQL || '		AND	 VMG1.ISIN_CD		= ''' || l_inIsinCd || '''';
 	END IF;
-		gSQL := gSQL || '		AND VMG1.ITAKU_KAISHA_CD = H01.ITAKU_KAISHA_CD '
-		|| '					AND VMG1.HKT_CD = H01.HKT_CD '
-		|| '					AND VMG1.ITAKU_KAISHA_CD = H04.ITAKU_KAISHA_CD '
-		|| '					AND VMG1.MGR_CD = H04.MGR_CD '
-								-- 会計按分テーブルの承認済み銘柄のみ抽出対象にする
-		|| '					AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 '
-		|| '					AND H01.KAIKEI_KBN = H04.KAIKEI_KBN '
+		gSQL := gSQL || '		AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 '
 		|| '					AND H04.IDO_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 								-- 0：Rの場合公債フラグの集約は行わない
-		|| '					AND H04.KOUSAIHI_FLG <> DECODE( ''' || gresult || ''', ''1'', ''1'',''9'') '
-		|| '					AND H04.KKNBILL_SHURUI = MCD1.CODE_VALUE(+) '
-		|| '					AND MCD1.CODE_SHUBETSU(+) = ''139'' '
-		|| '					AND H04.TSUKA_CD = M64.TSUKA_CD '
-		|| '					AND H04.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD(+) '
-		|| '					AND H04.MGR_CD = MG7.MGR_CD(+) '
+		|| '					AND H04.KOUSAIHI_FLG <> CASE WHEN ''' || l_inGresult || ''' = ''1'' THEN ''1'' ELSE ''9'' END '
 		|| '					) '
 						--	公債費特別会計を取得するSQL
 		|| '		UNION (SELECT DISTINCT	VMG1.ITAKU_KAISHA_CD, '
@@ -961,18 +978,28 @@ BEGIN
 		|| '								SUM(H04.RKN_SHR_TESU_KNGK), '
 		|| '								SUM(H04.SEIKYU_KNGK), '
 		|| '								SUM(H04.SZEI_KNGK) '
-		|| '                               ,DECODE(TESU_SHURUI_CD, ''61'', ''元'', ''82'', ''利'',''　'')  AS TESU_SHURUI_NM ' -- 手数料種類名
-		|| '				FROM MHAKKOTAI			M01, '	-- 発行体マスタ
-		|| '					 MGR_KIHON_VIEW		VMG1, '	-- 銘柄_基本VIEW
-		|| '					 KAIKEI_KBN			H01, '	-- 会計区分マスタ
-		|| '					 KIKIN_IDO_KAIKEI	H04, '	-- 基金異動履歴（会計区分別）
-		|| '					 MTSUKA				M64, '	-- 通貨マスタ
-		|| '					 SCODE				MCD1 '	-- コードマスタ
-		|| '					,(SELECT * FROM MGR_TESURYO_CTL WHERE TESU_SHURUI_CD IN (''61'',''82'') AND CHOOSE_FLG = ''1'') MG7 '  -- 銘柄_手数料（制御情報）
+		|| '                               ,CASE TESU_SHURUI_CD WHEN ''61'' THEN ''元'' WHEN ''82'' THEN ''利'' ELSE ''　'' END AS TESU_SHURUI_NM ' -- 手数料種類名
+		|| '				FROM MGR_KIHON_VIEW		VMG1 '	-- 銘柄_基本VIEW
+		|| '					 INNER JOIN MHAKKOTAI		M01 '	-- 発行体マスタ
+		|| '					 	ON VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD '
+		|| '					 	AND VMG1.HKT_CD = M01.HKT_CD '
+		|| '					 INNER JOIN KAIKEI_KBN		H01 '	-- 会計区分マスタ
+		|| '					 	ON VMG1.ITAKU_KAISHA_CD = H01.ITAKU_KAISHA_CD '
+		|| '					 	AND VMG1.HKT_CD = H01.HKT_CD '
+		|| '					 INNER JOIN KIKIN_IDO_KAIKEI	H04 '	-- 基金異動履歴（会計区分別）
+		|| '					 	ON VMG1.ITAKU_KAISHA_CD = H04.ITAKU_KAISHA_CD '
+		|| '					 	AND VMG1.MGR_CD = H04.MGR_CD '
+		|| '					 	AND H01.KAIKEI_KBN = H04.KAIKEI_KBN '
+		|| '					 INNER JOIN MTSUKA			M64 '	-- 通貨マスタ
+		|| '					 	ON H04.TSUKA_CD = M64.TSUKA_CD '
+		|| '					 LEFT JOIN SCODE			MCD1 '	-- コードマスタ
+		|| '					 	ON H04.KKNBILL_SHURUI = MCD1.CODE_VALUE '
+		|| '					 	AND MCD1.CODE_SHUBETSU = ''139'' '
+		|| '					 LEFT JOIN (SELECT * FROM MGR_TESURYO_CTL WHERE TESU_SHURUI_CD IN (''61'',''82'') AND CHOOSE_FLG = ''1'') MG7 '  -- 銘柄_手数料（制御情報）
+		|| '					 	ON H04.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD '
+		|| '					 	AND H04.MGR_CD = MG7.MGR_CD '
 		|| '				WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' '
-		|| '					AND VMG1.MGR_STAT_KBN = ''1'' '
-		|| '					AND VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD '
-		|| '					AND VMG1.HKT_CD = M01.HKT_CD ';
+		|| '					AND VMG1.MGR_STAT_KBN = ''1'' ';
 	IF (trim(both l_inHktCd) IS NOT NULL AND (trim(both l_inHktCd))::text <> '') THEN
 		gSQL := gSQL || '		AND VMG1.HKT_CD			= ''' || l_inHktCd || '''';
 	END IF;
@@ -988,21 +1015,10 @@ BEGIN
 	IF (trim(both l_inIsinCd) IS NOT NULL AND (trim(both l_inIsinCd))::text <> '') THEN
 		gSQL := gSQL || '		AND VMG1.ISIN_CD		= ''' || l_inIsinCd || '''';
 	END IF;
-		gSQL := gSQL || '		AND VMG1.ITAKU_KAISHA_CD = H01.ITAKU_KAISHA_CD '
-		|| '					AND VMG1.HKT_CD = H01.HKT_CD '
-		|| '					AND H01.KAIKEI_KBN = H04.KAIKEI_KBN '
-		|| '					AND VMG1.ITAKU_KAISHA_CD = H04.ITAKU_KAISHA_CD '
-		|| '					AND VMG1.MGR_CD = H04.MGR_CD '
-								-- 会計按分テーブルの承認済み銘柄のみ抽出対象にする
-		|| '					AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 '
+		gSQL := gSQL || '		AND PKIPAKKNIDO.GETKAIKEIANBUNCOUNT(VMG1.ITAKU_KAISHA_CD , VMG1.MGR_CD) > 0 '
 		|| '					AND H04.IDO_YMD BETWEEN ''' || l_inKijyunYmdF || ''' AND ''' || l_inKijyunYmdT || ''' '
 								-- 0：Rの場合公債フラグの集約は行わない
-		|| '					AND H04.KOUSAIHI_FLG = DECODE( ''' || gresult || ''', ''1'', ''1'',''9'') '
-		|| '					AND H04.KKNBILL_SHURUI = MCD1.CODE_VALUE(+) '
-		|| '					AND MCD1.CODE_SHUBETSU(+) = ''139'' '
-		|| '					AND H04.TSUKA_CD = M64.TSUKA_CD '
-		|| '					AND H04.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD(+) '
-		|| '					AND H04.MGR_CD = MG7.MGR_CD(+) '
+		|| '					AND H04.KOUSAIHI_FLG = CASE WHEN ''' || l_inGresult || ''' = ''1'' THEN ''1'' ELSE ''9'' END '
 		|| '			GROUP BY VMG1.ITAKU_KAISHA_CD, '
 		|| '						VMG1.MGR_CD, '
 		|| '						M01.HKT_CD, '
@@ -1018,7 +1034,7 @@ BEGIN
 		|| '						H04.GNKN_SHR_TESU_BUNSHI, '
 		|| '						H04.RKN_SHR_TESU_BUNBO, '
 		|| '						H04.RKN_SHR_TESU_BUNSHI '
-		|| '						,DECODE(TESU_SHURUI_CD, ''61'', ''元'', ''82'', ''利'',''　'') ' -- 手数料種類名
+		|| '						,CASE TESU_SHURUI_CD WHEN ''61'' THEN ''元'' WHEN ''82'' THEN ''利'' ELSE ''　'' END ' -- 手数料種類名
 		|| '              )) WT02 ';
 IF l_inChohyoKbn = '1' THEN
 	gSql :=gSql || '	,SREPORT_WK SC16 			'-- 帳票ワーク
@@ -1037,7 +1053,7 @@ END IF;
 	gSql :=gSql || 'AND WT01.HKT_CD = WT02.HKT_CD '
 		|| '		AND WT01.MGR_CD = WT02.MGR_CD '
 		|| '		AND TRIM(WT01.ISIN_CD) IS NOT NULL ';
-IF trim(both l_inChohyoSakuKbn) = '3' THEN
+IF trim(both l_inChohyoKbn) = '3' THEN
 gSQL := gSQL || ' ORDER BY WT02.TSUKA_CD '
 		|| '	 ,WT02.IDO_YMD '
 		|| '	 ,WT01.HKT_CD '
@@ -1068,27 +1084,45 @@ LANGUAGE PLPGSQL
 
 CREATE OR REPLACE PROCEDURE spiph005k00r01_updateinvoiceitem (
     in_TsukaCd text,
-    l_inItakuKaishaCd CHAR,
+    l_inItakuKaishaCd TEXT,
     l_inUserId VARCHAR,
-    l_inChohyoKbn CHAR,
-    l_inGyomuYmd CHAR,
+    l_inChohyoKbn TEXT,
+    l_inGyomuYmd TEXT,
     REPORT_ID VARCHAR,
     TITLE_OUTPUT VARCHAR,
-    INOUT gRtnCd integer,
-    INOUT gSzeiRate numeric,
-    INOUT gSzeiKijunYmd char,
-    INOUT gInvoiceTesuLabel varchar,
-    INOUT gInvoiceTesuKngkSum numeric,
-    INOUT gInvoiceUchiSzei numeric,
-    INOUT gSeikyuTotal numeric,
-    INOUT gInvoiceKknTesuKngkSum numeric,
-    gWrkStSiharaiYmd char,
+    IN in_gRtnCd integer,
+    IN in_gSzeiRate numeric,
+    IN in_gSzeiKijunYmd text,
+    IN in_gInvoiceTesuLabel varchar,
+    IN in_gInvoiceTesuKngkSum numeric,
+    IN in_gInvoiceUchiSzei numeric,
+    IN in_gSeikyuTotal numeric,
+    IN in_gInvoiceKknTesuKngkSum numeric,
+    OUT gRtnCd integer,
+    OUT gSzeiRate numeric,
+    OUT gSzeiKijunYmd text,
+    OUT gInvoiceTesuLabel varchar,
+    OUT gInvoiceTesuKngkSum numeric,
+    OUT gInvoiceUchiSzei numeric,
+    OUT gSeikyuTotal numeric,
+    OUT gInvoiceKknTesuKngkSum numeric,
+    gWrkStSiharaiYmd text,
     gWrkHktCd varchar,
-    gWrkKikiKbn char,
-    gWrkTukaCd char,
-    gWrkKozaFuriKbn char
+    gWrkKikiKbn text,
+    gWrkTukaCd text,
+    gWrkKozaFuriKbn text
 ) AS $body$
 BEGIN
+	-- Copy IN values to OUT
+	gRtnCd := in_gRtnCd;
+	gSzeiRate := in_gSzeiRate;
+	gSzeiKijunYmd := in_gSzeiKijunYmd;
+	gInvoiceTesuLabel := in_gInvoiceTesuLabel;
+	gInvoiceTesuKngkSum := in_gInvoiceTesuKngkSum;
+	gInvoiceUchiSzei := in_gInvoiceUchiSzei;
+	gSeikyuTotal := in_gSeikyuTotal;
+	gInvoiceKknTesuKngkSum := in_gInvoiceKknTesuKngkSum;
+	
 	gRtnCd := pkconstant.error();
 	-- 適格請求書_手数料ラベル編集
 	-- 改ページ単位の最終レコードの内容で編集
