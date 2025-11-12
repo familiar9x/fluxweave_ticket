@@ -1,0 +1,32 @@
+Ticket: ggpa-8364
+File: SPIPX025K00R04.sql
+Object: spipx025k00r04 (procedure) + spipx025k00r04_createbun (function)
+Description: 特定振替機関等・適格口座管理機関の所轄税務署に係る通知書
+
+Lines: 283 lines total
+- Main procedure: spipx025k00r04 (264 lines)  
+- Helper function: spipx025k00r04_createbun (18 lines)
+
+Key Changes:
+1. Nested function createBun → extracted as spipx025k00r04_createbun
+2. Fixed pkPrint.insertData calls to use TYPE_SREPORT_WK_ITEM composite type
+3. Replaced individual l_inItem001-025 parameters with composite type v_item
+4. Initialize composite type with ROW(NULL,...) before setting values
+5. Fixed variable types: gOutflg (numeric→integer), gAtena (varchar(200)→text)
+6. Fixed array indexing: aryBun(0-6) → aryBun[1-7] (PostgreSQL arrays start at 1)
+7. Oracle (+) outer join → PostgreSQL LEFT OUTER JOIN syntax
+8. SQLCODE → SQLSTATE, SQLERRM(SQLCODE) → SQLERRM
+
+Test Results: 3/3 PASS ✅
+- Test 1: Empty itaku_kaisha_cd → Returns 1 (PARAMETER_ERROR) ✅
+- Test 2: Empty user_id → Returns 1 (PARAMETER_ERROR) ✅
+- Test 3: Valid params with data → Returns 0 (SUCCESS) ✅
+
+Return Codes:
+- 0: SUCCESS (pkconstant.success())
+- 1: PARAMETER_ERROR (pkconstant.error())  
+- 2: NO_DATA (pkconstant.NO_DATA_FIND())
+- 99: FATAL (pkconstant.FATAL())
+
+Status: ✅ COMPLETED
+Deployed: /home/ec2-user/jip-ipa/db/plsql/ipa/print/SPIPX025K00R04.sql

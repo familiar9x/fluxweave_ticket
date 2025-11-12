@@ -20,7 +20,7 @@ typeArray nhưng khai báo init là varA: typeArray() => varA := ARRAY[]:: typeA
 UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ nguyên vẫn ok)
 SQLERRM(SQLCODE) => SQLERRM
 SQLCODE → SQLSTATE
-
+dont use CASCADE drop, just drop thing in order of dependencies
 %type (CHAR types) -> thành text
 
 gInvoiceTourokuNo		varchar(14)
@@ -42,6 +42,7 @@ CREATE OR REPLACE PROCEDURE spipf001k00r01 (
 	l_outsqlerrm       OUT text                               -- エラーコメント
 )
 
+OUT extra_param integer
 	nCount numeric;
 	nRtnCd numeric;
 	nRtnCd2 INTERGER;

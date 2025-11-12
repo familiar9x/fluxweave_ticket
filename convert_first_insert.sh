@@ -1,0 +1,119 @@
+#!/bin/bash
+# This script replaces the first insertData call in hyms-2185.SPIPX020K00R01.sql
+
+sed -i '475,582d' hyms-2185.SPIPX020K00R01.sql
+
+sed -i '474a\-- 明細レコード追加\
+v_item := ROW(NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)::TYPE_SREPORT_WK_ITEM;\
+v_item.l_inItem001 := l_inUserId;\
+v_item.l_inItem002 := l_inItakuKaishaCd;\
+v_item.l_inItem003 := gItakuKaishaRnm;\
+v_item.l_inItem004 := recMeisai.SHONIN_STAT;\
+v_item.l_inItem005 := recMeisai.KIHON_TEISEI_YMD;\
+v_item.l_inItem006 := recMeisai.KIHON_TEISEI_USER_ID;\
+v_item.l_inItem007 := gLastShoninYmd;\
+v_item.l_inItem008 := gLastShoninId;\
+v_item.l_inItem009 := recMeisai.MGR_CD;\
+v_item.l_inItem010 := recMeisai.ISIN_CD;\
+v_item.l_inItem011 := recMeisai.MGR_RNM;\
+v_item.l_inItem012 := recMeisai.HAKKODAIRI_CD;\
+v_item.l_inItem013 := recMeisai.HAKKODAIRI_RNM;\
+v_item.l_inItem014 := recMeisai.SHRDAIRI_CD;\
+v_item.l_inItem015 := recMeisai.SHRDAIRI_RNM;\
+v_item.l_inItem016 := recMeisai.SKN_KESSAI_CD;\
+v_item.l_inItem017 := recMeisai.SKN_KESSAI_RNM;\
+v_item.l_inItem018 := recMeisai.MGR_NM;\
+v_item.l_inItem019 := recMeisai.KK_HAKKO_CD;\
+v_item.l_inItem020 := recMeisai.KK_HAKKOSHA_RNM;\
+v_item.l_inItem021 := recMeisai.KAIGO_ETC;\
+v_item.l_inItem022 := recMeisai.BOSHU_KBN_NM;\
+v_item.l_inItem023 := recMeisai.SAIKEN_KBN_NM;\
+v_item.l_inItem024 := recMeisai.TOKUTEI_KOUSHASAI_FLG_NM;\
+v_item.l_inItem025 := recMeisai.GODOHAKKO_FLG_NM;\
+v_item.l_inItem026 := recMeisai.HOSHO_KBN_NM;\
+v_item.l_inItem027 := recMeisai.TANPO_KBN_NM;\
+v_item.l_inItem028 := recMeisai.SKNNZISNTOKU_UMU_FLG_NM;\
+v_item.l_inItem029 := recMeisai.BOSHU_ST_YMD;\
+v_item.l_inItem030 := recMeisai.HAKKO_YMD;\
+v_item.l_inItem031 := recMeisai.RETSUTOKU_UMU_FLG_NM;\
+v_item.l_inItem032 := recMeisai.HAKKO_TSUKA_CD;\
+v_item.l_inItem033 := recMeisai.UCHIKIRI_HAKKO_FLG_NM;\
+v_item.l_inItem034 := recMeisai.SHUTOKU_SUM;\
+v_item.l_inItem035 := recMeisai.KAKUSHASAI_KNGK;\
+v_item.l_inItem036 := recMeisai.SHASAI_TOTAL;\
+v_item.l_inItem037 := recMeisai.SHOKAN_METHOD_NM;\
+v_item.l_inItem038 := recMeisai.SHOKAN_TSUKA_CD;\
+v_item.l_inItem039 := recMeisai.CALLALL_UMU_FLG_NM;\
+v_item.l_inItem040 := recMeisai.KAWASE_RATE;\
+v_item.l_inItem041 := recMeisai.FULLSHOKAN_KJT;\
+v_item.l_inItem042 := recMeisai.CALLITIBU_UMU_FLG_NM;\
+v_item.l_inItem043 := recMeisai.TEIJI_SHOKAN_TSUTI_KBN_NM;\
+v_item.l_inItem044 := recMeisai.ST_TEIJISHOKAN_KJT;\
+v_item.l_inItem045 := recMeisai.PUTUMU_FLG_NM;\
+v_item.l_inItem046 := recMeisai.TEIJI_SHOKAN_KNGK;\
+v_item.l_inItem047 := gArySknKessaiCd[1];\
+v_item.l_inItem048 := gArySknKessaiNm[1];\
+v_item.l_inItem049 := gArySknKessaiCd[2];\
+v_item.l_inItem050 := gArySknKessaiNm[2];\
+v_item.l_inItem051 := gArySknKessaiCd[3];\
+v_item.l_inItem052 := gArySknKessaiNm[3];\
+v_item.l_inItem053 := gArySknKessaiCd[4];\
+v_item.l_inItem054 := gArySknKessaiNm[4];\
+v_item.l_inItem055 := gArySknKessaiCd[5];\
+v_item.l_inItem056 := gArySknKessaiNm[5];\
+v_item.l_inItem057 := gArySknKessaiCd[6];\
+v_item.l_inItem058 := gArySknKessaiNm[6];\
+v_item.l_inItem059 := gArySknKessaiCd[7];\
+v_item.l_inItem060 := gArySknKessaiNm[7];\
+v_item.l_inItem061 := gArySknKessaiCd[8];\
+v_item.l_inItem062 := gArySknKessaiNm[8];\
+v_item.l_inItem063 := gArySknKessaiCd[9];\
+v_item.l_inItem064 := gArySknKessaiNm[9];\
+v_item.l_inItem065 := gArySknKessaiCd[10];\
+v_item.l_inItem066 := gArySknKessaiNm[10];\
+v_item.l_inItem067 := recMeisai.TRUST_SHOSHO_YMD;\
+v_item.l_inItem068 := recMeisai.PARTHAKKO_UMU_FLG_NM;\
+v_item.l_inItem069 := recMeisai.KYUJITSU_KBN_NM;\
+v_item.l_inItem070 := recMeisai.KYUJITSU_LD_FLG_NM;\
+v_item.l_inItem071 := recMeisai.KYUJITSU_NY_FLG_NM;\
+v_item.l_inItem072 := recMeisai.KYUJITSU_ETC_FLG_NM;\
+v_item.l_inItem073 := recMeisai.RITSUKE_WARIBIKI_KBN_NM;\
+v_item.l_inItem074 := recMeisai.RBR_TSUKA_CD;\
+v_item.l_inItem075 := recMeisai.ST_RBR_KJT;\
+v_item.l_inItem076 := recMeisai.LAST_RBR_FLG_NM;\
+v_item.l_inItem077 := recMeisai.RIRITSU;\
+v_item.l_inItem078 := recMeisai.RBR_KJT_MD1;\
+v_item.l_inItem079 := recMeisai.RBR_KJT_MD2;\
+v_item.l_inItem080 := recMeisai.RBR_KJT_MD3;\
+v_item.l_inItem081 := recMeisai.RBR_KJT_MD4;\
+v_item.l_inItem082 := recMeisai.RBR_KJT_MD5;\
+v_item.l_inItem083 := recMeisai.RBR_KJT_MD6;\
+v_item.l_inItem084 := recMeisai.RBR_KJT_MD7;\
+v_item.l_inItem085 := recMeisai.RBR_KJT_MD8;\
+v_item.l_inItem086 := recMeisai.RBR_KJT_MD9;\
+v_item.l_inItem087 := recMeisai.RBR_KJT_MD10;\
+v_item.l_inItem088 := recMeisai.RBR_KJT_MD11;\
+v_item.l_inItem089 := recMeisai.RBR_KJT_MD12;\
+v_item.l_inItem090 := recMeisai.TSUKARISHI_KNGK_FAST;\
+v_item.l_inItem091 := recMeisai.TSUKARISHI_KNGK_NORM;\
+v_item.l_inItem092 := recMeisai.TSUKARISHI_KNGK_LAST;\
+v_item.l_inItem093 := recMeisai.KK_KANYO_FLG_NM;\
+v_item.l_inItem094 := recMeisai.KOBETSU_SHONIN_SAIYO_FLG_NM;\
+v_item.l_inItem095 := recMeisai.SHANAI_KOMOKU1;\
+v_item.l_inItem096 := recMeisai.SHANAI_KOMOKU2;\
+v_item.l_inItem097 := C_CHOHYO_ID;\
+\
+CALL pkPrint.insertData(\
+KeyCd      => l_inItakuKaishaCd,              -- 識別コード\
+UserId     => l_inUserId,                     -- ユーザＩＤ\
+ChohyoKbn  => l_inChohyoKbn,                  -- 帳票区分\
+SakuseiYmd => l_inGyomuYmd,                   -- 作成日付\
+ChohyoId   => C_CHOHYO_ID,                    -- 帳票ＩＤ\
+SeqNo      => gSeqNo::bigint,                 -- SQE№\
+HeaderFlg  => '\''1'\'',                      -- ヘッダフラグ\
+Item       => v_item,                         -- 項目\
+KousinId   => l_inUserId,                     -- 更新者\
+SakuseiId  => l_inUserId                      -- 作成者\
+);' hyms-2185.SPIPX020K00R01.sql
+
+echo "First insertData call converted"

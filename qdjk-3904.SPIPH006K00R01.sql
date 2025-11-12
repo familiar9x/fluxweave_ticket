@@ -50,7 +50,7 @@ CREATE TYPE spiph006k00r01_type_records AS (
 		);
 
 
-CREATE OR REPLACE PROCEDURE spiph006k00r01 ( l_inHktCd CHAR,		-- 発行体コード
+CREATE OR REPLACE PROCEDURE spiph006k00r01 ( l_inHktCd TEXT,		-- 発行体コード
  l_inKozaTenCd TEXT,		-- 口座店コード
  l_inKozaTenCifCd TEXT,		-- 口座店ＣＩＦコード
  l_inMgrCd TEXT,		-- 銘柄コード
@@ -71,20 +71,20 @@ DECLARE
 --/* 著作権:Copyright(c)2004
 --/* 会社名:JIP
 --/* 概要　:顧客宛帳票出力指示画面の入力条件により、公債会計別元利金明細票を作成する。
---/* 引数　:	l_inHktCd				IN	CHAR		発行体コード
---/*			l_inKozaTenCd			IN	CHAR		口座店コード
---/*			l_inKozatenCifCd		IN	CHAR		口座店ＣＩＦコード
---/*			l_inMgrCd				IN	CHAR		銘柄コード
---/*			l_inIsinCd				IN	CHAR		ＩＳＩＮコード
---/*			l_inKijunYmdF			IN	CHAR		決済日From
---/*			l_inKijunYmdT			IN	CHAR		決済日To
---/*			l_inTsuchiYmd			IN	CHAR		通知日
---/*			l_inItakuKaishaCd		IN	CHAR		委託会社コード
---/*			l_inUserId				IN	CHAR		ユーザーID
---/*			l_inChohyoKbn			IN	CHAR		帳票区分
---/*			l_inGyomuYmd			IN	CHAR		業務日付
+--/* 引数　:	l_inHktCd				IN	TEXT		発行体コード
+--/*			l_inKozaTenCd			IN	TEXT		口座店コード
+--/*			l_inKozatenCifCd		IN	TEXT		口座店ＣＩＦコード
+--/*			l_inMgrCd				IN	TEXT		銘柄コード
+--/*			l_inIsinCd				IN	TEXT		ＩＳＩＮコード
+--/*			l_inKijunYmdF			IN	TEXT		決済日From
+--/*			l_inKijunYmdT			IN	TEXT		決済日To
+--/*			l_inTsuchiYmd			IN	TEXT		通知日
+--/*			l_inItakuKaishaCd		IN	TEXT		委託会社コード
+--/*			l_inUserId				IN	TEXT		ユーザーID
+--/*			l_inChohyoKbn			IN	TEXT		帳票区分
+--/*			l_inGyomuYmd			IN	TEXT		業務日付
 --/*			l_outSqlCode			OUT	INTEGER		リターン値
---/*			l_outSqlErrM			OUT	VARCHAR2	エラーコメント
+--/*			l_outSqlErrM			OUT	VARCHAR	エラーコメント
 --/* 返り値:なし
 --/* @version $Id: SPIPH006K00R01.SQL,v 1.26 2016/02/16 05:29:06 takahashi Exp $
 --/*
@@ -1418,4 +1418,4 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spiph006k00r01 ( l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifCd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inKijunYmdF CHAR, l_inKijunYmdT CHAR, l_inTsuchiYmd CHAR, l_inItakuKaishaCd CHAR, l_inUserId CHAR, l_inChohyoKbn CHAR, l_inGyomuYmd CHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spiph006k00r01 ( l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inIsinCd TEXT, l_inKijunYmdF TEXT, l_inKijunYmdT TEXT, l_inTsuchiYmd TEXT, l_inItakuKaishaCd TEXT, l_inUserId TEXT, l_inChohyoKbn TEXT, l_inGyomuYmd TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;

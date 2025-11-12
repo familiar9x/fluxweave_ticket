@@ -180,12 +180,12 @@ BEGIN
 	END IF;
 	IF coalesce(trim(both l_inItakuKaishaCd)::text, '') = '' THEN
 		errmsg := '委託会社コードが未入力です。';
-		-- CALL PKLOG.ERROR('ECM701','SFIPH007K00R01','エラーメッセージ：' || errmsg);
+		-- CALL CALL PKLOG.ERROR('ECM701','SFIPH007K00R01','エラーメッセージ：' || errmsg);
 		RETURN RTN_NG;
 	END IF;
 	IF coalesce(trim(both l_inUserId)::text, '') = '' THEN
 		errmsg := 'ユーザーIDが未入力です。';
-		-- CALL PKLOG.ERROR('ECM701','SFIPH007K00R01','エラーメッセージ：' || errmsg);
+		-- CALL CALL PKLOG.ERROR('ECM701','SFIPH007K00R01','エラーメッセージ：' || errmsg);
 		RETURN RTN_NG;
 	END IF;
 	RAISE NOTICE 'SFIPH007K00R01: Creating header SQL';
@@ -640,8 +640,8 @@ BEGIN
 	RETURN RTN_OK;
 EXCEPTION
 	WHEN OTHERS THEN
-		-- CALL PKLOG.FATAL('ECM701','SFIPH007K00R01','エラーコード：'     || SQLSTATE);
-		-- CALL PKLOG.FATAL('ECM701','SFIPH007K00R01','エラーメッセージ：' || SQLERRM);
+		-- CALL CALL PKLOG.FATAL('ECM701','SFIPH007K00R01','エラーコード：'     || SQLSTATE);
+		-- CALL CALL PKLOG.FATAL('ECM701','SFIPH007K00R01','エラーメッセージ：' || SQLERRM);
 		RETURN RTN_FATAL;
 END;
 $body$

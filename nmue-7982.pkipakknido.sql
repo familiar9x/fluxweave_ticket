@@ -1603,11 +1603,15 @@ BEGIN
     -- エラー処理
     EXCEPTION
 	WHEN	OTHERS	THEN
-        l_OutSqlCode := SQLSTATE;
-        l_OutSqlErrM := SQLERRM;
-		CALL pkLog.fatal('ECM701', 'PKIPAKKNIDO', 'SQLCODE:'||l_OutSqlCode);
+        l_OutSqlCode := 99;  -- PostgreSQL: Use numeric error code instead of SQLSTATE
+        l_OutSqlErrM := 'SQLSTATE: ' || SQLSTATE || ' - ' || SQLERRM;
+		CALL pkLog.fatal('ECM701', 'PKIPAKKNIDO', 'SQLSTATE:'||SQLSTATE);
 		CALL pkLog.fatal('ECM701', 'PKIPAKKNIDO', 'SQLERRM:'||l_OutSqlErrM);
-		 -- RAISE NOTICE 'insKikinIdoUkeireKanriOut: %', SQLERRM;
+		 -- RAISE NOTICE 'ERR: %', SQLERRM;
+
+		-- IF pCur IS NOT NULL THEN
+		-- 	CLOSE pCur;
+		-- END IF;
 
         extra_param := PKCONSTANT.FATAL();
 
@@ -2482,12 +2486,13 @@ LANGUAGE PLPGSQL
 --	 * @param inDataSakuseiKbn データ作成区分
 --	 * @return INTEGER 0:正常、99:異常、それ以外：エラー
 --	********************************************************************************
-CREATE OR REPLACE FUNCTION pkipakknido.inskikinidohikiotoshiout (l_inuserid CHAR ,  -- ユーザID
- l_ingyomuymd CHAR ,              -- 業務日付
- l_inkjnfrom CHAR ,               -- 基準日From
- l_inkjnto CHAR ,                 -- 基準日To
+CREATE OR REPLACE FUNCTION pkipakknido.inskikinidohikiotoshiout (
+ l_inuserid text ,  -- ユーザID
+ l_ingyomuymd text ,              -- 業務日付
+ l_inkjnfrom text ,               -- 基準日From
+ l_inkjnto text ,                 -- 基準日To
  l_initakukaishacd text ,     -- 委託会社CD
- l_OutSqlCode OUT text,          -- SQLエラーコード
+ l_OutSqlCode OUT integer,          -- SQLエラーコード
  l_OutSqlErrM OUT text           -- SQLエラーメッセージ
  , OUT extra_param integer) RETURNS record AS $body$
 DECLARE
@@ -2617,12 +2622,13 @@ LANGUAGE PLPGSQL
 --	 * @param inDataSakuseiKbn データ作成区分
 --	 * @return INTEGER 0:正常、99:異常、それ以外：エラー
 --	********************************************************************************
-CREATE OR REPLACE FUNCTION pkipakknido.inskikinidohikiotoshiout (l_inuserid CHAR ,  -- ユーザID
- l_ingyomuymd CHAR ,              -- 業務日付
- l_inkjnfrom CHAR ,               -- 基準日From
- l_inkjnto CHAR ,                 -- 基準日To
+CREATE OR REPLACE FUNCTION pkipakknido.inskikinidohikiotoshiout (
+ l_inuserid text ,  -- ユーザID
+ l_ingyomuymd text ,              -- 業務日付
+ l_inkjnfrom text ,               -- 基準日From
+ l_inkjnto text ,                 -- 基準日To
  l_initakukaishacd text ,     -- 委託会社CD
- l_OutSqlCode OUT text,          -- SQLエラーコード
+ l_OutSqlCode OUT integer,          -- SQLエラーコード
  l_OutSqlErrM OUT text           -- SQLエラーメッセージ
  , OUT extra_param integer) RETURNS record AS $body$
 DECLARE

@@ -25,6 +25,9 @@ check_oracle_incompat() {
     echo "  - Gọi typeArray() để init (varA := typeArray())"
     echo "  - SQLCODE, SQLERRM(...)"
     echo "  - OID (cần xem lại nếu đang dùng để tham chiếu row)"
+    echo "  - Gọi pkprint.insertdata(...) nhưng vẫn truyền từng item lẻ thay vì composite TYPE_SREPORT_WK_ITEM"
+    echo "  - l_outSqlCode OUT nên là integer, l_outSqlErrM OUT nên là text"
+    echo "  - Cú pháp Oracle array-style: aryXxx(0) → PostgreSQL: aryXxx[1]"
     echo
 
     # Mỗi entry dạng: "LABEL|REGEX"
@@ -78,9 +81,13 @@ check_oracle_incompat() {
         local label="${entry%%|*}"
         local regex="${entry#*|}"
 
-        # grep -niE: -n = số dòng, -i = ignore case, -E = regex mở rộng
         local matches
-        matches=$(grep -niE "$regex" "$file" 2>/dev/null || true)
+        # Giảm false positive cho 'SQLCODE:' (string literal)
+        if [[ "$label" == "SQLCODE_USAGE" ]]; then
+            matches=$(grep -niE "$regex" "$file" 2>/dev/null | grep -vi "'SQLCODE:" || true)
+        else
+            matches=$(grep -niE "$regex" "$file" 2>/dev/null || true)
+        fi
 
         if [[ -n "$matches" ]]; then
             has_any=1
@@ -89,6 +96,66 @@ check_oracle_incompat() {
             echo
         fi
     done
+
+    ########################################################
+    # Cảnh báo: TYPE_SREPORT_WK_ITEM + pkprint.insertdata
+    # → nên truyền composite thay vì từng item lẻ
+    ########################################################
+    if grep -qi "TYPE_SREPORT_WK_ITEM" "$file"; then
+        local insert_calls
+        insert_calls=$(grep -niE "pkprint\\s*\\.\\s*insertdata\\s*\\(" "$file" 2>/dev/null || true)
+
+        if [[ -n "$insert_calls" ]]; then
+            has_any=1
+            echo ">>> [SREPORT_WK_ITEM_COMPOSITE] File có TYPE_SREPORT_WK_ITEM và gọi pkprint.insertdata:"
+            echo "    PostgreSQL cần truyền 1 biến composite TYPE_SREPORT_WK_ITEM"
+            echo "    thay vì từng tham số lẻ l_inItem001, l_inItem002, ..."
+            echo "$insert_calls"
+            echo
+        fi
+    fi
+
+    ########################################################
+    # Cảnh báo: Kiểu OUT parameter
+    #  - l_outSqlCode OUT phải là integer
+    #  - l_outSqlErrM OUT phải là text
+    ########################################################
+    local wrong_out_sqlcode
+    wrong_out_sqlcode=$(grep -niE "l_outSqlCode[[:space:]]+OUT[[:space:]]+[A-Za-z0-9_]+" "$file" 2>/dev/null | grep -vi "integer" || true)
+    if [[ -n "$wrong_out_sqlcode" ]]; then
+        has_any=1
+        echo ">>> [OUT_PARAM_TYPE] l_outSqlCode OUT không phải integer, cần chỉnh lại:"
+        echo "$wrong_out_sqlcode"
+        echo
+    fi
+
+    local wrong_out_sqlerrm
+    wrong_out_sqlerrm=$(grep -niE "l_outSqlErrM[[:space:]]+OUT[[:space:]]+[A-Za-z0-9_]+" "$file" 2>/dev/null | grep -vi "text" || true)
+    if [[ -n "$wrong_out_sqlerrm" ]]; then
+        has_any=1
+        echo ">>> [OUT_PARAM_TYPE] l_outSqlErrM OUT không phải text, cần chỉnh lại:"
+        echo "$wrong_out_sqlerrm"
+        echo
+    fi
+
+    ########################################################
+    # Cảnh báo: Oracle array-style access (aryXxx(0) ...)
+    # - Heuristic: tên biến có prefix ary/arr/tab/list/tbl/vec + "("
+    # - Loại bỏ các dòng định nghĩa/gọi function phổ biến
+    ########################################################
+    local array_calls
+    array_calls=$(grep -niE '\b(ary|arr|tab|list|tbl|vec)[A-Za-z0-9_]*[[:space:]]*\(' "$file" 2>/dev/null \
+        | grep -viE 'CREATE[[:space:]]+FUNCTION|FUNCTION[[:space:]]+[A-Za-z_]|CALL[[:space:]]|PERFORM[[:space:]]|SELECT[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\(' \
+        || true)
+
+    if [[ -n "$array_calls" ]]; then
+        has_any=1
+        echo ">>> [ORACLE_ARRAY_ACCESS] Phát hiện cú pháp Oracle array-style (ví dụ: aryBun(0)):"
+        echo "    PostgreSQL dùng cú pháp mảng: aryBun[1] thay vì aryBun(0)"
+        echo "    (mảng trong PostgreSQL bắt đầu từ 1, không phải 0)"
+        echo "$array_calls"
+        echo
+    fi
 
     if [[ $has_any -eq 0 ]]; then
         echo "Không phát hiện hàm/cú pháp Oracle 'nhạy cảm' trong danh sách check ở trên."
@@ -100,14 +167,14 @@ check_oracle_incompat() {
 
 convert_complex_file() {
     local file=$1
-    
+
     echo "Converting: $file"
-    
+
     #################################################################
     # Step 0: Fix invalid comment syntax " */;" (Oracle -> Postgres)
     #################################################################
     sed -i 's/ \*\/;$//' "$file"
-    
+
     #################################################################
     # Step 1: Basic signature conversion (function header)
     #   FUNCTION xxx (...) RETURN NUMBER IS
@@ -115,12 +182,12 @@ convert_complex_file() {
     #################################################################
     sed -i 's/RETURN NUMBER IS$/RETURNS NUMERIC LANGUAGE plpgsql AS $body$/g' "$file"
     sed -i 's/RETURN VARCHAR IS$/RETURNS VARCHAR LANGUAGE plpgsql AS $body$/g' "$file"
-    
+
     #################################################################
     # Step 2: Add DECLARE after function signature
     #################################################################
     sed -i '/^RETURNS.*LANGUAGE plpgsql AS \$body\$$/a\DECLARE' "$file"
-    
+
     #################################################################
     # Step 3: Type conversions (Oracle -> PostgreSQL)
     #################################################################
@@ -145,9 +212,9 @@ convert_complex_file() {
     sed -i 's/\bBLOB\b/BYTEA/g' "$file"
     sed -i -E 's/\bRAW\s*\(\s*[0-9]+\s*\)/BYTEA/g' "$file"
     sed -i 's/\bRAW\b/BYTEA/g' "$file"
-    
+
     #################################################################
-    # Step 4: NVL -> COALESCE (chỉ cho pattern chuẩn NVL(...)
+    # Step 4: NVL -> COALESCE (chỉ cho pattern chuẩn NVL(...))
     #################################################################
     sed -i 's/\bNVL(/COALESCE(/g' "$file"
 
@@ -155,12 +222,12 @@ convert_complex_file() {
     # Step 4b: collection COUNT: arr.COUNT -> COALESCE(cardinality(arr), 0)
     #################################################################
     sed -i 's/\b\([A-Za-z_][A-Za-z0-9_]*\)\.COUNT\b/COALESCE(cardinality(\1), 0)/g' "$file"
-    
+
     #################################################################
     # Step 5: PKLOG.ERROR(...) -> CALL PKLOG.ERROR(...)
     #################################################################
     sed -i 's/\bPKLOG\./CALL PKLOG./g' "$file"
-    
+
     #################################################################
     # Step 6: REF CURSOR -> REFCURSOR (thô, cần review thêm)
     #################################################################
@@ -173,17 +240,17 @@ convert_complex_file() {
     # (DELETE giữ nguyên)
     #################################################################
     sed -i -E 's/^(UPDATE[[:space:]]+(ONLY[[:space:]]+)?)([A-Za-z0-9_".]+)[[:space:]]+[A-Za-z0-9_"]+/\1\3/' "$file"
-    
+
     #################################################################
     # Step 7: SQLERRM(SQLCODE) -> SQLERRM (safe auto-convert)
     #################################################################
     sed -i 's/SQLERRM\s*(\s*SQLCODE\s*)/SQLERRM/g' "$file"
-    
+
     #################################################################
     # Step 8: Oracle block terminator "/" -> $body$;
     #################################################################
     sed -i 's/^\/$/$body$;/' "$file"
-    
+
     echo "Basic conversion complete for: $file"
 
     #####################################################

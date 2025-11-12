@@ -1,0 +1,344 @@
+
+
+
+
+
+CREATE OR REPLACE PROCEDURE spipx015k00r01 ( l_inKessaiYmdF text,	-- 決済日(FROM)
+ l_inKessaiYmdT text,	-- 決済日(TO)
+ l_inItakuKaishaCd text,	-- 委託会社コード
+ l_inUserId text,	-- ユーザーID
+ l_inChohyoKbn text,	-- 帳票区分
+ l_inGyomuYmd text,	-- 業務日付
+ l_outSqlCode OUT integer,		-- リターン値
+ l_outSqlErrM OUT text	-- エラーコメント
+ ) AS $body$
+DECLARE
+
+--*
+-- * 著作権:Copyright(c)2008
+-- * 会社名:JIP
+-- *
+-- * 概要　:資金決済関連帳票の出力指示出力指示画面より、印刷条件の指定を受けて、
+-- *        銘柄別資金支払予定表を作成する
+-- *
+-- * 引数　:l_inKessaiYmdF    IN  VARCHAR2    決済日(FROM)
+-- * 　　　 l_inKessaiYmdT    IN  VARCHAR2    決済日(TO)
+-- * 　　　 l_inItakuKaishaCd IN  VARCHAR2    委託会社コード
+-- * 　　　 l_inUserId        IN  VARCHAR2    ユーザーID
+-- * 　　　 l_inChohyoKbn     IN  VARCHAR2    帳票区分
+-- * 　　　 l_inGyomuYmd      IN  VARCHAR2    業務日付
+-- * 　　　 l_outSqlCode      OUT NUMBER      リターン値
+-- * 　　　 l_outSqlErrM      OUT VARCHAR2    エラーコメント
+-- *
+-- * 返り値: なし
+-- *
+-- * @author 島添 耕規
+-- * @version $Id: SPIPX015K00R01.sql,v 1.2 2008/06/04 02:53:23 matsuda Exp $
+-- * 
+-- 
+ 
+	--==============================================================================
+	--			定数定義															
+	--==============================================================================
+	C_PROCEDURE_ID			CONSTANT varchar(20) := 'SPIPX015K00R01';	-- プロシージャＩＤ
+	C_REPORT_ID				CONSTANT varchar(20) := 'IPX30001511';		-- 帳票ＩＤ
+	RTN_NODATA				CONSTANT numeric := 2;						-- データなし
+-- IP-05876 ＤＶＰ区分計タイトルの変更。
+--	DVP_KBN_TITLE			CONSTANT CHAR(12) := 'ＤＶＰ区分計';		-- ＤＶＰ区分計タイトル
+	DVP_KBN_TITLE			CONSTANT char(8) := 'ＤＶＰ計';				-- ＤＶＰ計タイトル
+	NON_DVP_KBN_TITLE		CONSTANT char(10) := '非ＤＶＰ計';			-- 非ＤＶＰ計タイトル
+	--==============================================================================
+	--			変数定義															
+	--==============================================================================
+	gRtnCd					numeric := pkconstant.success();			-- リターンコード
+	gSeqNo					numeric := 0;							-- シーケンス
+	gItakuKaishaRnm			VJIKO_ITAKU.BANK_RNM%TYPE := NULL;		-- 委託会社略称
+	gKngkFormat				varchar(21) := NULL;					-- 金額フォーマット
+	wkKessaiYmd				KIKIN_SEIKYU.SHR_YMD%TYPE;					-- （作業用）決済日
+	wkDvpKbn				KIKIN_SEIKYU.DVP_KBN%TYPE;					-- （作業用）ＤＶＰ区分
+	wkTsukaCd				KIKIN_SEIKYU.TSUKA_CD%TYPE;					-- （作業用）通貨コード
+	wkGnrZndkSum			numeric;										-- （作業用）元利払対象残高計
+	wkShokanKngkSum			numeric;										-- （作業用）償還金額計
+	wkZeihikiBefKngkSum		numeric;										-- （作業用）利金額（税引前）計
+	wkZeiKngkSum			numeric;										-- （作業用）国税額計
+	wkZeihikiAftKngkSum		numeric;										-- （作業用）利金額（税引後）計
+	wkShrKngkTotal			numeric;										-- （作業用）銘柄単位支払額計
+	wkDvpNm					SCODE.CODE_NM%TYPE := NULL;			-- （作業用）ＤＶＰ区分名称
+	wkTsukaNm				MTSUKA.TSUKA_NM%TYPE := NULL;			-- （作業用）通貨名称
+	wkKbnTitle				varchar(10);								-- 区分タイトル（ＤＶＰ計、又は非ＤＶＰ計）をセット
+	--==============================================================================
+	--			カーソル定義														
+	--==============================================================================
+	curMeisai CURSOR FOR
+	SELECT		WK.SHR_YMD,
+				WK.DVP_KBN,
+				WK.DVP_NM,
+				WK.TSUKA_CD,
+				WK.TSUKA_NM,
+				WK.MGR_CD,
+				VMG1.ISIN_CD,
+				SUBSTR(VMG1.MGR_NM, 1, 44) AS MGR_NM,
+				CASE WHEN VMG1.SHOKAN_METHOD_CD='2' THEN   WK.GNR_JISSHITSU_ZNDK  ELSE WK.GNR_ZNDK END  AS GNR_ZNDK,
+				WK.SHOKAN_SEIKYU_KNGK,
+				WK.GZEIHIKI_BEF_CHOKYU_KNGK,
+				WK.GZEI_KNGK,
+				WK.GZEIHIKI_AFT_CHOKYU_KNGK,
+				WK.SHR_KNGK
+	FROM		MGR_KIHON VMG1,
+				(SELECT		K01.SHR_YMD,
+							K01.DVP_KBN,
+							(SELECT CODE_NM FROM SCODE WHERE CODE_SHUBETSU = '501' AND CODE_VALUE = K01.DVP_KBN) AS DVP_NM,
+							K01.TSUKA_CD,
+							(SELECT M64.TSUKA_NM FROM MTSUKA M64 WHERE M64.TSUKA_CD = K01.TSUKA_CD) AS TSUKA_NM,
+							K01.ITAKU_KAISHA_CD,
+							K01.MGR_CD,
+							SUM(K01.GNR_JISSHITSU_ZNDK) AS GNR_JISSHITSU_ZNDK,
+							SUM(K01.GNR_ZNDK) AS GNR_ZNDK,
+							SUM(K01.SHOKAN_SEIKYU_KNGK) AS SHOKAN_SEIKYU_KNGK,
+							SUM(K01.GZEIHIKI_BEF_CHOKYU_KNGK) AS GZEIHIKI_BEF_CHOKYU_KNGK,
+							SUM(K01.GZEI_KNGK) AS GZEI_KNGK,
+							SUM(K01.GZEIHIKI_AFT_CHOKYU_KNGK) AS GZEIHIKI_AFT_CHOKYU_KNGK,
+							SUM(K01.SHOKAN_SEIKYU_KNGK) + SUM(K01.GZEIHIKI_AFT_CHOKYU_KNGK) AS SHR_KNGK
+				 FROM		KIKIN_SEIKYU K01
+				 WHERE		K01.ITAKU_KAISHA_CD = l_inItakuKaishaCd
+				 AND		l_inKessaiYmdF <= K01.SHR_YMD
+				 AND		K01.SHR_YMD <= l_inKessaiYmdT
+				 AND (K01.KK_KANYO_UMU_FLG = '1'								-- 機構関与銘柄は無条件で対象
+							 OR (K01.KK_KANYO_UMU_FLG != '1' AND K01.SHORI_KBN = '1'))	-- 機構非関与銘柄は、承認済であること
+				 GROUP BY	K01.ITAKU_KAISHA_CD,
+				 			K01.MGR_CD,
+				 			K01.SHR_YMD,
+				 			K01.TSUKA_CD,
+				 			K01.DVP_KBN
+				) WK 
+	WHERE		WK.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+	AND			WK.MGR_CD = VMG1.MGR_CD
+	ORDER BY	WK.SHR_YMD,
+				WK.DVP_KBN DESC,
+				WK.TSUKA_CD,
+				WK.MGR_CD;
+	--==============================================================================
+	--			メインルーチン														
+	--==============================================================================
+BEGIN
+	CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, C_PROCEDURE_ID||' START');
+	-- パラメータチェック
+	IF (coalesce(trim(both l_inKessaiYmdF)::text, '') = '')
+		OR (coalesce(trim(both l_inKessaiYmdT)::text, '') = '')
+		OR (coalesce(trim(both l_inItakuKaishaCd)::text, '') = '')
+		OR (coalesce(trim(both l_inUserId)::text, '') = '')
+		OR (coalesce(trim(both l_inChohyoKbn)::text, '') = '' OR l_inChohyoKbn NOT IN ('0','1'))
+		OR (coalesce(trim(both l_inGyomuYmd)::text, '') = '')
+	THEN
+		-- パラメータエラー
+		l_outSqlCode := pkconstant.error();
+		l_outSqlErrM :='';
+		CALL pkLog.error('ECM501', C_PROCEDURE_ID, '');
+		RETURN;
+	END IF;
+	-- 帳票ワークテーブルの旧データ削除処理
+	DELETE	FROM	SREPORT_WK
+	WHERE	KEY_CD		= l_inItakuKaishaCd
+	AND		USER_ID		= l_inUserId
+	AND		CHOHYO_KBN	= l_inChohyoKbn
+	AND		SAKUSEI_YMD	= l_inGyomuYmd
+	AND		CHOHYO_ID	= C_REPORT_ID;
+	-- 初期設定
+	-- 委託会社略称を取得（自行の場合、委託会社略称は出力しない）
+	BEGIN
+		SELECT	CASE WHEN VJ01.JIKO_DAIKO_KBN='2' THEN  VJ01.BANK_RNM  ELSE NULL END
+		INTO STRICT	gItakuKaishaRnm
+		FROM	VJIKO_ITAKU VJ01
+		WHERE	VJ01.KAIIN_ID = l_inItakuKaishaCd;
+	EXCEPTION WHEN OTHERS THEN
+		CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '自行_委託会社情報 取得失敗：委託会社コード[' || l_inItakuKaishaCd || ']');
+	END;
+	-- 作業変数の初期化
+	wkKessaiYmd			:= NULL;
+	wkDvpKbn			:= NULL;
+	wkTsukaCd			:= NULL;
+	wkGnrZndkSum		:= 0;
+	wkShokanKngkSum		:= 0;
+	wkZeihikiBefKngkSum	:= 0;
+	wkZeiKngkSum		:= 0;
+	wkZeihikiAftKngkSum	:= 0;
+	wkShrKngkTotal		:= 0;
+	-- 帳票ワークテーブル登録処理 -ヘッダレコード
+	CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, C_REPORT_ID);
+	-- 帳票ワークテーブル登録処理 -データレコード
+	-- データ登録処理
+	FOR recMeisai IN curMeisai LOOP
+		-- データレコード登録 -サマリ行
+		IF ( (trim(both wkKessaiYmd) IS NOT NULL AND (trim(both wkKessaiYmd))::text <> '') AND	wkKessaiYmd != recMeisai.SHR_YMD)
+			OR ( (trim(both wkDvpKbn) IS NOT NULL AND (trim(both wkDvpKbn))::text <> '') AND	wkDvpKbn != recMeisai.DVP_KBN)
+			OR ( (trim(both wkTsukaCd) IS NOT NULL AND (trim(both wkTsukaCd))::text <> '') AND	wkTsukaCd != recMeisai.TSUKA_CD)
+		THEN
+			gSeqNo := gSeqNo + 1;
+			IF wkDvpKbn = '0' THEN 		--非DVPの場合
+				wkKbnTitle := NON_DVP_KBN_TITLE;
+			ELSE 						--DVPの場合
+				wkKbnTitle := DVP_KBN_TITLE;
+			END IF;
+			CALL pkPrint.insertData(	l_inKeyCd		=> l_inItakuKaishaCd,
+								l_inUserId		=> l_inUserId,
+								l_inChohyoKbn	=> l_inChohyoKbn,
+								l_inSakuseiYmd	=> l_inGyomuYmd,
+								l_inChohyoId	=> C_REPORT_ID,
+								l_inSeqNo		=> gSeqNo,
+								l_inHeaderFlg	=> '1',
+								l_inItem001		=> l_inUserId,
+								l_inItem002		=> l_inGyomuYmd,
+								l_inItem003		=> gItakuKaishaRnm,
+								l_inItem004		=> wkKessaiYmd,
+								l_inItem005		=> wkDvpNm,
+								l_inItem006		=> wkTsukaNm,
+								l_inItem010		=> wkGnrZndkSum,
+								l_inItem011		=> wkShokanKngkSum,
+								l_inItem012		=> wkZeihikiBefKngkSum,
+								l_inItem013		=> wkZeiKngkSum,
+								l_inItem014		=> wkZeihikiAftKngkSum,
+								l_inItem015		=> wkShrKngkTotal,
+								l_inItem016		=> C_REPORT_ID,
+								l_inItem017		=> gKngkFormat,
+--								l_inItem018		=> DVP_KBN_TITLE,
+								l_inItem018		=> wkKbnTitle,
+								l_inItem019		=> wkTsukaCd,
+								l_inItem020		=> wkDvpKbn,
+								l_inKousinId	=> l_inUserId,
+								l_inSakuseiId	=> l_inUserId
+							);
+			-- 作業用合計値のクリア
+			wkGnrZndkSum		:= 0;
+			wkShokanKngkSum		:= 0;
+			wkZeihikiBefKngkSum	:= 0;
+			wkZeiKngkSum		:= 0;
+			wkZeihikiAftKngkSum	:= 0;
+			wkShrKngkTotal		:= 0;
+		END IF;
+		-- 連番カウントアップ
+		gSeqNo := gSeqNo + 1;
+		-- 作業用合計数値セット
+		wkGnrZndkSum		:= wkGnrZndkSum + recMeisai.GNR_ZNDK;
+		wkShokanKngkSum		:= wkShokanKngkSum + recMeisai.SHOKAN_SEIKYU_KNGK;
+		wkZeihikiBefKngkSum	:= wkZeihikiBefKngkSum + recMeisai.GZEIHIKI_BEF_CHOKYU_KNGK;
+		wkZeiKngkSum		:= wkZeiKngkSum + recMeisai.GZEI_KNGK;
+		wkZeihikiAftKngkSum	:= wkZeihikiAftKngkSum + recMeisai.GZEIHIKI_AFT_CHOKYU_KNGK;
+		wkShrKngkTotal		:= wkShrKngkTotal + recMeisai.SHR_KNGK;
+		IF recMeisai.TSUKA_CD = 'JPY' THEN
+			gKngkFormat := 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';
+		ELSE
+			gKngkFormat := 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9.99';
+		END IF;
+		-- データレコード登録 -明細行
+		CALL pkPrint.insertData(	l_inKeyCd		=> l_inItakuKaishaCd,
+							l_inUserId		=> l_inUserId,
+							l_inChohyoKbn	=> l_inChohyoKbn,
+							l_inSakuseiYmd	=> l_inGyomuYmd,
+							l_inChohyoId	=> C_REPORT_ID,
+							l_inSeqNo		=> gSeqNo,
+							l_inHeaderFlg	=> '1',
+							l_inItem001		=> l_inUserId,
+							l_inItem002		=> l_inGyomuYmd,
+							l_inItem003		=> gItakuKaishaRnm,
+							l_inItem004		=> recMeisai.SHR_YMD,
+							l_inItem005		=> recMeisai.DVP_NM,
+							l_inItem006		=> recMeisai.TSUKA_NM,
+							l_inItem007		=> recMeisai.MGR_CD,
+							l_inItem008		=> recMeisai.ISIN_CD,
+							l_inItem009		=> recMeisai.MGR_NM,
+							l_inItem010		=> recMeisai.GNR_ZNDK,
+							l_inItem011		=> recMeisai.SHOKAN_SEIKYU_KNGK,
+							l_inItem012		=> recMeisai.GZEIHIKI_BEF_CHOKYU_KNGK,
+							l_inItem013		=> recMeisai.GZEI_KNGK,
+							l_inItem014		=> recMeisai.GZEIHIKI_AFT_CHOKYU_KNGK,
+							l_inItem015		=> recMeisai.SHR_KNGK,
+							l_inItem016		=> C_REPORT_ID,
+							l_inItem017		=> gKngkFormat,
+							l_inItem019		=> recMeisai.TSUKA_CD,
+							l_inItem020		=> recMeisai.DVP_KBN,
+							l_inKousinId	=> l_inUserId,
+							l_inSakuseiId	=> l_inUserId
+						);
+		-- キー項目の退避
+		wkKessaiYmd	:= recMeisai.SHR_YMD;
+		wkDvpKbn	:= recMeisai.DVP_KBN;
+		wkTsukaCd	:= recMeisai.TSUKA_CD;
+		wkDvpNm		:= recMeisai.DVP_NM;
+		wkTsukaNm	:= recMeisai.TSUKA_NM;
+	END LOOP;
+	-- 「対象データなし」レコード登録
+	IF gSeqNo = 0 THEN
+		CALL pkPrint.insertData(	l_inKeyCd		=> l_inItakuKaishaCd,
+							l_inUserId		=> l_inUserId,
+							l_inChohyoKbn	=> l_inChohyoKbn,
+							l_inSakuseiYmd	=> l_inGyomuYmd,
+							l_inChohyoId	=> C_REPORT_ID,
+							l_inSeqNo		=> 1,
+							l_inHeaderFlg	=> '1',
+							l_inItem001		=> l_inUserId,
+							l_inItem002		=> l_inGyomuYmd,
+							l_inItem003		=> gItakuKaishaRnm,
+							l_inItem004		=> l_inKessaiYmdF,
+							l_inItem016		=> C_REPORT_ID,
+							l_inItem021		=> l_inKessaiYmdT,
+							l_inItem022		=> '対象データなし',
+							l_inKousinId	=> l_inUserId,
+							l_inSakuseiId	=> l_inUserId
+						);
+		-- リターン値保持領域に「対象データなし」をセット
+		gRtnCd := RTN_NODATA;
+	ELSE
+		gSeqNo := gSeqNo + 1;
+		IF wkDvpKbn = '0' THEN 		--非DVPの場合
+			wkKbnTitle := NON_DVP_KBN_TITLE;
+		ELSE 						--DVPの場合
+			wkKbnTitle := DVP_KBN_TITLE;
+		END IF;
+		CALL pkPrint.insertData(	l_inKeyCd		=> l_inItakuKaishaCd,
+							l_inUserId		=> l_inUserId,
+							l_inChohyoKbn	=> l_inChohyoKbn,
+							l_inSakuseiYmd	=> l_inGyomuYmd,
+							l_inChohyoId	=> C_REPORT_ID,
+							l_inSeqNo		=> gSeqNo,
+							l_inHeaderFlg	=> '1',
+							l_inItem001		=> l_inUserId,
+							l_inItem002		=> l_inGyomuYmd,
+							l_inItem003		=> gItakuKaishaRnm,
+							l_inItem004		=> wkKessaiYmd,
+							l_inItem005		=> wkDvpNm,
+							l_inItem006		=> wkTsukaNm,
+							l_inItem010		=> wkGnrZndkSum,
+							l_inItem011		=> wkShokanKngkSum,
+							l_inItem012		=> wkZeihikiBefKngkSum,
+							l_inItem013		=> wkZeiKngkSum,
+							l_inItem014		=> wkZeihikiAftKngkSum,
+							l_inItem015		=> wkShrKngkTotal,
+							l_inItem016		=> C_REPORT_ID,
+							l_inItem017		=> gKngkFormat,
+--							l_inItem018		=> DVP_KBN_TITLE,
+							l_inItem018		=> wkKbnTitle,
+							l_inItem019		=> wkTsukaCd,
+							l_inItem020		=> wkDvpKbn,
+							l_inKousinId	=> l_inUserId,
+							l_inSakuseiId	=> l_inUserId
+						);
+	END IF;
+	-- 正常終了処理
+	l_outSqlCode	:= gRtnCd;
+	l_outSqlErrM	:= '';
+	-- 終了処理
+	CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, C_PROCEDURE_ID ||' END');
+-- 例外処理
+EXCEPTION
+	WHEN OTHERS THEN
+		-- ログ出力
+		CALL pkLog.fatal('ECM701', C_REPORT_ID, 'SQLCODE:' || SQLSTATE);
+		CALL pkLog.fatal('ECM701', C_REPORT_ID, 'SQLERRM:' || SQLERRM);
+		-- OUT引数を設定
+		l_outSqlCode := pkconstant.FATAL();
+		l_outSqlErrM := SQLERRM;
+END;
+$body$
+LANGUAGE PLPGSQL
+;
+-- REVOKE ALL ON PROCEDURE spipx015k00r01 ( l_inKessaiYmdF text, l_inKessaiYmdT text, l_inItakuKaishaCd text, l_inUserId text, l_inChohyoKbn text, l_inGyomuYmd text, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;
