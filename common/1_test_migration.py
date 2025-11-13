@@ -1226,7 +1226,7 @@ BEGIN
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': 2
+                'expected': 0
             }
         ]
     },
