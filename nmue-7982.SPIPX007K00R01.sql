@@ -3,7 +3,8 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spipx007k00r01 ( l_inUserId SUSER.USER_ID%TYPE,                  -- ユーザID
+CREATE OR REPLACE PROCEDURE spipx007k00r01 ( 
+ l_inUserId SUSER.USER_ID%TYPE,                  -- ユーザID
  l_inItakuKaishaCd MITAKU_KAISHA.ITAKU_KAISHA_CD%TYPE,  -- 委託会社コード
  l_inKessaiYmdFrom MGR_RBRKIJ.KKN_CHOKYU_YMD%TYPE,      -- 決済日From
  l_inKessaiYmdTo MGR_RBRKIJ.KKN_CHOKYU_YMD%TYPE,      -- 決済日To
@@ -44,11 +45,11 @@ DECLARE
 --==============================================================================
 --					変数定義													
 --==============================================================================
+	gReturnCode         integer := 0;
 	l_GyomuYmd          char(8);
 	l_KjnYmdFrom        char(8);
 	l_KjnYmdTo          char(8);
-	l_outSqlCodeTmp     text;
-	l_extraParam        integer;
+  	extra_param       integer := 0;
 --==============================================================================
 --	メイン処理	
 --==============================================================================
@@ -56,6 +57,15 @@ BEGIN
 --	pkLog.debug(l_inUserId, C_PROCEDURE_ID, C_PROCEDURE_ID||' START');
 	-- 業務日付取得
 	l_GyomuYmd := pkDate.getGyomuYmd();
+	-- 入力パラメータのチェック ※期日From-Toは必須入力項目
+	IF coalesce(trim(both l_inKessaiYmdFrom)::text, '') = ''
+	AND coalesce(trim(both l_inKessaiYmdTo)::text, '') = ''
+	THEN
+	-- ログ書込み
+		CALL pkLog.fatal('ECM701', SUBSTR(C_PROCEDURE_ID,3,12), 'パラメータエラー');
+		l_outSqlCode := pkconstant.FATAL();
+		l_outSqlErrM := '';
+	END IF;
 	-- パラメータの決済日From-Toをセット
 	l_KjnYmdFrom := l_inKessaiYmdFrom;
 	l_KjnYmdTo   := l_inKessaiYmdTo;
@@ -64,18 +74,16 @@ BEGIN
 		l_KjnYmdFrom := '00000000';
 	END IF;
 	IF coalesce(trim(both l_KjnYmdTo)::text, '') = '' THEN
-		l_KjnYmdTo := '99999999';
+	l_KjnYmdTo := '99999999';
 	END IF;
 	-- データ取得
 	-- 基金請求計算処理（請求書）※リアル・請求書出力・請求書
-	SELECT * INTO l_outSqlCodeTmp, l_outSqlErrM, l_extraParam
+	SELECT * INTO l_outSqlCode, l_outSqlErrM, extra_param
 	FROM pkipakknido.insKikinIdoHikiotoshiOut(l_inuserid,
 											l_GyomuYmd,
 											l_KjnYmdFrom,
 											l_KjnYmdTo,
 											l_initakukaishacd);
-	-- Set return code
-	l_outSqlCode := COALESCE(l_outSqlCodeTmp::integer, 99);
 	
 --	pkLog.debug(l_inUserId, C_PROCEDURE_ID, C_PROCEDURE_ID ||' END');
 -- エラー処理

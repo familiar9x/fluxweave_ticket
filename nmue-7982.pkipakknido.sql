@@ -73,19 +73,19 @@ CREATE TYPE pkipakknido.rectype AS (
 		rMgrCd			varchar(13), --		MGR_KIHON.MGR_CD%TYPE,
 		rRbrKjt					char(8),
 		rChokyuYmd				char(8)
-	
+
 );
 
 CREATE TYPE pkipakknido.typerecord AS (typerecord pkIpaKknIdo.recType[]);
 
 CREATE TYPE pkipakknido.type_key AS (
-		gIdoYmd				char(8), -- KIKIN_IDO.IDO_YMD%TYPE := ' '					
-		gTsukaCd			char(3), -- KIKIN_IDO.TSUKA_CD%TYPE := ' '					
-		gKozaFuriKbn		char(2), -- MGR_KIHON.KOZA_FURI_KBN%TYPE := ' '				
-		gRbrYmd			char(8), -- KIKIN_IDO.RBR_YMD%TYPE := ' '					
-		gHktCd				char(6), -- MGR_KIHON.HKT_CD%TYPE := ' '					
-		gIsinCd			char(12) -- MGR_KIHON.ISIN_CD%TYPE := ' '					
-	
+		gIdoYmd				char(8), -- KIKIN_IDO.IDO_YMD%TYPE := ' '
+		gTsukaCd			char(3), -- KIKIN_IDO.TSUKA_CD%TYPE := ' '
+		gKozaFuriKbn		char(2), -- MGR_KIHON.KOZA_FURI_KBN%TYPE := ' '
+		gRbrYmd			char(8), -- KIKIN_IDO.RBR_YMD%TYPE := ' '
+		gHktCd				char(6), -- MGR_KIHON.HKT_CD%TYPE := ' '
+		gIsinCd			char(12) -- MGR_KIHON.ISIN_CD%TYPE := ' '
+
 );
 
 CREATE TYPE pkipakknido.type_record AS (
@@ -120,7 +120,7 @@ CREATE TYPE pkipakknido.type_record AS (
 		gGokeiSzei				double precision, -- := 0,
 		gBankRnm				varchar(20), -- VJIKO_ITAKU.BANK_RNM%TYPE
 		gJikoDaikoKbn			char --  VJIKO_ITAKU.JIKO_DAIKO_KBN%TYPE
-	
+
 );
 
 CREATE TYPE pkipakknido.type_table AS (type_table pkIpaKknIdo.TYPE_RECORD[]);
@@ -162,7 +162,7 @@ DECLARE
 		rGyomuYmdAfter2d		char(8);		-- 2営業日後
 		rOutYmd					char(8);		-- 請求書出力日
 		rDays					int := 0;
-	
+
 BEGIN
 
 		-- バッチの場合、システム出力分の出力範囲を取得する
@@ -708,7 +708,7 @@ CREATE OR REPLACE FUNCTION pkipakknido.getkaikeianbuncount ( l_initakukaishacd c
 DECLARE
 
 		gCnt              bigint  := 0;
-	
+
 BEGIN
 
 		SELECT
@@ -742,7 +742,7 @@ CREATE OR REPLACE FUNCTION pkipakknido.getgroupid ( l_inUserId SUSER.USER_ID%TYP
 DECLARE
 
 		gGroupId		SUSER.GROUP_ID%TYPE;
-	
+
 BEGIN
 
 	IF l_inUserId = 'BATCH' THEN
@@ -861,7 +861,7 @@ DECLARE
 
 	/*==============================================================================*/
 
-	
+
 BEGIN
 		-- パラメータチェック
 		IF nullif(trim(both l_inKeyCd), '') IS NULL
@@ -1042,23 +1042,23 @@ SECURITY DEFINER
 ;
 
 CREATE OR REPLACE FUNCTION pkipakknido.inskikinidoseikyuout (
- l_inUserId TEXT ,      -- ユーザID
- l_inGyomuYmd TEXT ,             -- 業務日付
- l_inKjnFrom TEXT ,              -- 基準日From
- l_inKjnTo TEXT ,                -- 基準日To
+ l_inUserId CHAR ,      -- ユーザID
+ l_inGyomuYmd CHAR ,             -- 業務日付
+ l_inKjnFrom CHAR ,              -- 基準日From
+ l_inKjnTo CHAR ,                -- 基準日To
  l_inItakuKaishaCd text ,    -- 委託会社CD
  l_inKknZndkKjnYmdKbn text,  -- 基金残高基準日区分
- l_inHktCd TEXT ,                -- 発行体CD
+ l_inHktCd CHAR ,                -- 発行体CD
  l_inKozatenCd text ,        -- 口座店CD
  l_inKozatenCifCd text ,     -- 口座店CIFCD
- l_inMgrCd TEXT ,                -- 銘柄CD
- l_inIsinCd TEXT ,               -- ISINCDd
- l_inTsuchiYmd TEXT ,            -- 通知日
+ l_inMgrCd CHAR ,                -- 銘柄CD
+ l_inIsinCd CHAR ,               -- ISINCDd
+ l_inTsuchiYmd CHAR ,            -- 通知日
  l_inSeikyushoId text,       -- 請求書ID
- l_inRealBatchKbn TEXT,          -- リアルバッチ区分
+ l_inRealBatchKbn CHAR,          -- リアルバッチ区分
  l_inDataSakuseiKbn KIKIN_IDO.DATA_SAKUSEI_KBN%TYPE,--データ作成区分
- l_inSeikyuIchiranKbn TEXT,      -- 請求書一覧区分
- l_inChikoFlg TEXT,				-- 地公体利用フラグ
+ l_inSeikyuIchiranKbn CHAR,      -- 請求書一覧区分
+ l_inChikoFlg CHAR,				-- 地公体利用フラグ
  l_inFrontFlg text,			-- フロント照会画面判別フラグ
  l_OutSqlCode OUT INTEGER,         -- SQLエラーコード
  l_OutSqlErrM OUT text          -- SQLエラーメッセージ
@@ -1075,7 +1075,7 @@ DECLARE
 		intMax      integer := 0;
 
 		WK_GNR_TESU_ID char(11) := NULL;    -- バッチの時、作票対象データのキーを帳票WKへ退避しておくための帳票ID
-		--gWrkTsuchiYmd		VARCHAR(16) DEFAULT NULL;					-- 通知日(和暦)
+		--gWrkTsuchiYmd		VARCHAR2(16) DEFAULT NULL;					-- 通知日(和暦)
 		pRbrYmdFrom char(8) := '99999999';     -- 徴求日 From
 		pRbrYmdTo   char(8) := '00000000';     -- 徴求日 To
 		pHeizonSeikyuKbn	char(1) := '';		-- 自行委託ビュー.併存銘柄請求区分
@@ -1166,27 +1166,22 @@ BEGIN
 				IF NOT(pHeizonSeikyuKbn = '0'
 					AND (PKIPAZNDK.getKjnZndk(rec[pRowCnt].rItakuKaishaCd,rec[pRowCnt].rMgrCd,rec[pRowCnt].rChokyuYmd,3))::numeric  > 0			-- 振替債実質残高
 					AND (PKIPAZNDK.getKjnZndk(rec[pRowCnt].rItakuKaishaCd,rec[pRowCnt].rMgrCd,rec[pRowCnt].rChokyuYmd,83))::numeric  > 0) THEN	-- 現登債実質残高
-/*					-- 地行体帳票を出力した場合は地行体銘柄のみ基金異動履歴にデータを作成するための対応
+
+					-- 地行体帳票を出力した場合は地行体銘柄のみ基金異動履歴にデータを作成するための対応
 					-- 自行情報マスタ.地公体フラグがONかつ公社債元利金支払基金請求書or公債会計別元利金明細表かつ会計按分テーブルにデータがある場合、
 					-- または、自行情報マスタ.地公体フラグがONかつ元利払基金・手数料請求書or元利払基金・手数料請求明細書かつ会計按分テーブルにデータがない場合、
 					-- または、自行情報マスタ.地公体フラグがONかつ元利払基金・手数料請求一覧表の場合、
 					-- または、自行情報マスタ.地公体フラグがOFFの場合に基金異動履歴更新処理を行う。
-					IF (l_inChikoFlg = '1' AND (l_inSeikyushoId = pkipakknido.c_SEIKYU_KAIKEIKUBUN()
-												OR l_inSeikyushoId = pkipakknido.c_ganri_meisai()
-												OR l_inSeikyushoId = pkipakknido.c_GANRI_MEISAI_M())
+					IF (l_inChikoFlg = '1' AND (l_inSeikyushoId = pkIpaKknIdo.c_SEIKYU_KAIKEIKUBUN()
+												OR l_inSeikyushoId = pkIpaKknIdo.c_GANRI_MEISAI()
+												OR l_inSeikyushoId = pkIpaKknIdo.c_GANRI_MEISAI_M())
 						AND pkipakknido.getkaikeianbuncount(rec[pRowCnt].rItakuKaishaCd, rec[pRowCnt].rMgrCd) > 0)
-					OR (l_inChikoFlg = '1' AND (l_inSeikyushoId = pkipakknido.c_seikyu() OR l_inSeikyushoId = pkipakknido.c_SEIKYU_MEISAI())
+					OR (l_inChikoFlg = '1' AND (l_inSeikyushoId = pkIpaKknIdo.c_SEIKYU() OR l_inSeikyushoId = c_SEIKYU_MEISAI)
 						AND pkipakknido.getkaikeianbuncount(rec[pRowCnt].rItakuKaishaCd, rec[pRowCnt].rMgrCd) = 0)
-					OR (l_inChikoFlg = '1' AND l_inSeikyushoId = pkipakknido.c_SEIKYU_ICHIRAN())
+					OR (l_inChikoFlg = '1' AND l_inSeikyushoId = pkIpaKknIdo.c_SEIKYU_ICHIRAN())
 					OR (l_inChikoFlg = '0') THEN
-*/
-					-- 自行情報マスタ.地公体フラグがOFFの場合に基金異動履歴更新処理を行う。
-					 -- RAISE NOTICE 'IN IF NOT(pHeizonSeikyuKbn = 0';
-
-					IF (l_inChikoFlg = '0') THEN 
 						-- 基金異動計算・更新処理
 						-- リアル・バッチ区分は「0」（リアル）「1」（バッチ）
-						 -- RAISE NOTICE 'CALLING sfInsKikinIdo';
 						pReturnCode := sfInsKikinIdo(
 												pkConstant.BATCH_USER(),
 												rec[pRowCnt].rItakuKaishaCd,
@@ -1211,7 +1206,6 @@ BEGIN
 
 				-- 自行情報マスタ.地公体フラグがONかつ会計按分テーブルにデータがある場合
 				-- 会計区分別基金請求計算SPを呼び出す。
-/*
 				IF l_inChikoFlg = '1' THEN
 					IF pkipakknido.getkaikeianbuncount(rec[pRowCnt].rItakuKaishaCd, rec[pRowCnt].rMgrCd) > 0 THEN
 						pReturnCode := sfIph999_KIKIN_IDO_KAIKEI(rec[pRowCnt].rItakuKaishaCd,
@@ -1229,14 +1223,12 @@ BEGIN
 						END IF;
 					END IF;
 				END IF;
-*/
 			END IF;
 
 
 			pRowCnt := pRowCnt + 1;
 
 		END LOOP;
-		-- CLOSE pCur;
 		 -- RAISE NOTICE 'end loop pCur:=, l_inRealBatchKbn: %', l_inRealBatchKbn;
 
 		-- バッチの場合、作票SPに渡す条件の加工を行う
@@ -1249,26 +1241,28 @@ BEGIN
 			DELETE FROM SREPORT_WK
 				WHERE CHOHYO_ID = WK_GNR_TESU_ID;
 
-	intMax := pRowCnt - 1;
-	pRowCnt := 0;
-	FOR pRowCnt IN 0..intMax LOOP
-		-- Initialize record (PostgreSQL doesn't need ROW() for custom types)
-		l_inItem.l_inItem001 := rec[pRowCnt].rMgrCd;					-- 銘柄コード
-		l_inItem.l_inItem002 := rec[pRowCnt].rRbrKjt;					-- 利払期日
-		l_inItem.l_inItem003 := rec[pRowCnt].rChokyuYmd;				-- 徴求日
+			intMax := pRowCnt - 1;
+			pRowCnt := 0;
+			FOR pRowCnt IN 0..intMax LOOP
+				l_inItem := ROW();
+				l_inItem.l_inItem001 := rec[pRowCnt].rMgrCd;					-- 銘柄コード
+				l_inItem.l_inItem002 := rec[pRowCnt].rRbrKjt;					-- 利払期日
+				l_inItem.l_inItem003 := rec[pRowCnt].rChokyuYmd;				-- 徴求日
 
-		CALL pkPrint.insertData(
-			 l_inkeyCd         =>    rec[pRowCnt].rItakuKaishaCd     -- 識別コード
-			,l_inUserId        =>    l_inUserId                      -- ユーザID
-			,l_inChohyoKbn     =>    l_inRealBatchKbn                -- 帳票区分
-			,l_inSakuseiYmd    =>    l_inGyomuYmd                    -- 作成年月日
-			,l_inChohyoId      =>    WK_GNR_TESU_ID                  -- WK帳票ID
-			,l_inSeqNo         =>    pRowCnt                         -- SEQNO
-			,l_inHeaderFlg     =>    '1'                             -- ヘッダフラグ
-			,l_inItem		   =>	 l_inItem
-			,l_inKousinId      =>    l_inUserId                      -- 更新者ID
-			,l_inSakuseiId     =>    l_inUserId                      -- 作成者ID
-		);			END LOOP;
+				CALL pkPrint.insertData(
+					 l_inkeyCd         =>    rec[pRowCnt].rItakuKaishaCd     -- 識別コード
+					,l_inUserId        =>    l_inUserId                      -- ユーザID
+					,l_inChohyoKbn     =>    l_inRealBatchKbn                -- 帳票区分
+					,l_inSakuseiYmd    =>    l_inGyomuYmd                    -- 作成年月日
+					,l_inChohyoId      =>    WK_GNR_TESU_ID                  -- WK帳票ID
+					,l_inSeqNo         =>    pRowCnt                         -- SEQNO
+					,l_inHeaderFlg     =>    '1'                             -- ヘッダフラグ
+					,l_inItem		   =>	 l_inItem
+					,l_inKousinId      =>    l_inUserId                      -- 更新者ID
+					,l_inSakuseiId     =>    l_inUserId                      -- 作成者ID
+				);
+
+			END LOOP;
 
 		END IF;
 
@@ -1287,7 +1281,6 @@ BEGIN
 		END;
 
 		-- フロント照会帳票出力指示以外からcallされた場合、基金異動計算・更新処理を行う。
-/*
 		IF l_inFrontFlg = '0' THEN
 			IF optionFlg = 1 THEN
 				-- 実質記番号管理オプション　基金異動計算・更新処理
@@ -1314,7 +1307,7 @@ BEGIN
 			END IF;
 			----- 実質記番号オプション用処理 END
 		END IF;
-*/
+
 		-- バッチの場合は、基準日From、Toに、MIN値、MAX値をセット
 		IF l_inRealBatchKbn = '1' THEN
 			pRbrYmdFrom := '00000000';
@@ -1499,43 +1492,42 @@ BEGIN
 		-- 地公体オプション帳票出力
 		-- 地公体帳票は画面の入力条件により１回だけ呼び出す
 		-- 元利払基金・手数料請求書(会計区分別)の場合
-/*
 		IF l_inseikyushoid = pkipakknido.c_SEIKYU_KAIKEIKUBUN() THEN
-			 CALL SPIPH005K00R01(	 '0'							-- 帳票作成区分には0を指定
-							,l_inhktcd						-- 発行体コード
-							,l_inkozatencd					-- 口座店コード
-							,l_inkozatencifcd				-- 口座店CIFコード
-							,l_inmgrcd						-- 銘柄コード
-							,l_inisincd						-- ISINコード
-							,l_inkjnfrom					-- 基準日(FROM)
-							,l_inkjnto						-- 基準日(TO)
-							,l_inTsuchiYmd					-- 通知日
-							,l_initakukaishacd				-- 委託会社コード
-							,l_inuserid						-- ユーザーID
-							,l_inrealbatchkbn				-- 帳票区分
-							,l_ingyomuymd					-- 業務日付
-							,l_OutSqlCode					-- リターン値
-							,l_OutSqlErrM					-- エラーコメント
+			CALL SPIPH005K00R01(	 '0'							-- 帳票作成区分には0を指定
+							,l_inhktcd 						-- 発行体コード
+							,l_inkozatencd 					-- 口座店コード
+							,l_inkozatencifcd 				-- 口座店CIFコード
+							,l_inmgrcd 						-- 銘柄コード
+							,l_inisincd 						-- ISINコード
+							,l_inkjnfrom 					-- 基準日(FROM)
+							,l_inkjnto 						-- 基準日(TO)
+							,l_inTsuchiYmd 					-- 通知日
+							,l_initakukaishacd 				-- 委託会社コード
+							,l_inuserid 						-- ユーザーID
+							,l_inrealbatchkbn 				-- 帳票区分
+							,l_ingyomuymd 					-- 業務日付
+							,l_OutSqlCode 					-- リターン値
+							,l_OutSqlErrM 					-- エラーコメント
 						);
 		-- 公債会計別元利金明細表の場合
-		ELSIF l_inseikyushoid = pkipakknido.c_ganri_meisai() THEN
-			 CALL SPIPH006K00R01(	 l_inhktcd						-- 発行体コード
-							,l_inkozatencd					-- 口座店コード
-							,l_inkozatencifcd				-- 口座店ＣＩＦコード
-							,l_inmgrcd						-- 銘柄コード
-							,l_inisincd						-- ISINコード
-							,l_inkjnfrom					-- 基準日From
-							,l_inkjnto						-- 基準日To
-							,l_inTsuchiYmd					-- 通知日
-							,l_initakukaishacd				-- 委託会社コード
-							,l_inuserid						-- ユーザーID
-							,l_inrealbatchkbn				-- 帳票区分
-							,l_ingyomuymd					-- 業務日付
-							,l_OutSqlCode					-- リターン値
-							,l_OutSqlErrM					-- エラーコメント
+		ELSIF l_inseikyushoid = pkipakknido.c_GANRI_MEISAI() THEN
+			CALL SPIPH006K00R01(	 l_inhktcd 						-- 発行体コード
+							,l_inkozatencd 					-- 口座店コード
+							,l_inkozatencifcd 				-- 口座店ＣＩＦコード
+							,l_inmgrcd 						-- 銘柄コード
+							,l_inisincd 						-- ISINコード
+							,l_inkjnfrom 					-- 基準日From
+							,l_inkjnto 						-- 基準日To
+							,l_inTsuchiYmd 					-- 通知日
+							,l_initakukaishacd 				-- 委託会社コード
+							,l_inuserid 						-- ユーザーID
+							,l_inrealbatchkbn 				-- 帳票区分
+							,l_ingyomuymd 					-- 業務日付
+							,l_OutSqlCode 					-- リターン値
+							,l_OutSqlErrM 					-- エラーコメント
 						);
 		END IF;
-*/
+
         -- 戻り値が２の場合は0にする
         IF coalesce(l_OutSqlCode,0) = 2 THEN
             -- ２：帳票データなしだけど、正常終了
@@ -1603,15 +1595,11 @@ BEGIN
     -- エラー処理
     EXCEPTION
 	WHEN	OTHERS	THEN
-        l_OutSqlCode := 99;  -- PostgreSQL: Use numeric error code instead of SQLSTATE
-        l_OutSqlErrM := 'SQLSTATE: ' || SQLSTATE || ' - ' || SQLERRM;
-		CALL pkLog.fatal('ECM701', 'PKIPAKKNIDO', 'SQLSTATE:'||SQLSTATE);
+        l_OutSqlCode := SQLSTATE;
+        l_OutSqlErrM := SQLERRM;
+		CALL pkLog.fatal('ECM701', 'PKIPAKKNIDO', 'SQLCODE:'||l_OutSqlCode);
 		CALL pkLog.fatal('ECM701', 'PKIPAKKNIDO', 'SQLERRM:'||l_OutSqlErrM);
 		 -- RAISE NOTICE 'ERR: %', SQLERRM;
-
-		-- IF pCur IS NOT NULL THEN
-		-- 	CLOSE pCur;
-		-- END IF;
 
         extra_param := PKCONSTANT.FATAL();
 
@@ -1652,7 +1640,7 @@ DECLARE
 		temp_rItakuKaishaCd char(4);
 		temp_rMgrCd varchar(13);
 		temp_rRbrKjt char(8);
-		temp_rChokyuYmd char(8);	
+		temp_rChokyuYmd char(8);
 BEGIN
 		 -- RAISE NOTICE 'in pkipakknido.inskikinidoukeirekanriout';
         --カーソルの作成    抽出条件に該当するレコードを基金移動テーブルに更新する
@@ -1712,7 +1700,7 @@ BEGIN
 													NULL,
 													NULL,
 													NULL,
-													c_UKEIRE_KANRI,
+													pkipakknido.c_UKEIRE_KANRI(),
 													PKIPACALCTESURYO.C_REAL(),
 													PKIPACALCTESURYO.C_DATA_KBN_YOTEI(),
 													'',
@@ -1816,7 +1804,7 @@ DECLARE
 		l_meimokuZndk		MGR_SHOKIJ.MUNIT_GENSAI_KNGK%TYPE;	-- 名目残高
 		l_munitGensaiKngk	MGR_SHOKIJ.MUNIT_GENSAI_KNGK%TYPE;	-- 銘柄単位元本減債金額
 		l_ret				varchar(1) := pkipakknido.kaiji_not_last();	-- 返り値
-	
+
 BEGIN
 		-- 満期またはコール全額の場合は、'1'を返却する
 		IF l_inShokanKbn IN ('10', '40') THEN
@@ -1978,18 +1966,18 @@ SECURITY DEFINER
 	 *
 	 */
 CREATE OR REPLACE FUNCTION pkipakknido.getmunitsknpremium (
-	l_inLastKaiji CHAR, 
+	l_inLastKaiji CHAR,
 	l_inKakushasaiKngk MGR_KIHON.KAKUSHASAI_KNGK%TYPE,  -- bigint
 	l_inShokanKbn MGR_SHOKIJ.SHOKAN_KBN%TYPE,  -- char
 	l_inFactor MGR_SHOKIJ.FACTOR%TYPE, --numeric
-	l_inMeimokuKngk numeric, 
-	l_inMunitGensaiKngk numeric, 
+	l_inMeimokuKngk numeric,
+	l_inMunitGensaiKngk numeric,
 	l_inFunitSknPremium MGR_SHOKIJ.FUNIT_SKN_PREMIUM%TYPE --bigint
 ) RETURNS numeric AS $body$
 DECLARE
 
 		outMunitSknPremium numeric := 0;
-	
+
 BEGIN
 		/* 最終回次、またはコールオプション（全額）、コールオプション（一部）、プットのとき */
 
@@ -2061,7 +2049,7 @@ DECLARE
 
 		wk_kaiji varchar(1);
 		outMunitSknShrKngk numeric := 0;
-	
+
 BEGIN
 		wk_kaiji := pkIpaKknIdo.sfCheckLastKaiji(l_inItakuKaishaCd, l_inMgrCd, l_inShokanKjt, l_inShokanKbn);
 		outMunitSknShrKngk := pkIpaKknIdo.getMunitSknShrKngk( wk_kaiji,
@@ -2213,7 +2201,7 @@ DECLARE
 		/* 通貨精度 */
 
 		wk_scale integer;
-	
+
 BEGIN
 		/* ファクターが0（ファクター銘柄でない）なら1として計算 */
 
@@ -2363,7 +2351,7 @@ DECLARE
 		l_outDd				SEIKYUSHO_KANRI.OUT_DD%TYPE;
 		l_nmonthAftKbn		SEIKYUSHO_KANRI.NMONTH_AFT_KBN%TYPE;
 		l_kknBillOutYYYYMM	char(6);
-	
+
 BEGIN
 		-- 個別請求書出力日が設定されている場合
 		IF nullif(trim(both l_inKknbillOutYmd), '') IS NOT NULL THEN
@@ -2487,13 +2475,13 @@ LANGUAGE PLPGSQL
 --	 * @return INTEGER 0:正常、99:異常、それ以外：エラー
 --	********************************************************************************
 CREATE OR REPLACE FUNCTION pkipakknido.inskikinidohikiotoshiout (
- l_inuserid text ,  -- ユーザID
- l_ingyomuymd text ,              -- 業務日付
- l_inkjnfrom text ,               -- 基準日From
- l_inkjnto text ,                 -- 基準日To
- l_initakukaishacd text ,     -- 委託会社CD
+	l_inuserid TEXT ,  -- ユーザID
+ l_ingyomuymd TEXT ,              -- 業務日付
+ l_inkjnfrom TEXT ,               -- 基準日From
+ l_inkjnto TEXT ,                 -- 基準日To
+ l_initakukaishacd TEXT ,     -- 委託会社CD
  l_OutSqlCode OUT integer,          -- SQLエラーコード
- l_OutSqlErrM OUT text           -- SQLエラーメッセージ
+ l_OutSqlErrM OUT TEXT           -- SQLエラーメッセージ
  , OUT extra_param integer) RETURNS record AS $body$
 DECLARE
 
@@ -2623,13 +2611,13 @@ LANGUAGE PLPGSQL
 --	 * @return INTEGER 0:正常、99:異常、それ以外：エラー
 --	********************************************************************************
 CREATE OR REPLACE FUNCTION pkipakknido.inskikinidohikiotoshiout (
- l_inuserid text ,  -- ユーザID
- l_ingyomuymd text ,              -- 業務日付
- l_inkjnfrom text ,               -- 基準日From
- l_inkjnto text ,                 -- 基準日To
- l_initakukaishacd text ,     -- 委託会社CD
+	l_inuserid TEXT ,  -- ユーザID
+ l_ingyomuymd TEXT ,              -- 業務日付
+ l_inkjnfrom TEXT ,               -- 基準日From
+ l_inkjnto TEXT ,                 -- 基準日To
+ l_initakukaishacd TEXT ,     -- 委託会社CD
  l_OutSqlCode OUT integer,          -- SQLエラーコード
- l_OutSqlErrM OUT text           -- SQLエラーメッセージ
+ l_OutSqlErrM OUT TEXT           -- SQLエラーメッセージ
  , OUT extra_param integer) RETURNS record AS $body$
 DECLARE
 

@@ -1192,6 +1192,7 @@ END $$;
     },
     'phxu-6773': {
         'name': 'SPIPX007K00R01_01 - 元利金支払基金引落一覧表',
+        'type': 'procedure',
         'tests': [
             {
                 'description': 'Test 1: Fund withdrawal list with data (return 0)',
@@ -1246,6 +1247,42 @@ BEGIN
 END $$;
 """,
                 'expected': 99
+            }
+        ]
+    },
+    'sbvb-6748': {
+        'name': 'SPIPX011K00R01 - 基準残高報告書',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Test 1: ChohyoKbn=1 causes parameter error',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx011k00r01('0005', 'TESTUSER', '1', '20250112', '202501', '20250112', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 1
+            },
+            {
+                'description': 'Test 2: ChohyoKbn=0 (real report mode) - success',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx011k00r01('0005', 'TESTUSER', '0', '20250112', '202501', '20250112', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
             }
         ]
     }
