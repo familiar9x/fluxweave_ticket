@@ -123,7 +123,7 @@ DECLARE
 		,SUBSTR(VMG1.MGR_NM, 0, 36)			AS MGR_NM  -- 銘柄の正式名称18文字ずつ2段表示とするため、36文字でカットする。
 		-- 機構発行体コードが'222000'であれば静岡県債、それ以外は静岡県債以外で区分は'0'。
 --		   静岡県債の内でISINコードの9桁目が数字の場合は公募公債で区分は'1'、9桁目が英字の場合は公債で区分は'2'とする。
-		,CASE WHEN VMG1.KK_HAKKO_CD='222000' THEN 				CASE WHEN sfCmIsNumeric(SUBSTR(VMG1.ISIN_CD, 9, 1))=0 THEN  '1'  ELSE '2' END   ELSE '0' END  AS SHIZ_KBN
+		,CASE WHEN VMG1.KK_HAKKO_CD='222000' THEN 				CASE WHEN sfCmIsNumeric(SUBSTR(VMG1.ISIN_CD, 9, 1))=0::bigint THEN  '1'  ELSE '2' END   ELSE '0' END  AS SHIZ_KBN
 		,VMG1.HAKKO_YMD
 		-- 銘柄の発行体情報
 		,M01.HKT_NM
@@ -203,7 +203,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T1.KKN_IDO_KBN IN ('11','21')
 					-- 異動日(徴求日) ＝ 基準年月
-					AND	SUBSTR(K02_T1.IDO_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T1.IDO_YMD,1,6))::text = gKijunYm::text
 					-- 入金は請求書出力済
 					AND K02_T1.DATA_SAKUSEI_KBN >= '1'
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
@@ -226,7 +226,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T2.KKN_IDO_KBN IN ('12','13','22','23')
 					-- 異動日(徴求日) ＝ 基準年月
-					AND	SUBSTR(K02_T2.IDO_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T2.IDO_YMD,1,6))::text = gKijunYm::text
 					-- 入金は請求書出力済
 					AND K02_T2.DATA_SAKUSEI_KBN >= '1'
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
@@ -248,7 +248,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T3.KKN_IDO_KBN IN ('31','41')
 					-- 異動日(支払日) ＝ 基準年月
-					AND	SUBSTR(K02_T3.IDO_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T3.IDO_YMD,1,6))::text = gKijunYm::text
 					-- 基金・手数料支払高と国税は、機構非関与銘柄の場合は元利金請求明細が承認済であること
 					AND EXISTS (SELECT ctid FROM KIKIN_SEIKYU K01
 						 WHERE (K01.KK_KANYO_UMU_FLG = '1'
@@ -276,7 +276,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T4.KKN_IDO_KBN IN ('32','33','42','43')
 					-- 利払日 ＝ 基準年月
-					AND	SUBSTR(K02_T4.RBR_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T4.RBR_YMD,1,6))::text = gKijunYm::text
 					-- 基金・手数料支払高と国税は、機構非関与銘柄の場合は元利金請求明細が承認済であること
 					AND EXISTS (SELECT ctid FROM KIKIN_SEIKYU K01
 						 WHERE (K01.KK_KANYO_UMU_FLG = '1'
@@ -303,7 +303,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T5.KKN_IDO_KBN = '51'
 					-- 利払日 ＝ 基準年月
-					AND	SUBSTR(K02_T5.RBR_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T5.RBR_YMD,1,6))::text = gKijunYm::text
 					-- 基金・手数料支払高と国税は、機構非関与銘柄の場合は元利金請求明細が承認済であること
 					AND EXISTS (SELECT ctid FROM KIKIN_SEIKYU K01
 						 WHERE (K01.KK_KANYO_UMU_FLG = '1'
@@ -331,7 +331,7 @@ LEFT OUTER JOIN (SELECT
 						K02_T6.KKN_IDO_KBN IN ('60','61','62','63','64','65','66','67',
 												'70','71','72','73','74','75','76','77')
 					-- 利払日 ＝ 基準年月
-					AND	SUBSTR(K02_T6.RBR_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T6.RBR_YMD,1,6))::text = gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_T6.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_T6.MGR_CD			= K02_S.MGR_CD
@@ -351,7 +351,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T7.KKN_IDO_KBN IN ('68','78')
 					-- 利払日 ＝ 基準年月
-					AND	SUBSTR(K02_T7.RBR_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T7.RBR_YMD,1,6))::text = gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_T7.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_T7.MGR_CD			= K02_S.MGR_CD
@@ -371,7 +371,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T8.KKN_IDO_KBN = '92'
 					-- 異動日(計上日) ＝ 基準年月
-					AND	SUBSTR(K02_T8.IDO_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T8.IDO_YMD,1,6))::text = gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_T8.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_T8.MGR_CD			= K02_S.MGR_CD
@@ -391,7 +391,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_T9.KKN_IDO_KBN IN ('94','96')
 					-- 異動日(計上日) ＝ 基準年月
-					AND	SUBSTR(K02_T9.IDO_YMD,1,6) = gKijunYm
+					AND	(SUBSTR(K02_T9.IDO_YMD,1,6))::text = gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_T9.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_T9.MGR_CD			= K02_S.MGR_CD
@@ -412,7 +412,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z1.KKN_IDO_KBN IN ('11','21')
 					-- 異動日(基金…徴求日・その他…計上日) ＜ 基準年月
-					AND	SUBSTR(K02_Z1.IDO_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z1.IDO_YMD,1,6))::text < gKijunYm::text
 					-- 入金は請求書出力済
 					AND K02_Z1.DATA_SAKUSEI_KBN >= '1'
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
@@ -435,7 +435,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z2.KKN_IDO_KBN IN ('12','13','22','23')
 					-- 異動日(手数料…徴求日・その他…計上日) ＜ 基準年月
-					AND	SUBSTR(K02_Z2.IDO_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z2.IDO_YMD,1,6))::text < gKijunYm::text
 					-- 入金は請求書出力済
 					AND K02_Z2.DATA_SAKUSEI_KBN >= '1'
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
@@ -457,7 +457,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z3.KKN_IDO_KBN IN ('31','41')
 					-- 異動日(支払日) ＜ 基準年月
-					AND	SUBSTR(K02_Z3.IDO_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z3.IDO_YMD,1,6))::text < gKijunYm::text
 					-- 基金・手数料支払高と国税は、機構非関与銘柄の場合は元利金請求明細が承認済であること
 					AND EXISTS (SELECT ctid FROM KIKIN_SEIKYU K01
 						 WHERE (K01.KK_KANYO_UMU_FLG = '1'
@@ -485,7 +485,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z4.KKN_IDO_KBN IN ('32','33','42','43')
 					-- 利払日 ＜ 基準年月
-					AND	SUBSTR(K02_Z4.RBR_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z4.RBR_YMD,1,6))::text < gKijunYm::text
 					-- 基金・手数料支払高と国税は、機構非関与銘柄の場合は元利金請求明細が承認済であること
 					AND EXISTS (SELECT ctid FROM KIKIN_SEIKYU K01
 						 WHERE (K01.KK_KANYO_UMU_FLG = '1'
@@ -512,7 +512,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z5.KKN_IDO_KBN = '51'
 					-- 利払日 ＜ 基準年月
-					AND	SUBSTR(K02_Z5.RBR_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z5.RBR_YMD,1,6))::text < gKijunYm::text
 					-- 基金・手数料支払高と国税は、機構非関与銘柄の場合は元利金請求明細が承認済であること
 					AND EXISTS (SELECT ctid FROM KIKIN_SEIKYU K01
 						 WHERE (K01.KK_KANYO_UMU_FLG = '1'
@@ -540,7 +540,7 @@ LEFT OUTER JOIN (SELECT
 						K02_Z6.KKN_IDO_KBN IN ('60','61','62','63','64','65','66','67',
 												'70','71','72','73','74','75','76','77')
 					-- 利払日 ＜ 基準年月
-					AND	SUBSTR(K02_Z6.RBR_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z6.RBR_YMD,1,6))::text < gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_Z6.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_Z6.MGR_CD			= K02_S.MGR_CD
@@ -560,7 +560,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z7.KKN_IDO_KBN IN ('68','78')
 					-- 利払日 ＜ 基準年月
-					AND	SUBSTR(K02_Z7.RBR_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z7.RBR_YMD,1,6))::text < gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_Z7.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_Z7.MGR_CD			= K02_S.MGR_CD
@@ -580,7 +580,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z8.KKN_IDO_KBN = '92'
 					-- 異動日(計上日) ＜ 基準年月
-					AND	SUBSTR(K02_Z8.IDO_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z8.IDO_YMD,1,6))::text < gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_Z8.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_Z8.MGR_CD			= K02_S.MGR_CD
@@ -600,7 +600,7 @@ LEFT OUTER JOIN (SELECT
 				 WHERE
 						K02_Z9.KKN_IDO_KBN IN ('94','96')
 					-- 異動日(計上日) ＜ 基準年月
-					AND	SUBSTR(K02_Z9.IDO_YMD,1,6) < gKijunYm
+					AND	(SUBSTR(K02_Z9.IDO_YMD,1,6))::text < gKijunYm::text
 					-- [[ 以下、基金異動履歴(K02_S)レコードとの結合条件 ]]
 					AND	K02_Z9.ITAKU_KAISHA_CD	= K02_S.ITAKU_KAISHA_CD
 					AND	K02_Z9.MGR_CD			= K02_S.MGR_CD
@@ -677,7 +677,7 @@ WHERE -- [[ 銘柄の抽出条件 ]]
 		 VMG1.ITAKU_KAISHA_CD
 		,VMG1.HKT_CD
 		,coalesce(K02.TSUKA_CD,'JPY')
-		,CASE WHEN VMG1.KK_HAKKO_CD='222000' THEN 				CASE WHEN sfCmIsNumeric(SUBSTR(VMG1.ISIN_CD, 9, 1))=0 THEN  '1'  ELSE '2' END   ELSE '0' END 
+		,CASE WHEN VMG1.KK_HAKKO_CD='222000' THEN 				CASE WHEN sfCmIsNumeric(SUBSTR(VMG1.ISIN_CD, 9, 1))=0::bigint THEN  '1'  ELSE '2' END   ELSE '0' END 
 		,VMG1.HAKKO_YMD
 		,VMG1.ISIN_CD 
 	;
@@ -718,6 +718,9 @@ BEGIN
 		CALL pkLog.error('ECM501', PROGRAM_ID, '');
 		RETURN;
 	END IF;
+	
+	RAISE NOTICE '[DEBUG] After parameter validation. l_inChohyoKbn=%, l_inKijunYm=%', l_inChohyoKbn, l_inKijunYm;
+	
 	-- 初期設定 
 	IF DEBUG = 1 THEN CALL pkLog.debug(l_inUserId, l_inChohyoId, '2. 初期設定');END IF;
 	--【リアル】
@@ -809,6 +812,9 @@ BEGIN
 	);
 	-- 帳票ワークテーブル登録処理 -データ 
 	IF DEBUG = 1 THEN CALL pkLog.debug(l_inUserId, l_inChohyoId, '5. 帳票ワークテーブル登録処理 -データ');END IF;
+	
+	RAISE NOTICE '[DEBUG] About to open cursor curMeisai with gKijunYm=%', gKijunYm;
+	
 	-- 明細レコード登録
 	FOR recMeisai IN  curMeisai LOOP
 		-- 現在明細ログ
@@ -1064,7 +1070,7 @@ BEGIN
 										,l_inSeqNo		=> gSeqNo 								-- 連番
 										,l_inHeaderFlg  => '1'									-- ヘッダフラグ
 										,l_inItem		=> v_item
-					,l_inKousinId	=> l_inUserId 							-- 更新者ID
+										,l_inKousinId	=> l_inUserId 							-- 更新者ID
 										,l_inSakuseiId	=> l_inUserId 							-- 作成者ID
 				);
 								-- 発行体合計クリア
