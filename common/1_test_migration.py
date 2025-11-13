@@ -1232,6 +1232,7 @@ END $$;
     },
     'nmue-7982': {
         'name': 'SPIPX007K00R01 - 元利金支払基金引落一覧表 (wrapper)',
+        'type': 'procedure',
         'tests': [
             {
                 'description': 'Test 1: Call wrapper procedure with date range',
@@ -1246,7 +1247,43 @@ BEGIN
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': 99
+                'expected': 0
+            }
+        ]
+    },
+    'fkqz-4138': {
+        'name': 'SPIPF001K00R02 - 発行体マスタ一覧',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Test 1: No matching data returns RTN_NODATA',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf001k00r02('0005', 'TESTUSER', '0', '0', '20250108', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 40
+            },
+            {
+                'description': 'Test 2: With real data returns RTN_OK',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf001k00r02('0005', 'JIP1', '0', '0', '20250612', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
             }
         ]
     },

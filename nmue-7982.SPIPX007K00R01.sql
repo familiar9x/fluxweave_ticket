@@ -79,11 +79,11 @@ BEGIN
 	-- データ取得
 	-- 基金請求計算処理（請求書）※リアル・請求書出力・請求書
 	SELECT * INTO l_outSqlCode, l_outSqlErrM, extra_param
-	FROM pkipakknido.insKikinIdoHikiotoshiOut(l_inuserid,
-											l_GyomuYmd,
-											l_KjnYmdFrom,
-											l_KjnYmdTo,
-											l_initakukaishacd);
+	FROM pkipakknido.insKikinIdoHikiotoshiOut(l_inuserid::text,
+											l_GyomuYmd::text,
+											l_KjnYmdFrom::text,
+											l_KjnYmdTo::text,
+											l_initakukaishacd::text);
 	
 --	pkLog.debug(l_inUserId, C_PROCEDURE_ID, C_PROCEDURE_ID ||' END');
 -- エラー処理
