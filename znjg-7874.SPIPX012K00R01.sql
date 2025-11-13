@@ -3,7 +3,8 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spipx012k00r01 ( l_inItakuKaishaCd TEXT 		-- 委託会社コード
+CREATE OR REPLACE PROCEDURE spipx012k00r01 ( 
+	l_inItakuKaishaCd TEXT 		-- 委託会社コード
  ,l_inUserId TEXT 		-- ユーザID
  ,l_inChohyoKbn TEXT 		-- 帳票区分
  ,l_inGyomuYmd TEXT 		-- 業務日付
