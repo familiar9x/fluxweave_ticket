@@ -165,14 +165,19 @@ BEGIN
 	-- 業務日付を取得
 	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 委託会社略称取得
-	SELECT
-		CASE WHEN JIKO_DAIKO_KBN='2' THEN  BANK_RNM  ELSE ' ' END
-	INTO STRICT
-		gBankRnm
-	FROM
-		VJIKO_ITAKU
-	WHERE
-		KAIIN_ID = l_inItakuKaishaCd;
+	BEGIN
+		SELECT
+			CASE WHEN JIKO_DAIKO_KBN='2' THEN  BANK_RNM  ELSE ' ' END
+		INTO STRICT
+			gBankRnm
+		FROM
+			VJIKO_ITAKU
+		WHERE
+			KAIIN_ID = l_inItakuKaishaCd;
+	EXCEPTION
+		WHEN NO_DATA_FOUND THEN
+			gBankRnm := '';
+	END;
 	-- 今回出力する帳票IDを引数の帳票IDより再設定を行う
 	IF l_inTojituKbn = '0' THEN
 		gReportId := C_CHOHYO_ID1;

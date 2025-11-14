@@ -180,12 +180,17 @@ BEGIN
 		gKessaiYmdTo := '99999999';
 	END IF;
 	-- 委託会社略名取得
-	SELECT
-		CASE WHEN JIKO_DAIKO_KBN='2' THEN  BANK_RNM  ELSE ' ' END
-	INTO STRICT
-		gItakuKaishaRnm
-	FROM VJIKO_ITAKU
-	WHERE KAIIN_ID = l_inItakuKaishaCd;
+	BEGIN
+		SELECT
+			CASE WHEN JIKO_DAIKO_KBN='2' THEN  BANK_RNM  ELSE ' ' END
+		INTO STRICT
+			gItakuKaishaRnm
+		FROM VJIKO_ITAKU
+		WHERE KAIIN_ID = l_inItakuKaishaCd;
+	EXCEPTION
+		WHEN NO_DATA_FOUND THEN
+			gItakuKaishaRnm := '';
+	END;
 --	pkLog.debug(l_inUserId, C_PROCEDURE_ID, '削除条件');
 --	pkLog.debug(l_inUserId, C_PROCEDURE_ID, '識別コード:"' || l_inItakuKaishaCd ||'"');
 --	pkLog.debug(l_inUserId, C_PROCEDURE_ID, 'ユーザーＩＤ:"' || l_inUserId ||'"');

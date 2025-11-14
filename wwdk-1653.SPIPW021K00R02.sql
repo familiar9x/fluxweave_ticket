@@ -3,7 +3,7 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spipw020k00r02 ( 
+CREATE OR REPLACE PROCEDURE spipw021k00r02 ( 
     l_inItakuKaishaCd TEXT,    -- 委託会社コード
  l_inUserId TEXT,    -- ユーザＩＤ
  l_inChohyoKbn TEXT,    -- 帳票区分
@@ -17,7 +17,7 @@ DECLARE
 -- * 著作権:Copyright(c)2008
 -- * 会社名:JIP
 -- *
--- * 概要　:元利払日程（ＣＢ）突合リスト
+-- * 概要　:元利払対象残高（ＣＢ）突合リスト
 -- *
 -- * 引数　:l_inItakuKaishaCd :委託会社コード
 -- *        l_inUserId        :ユーザＩＤ
@@ -29,19 +29,19 @@ DECLARE
 -- * 返り値: なし
 -- *
 -- * @author ASK
--- * @version $Id: SPIPW020K00R02.sql,v 1.1 2008/03/13 12:26:38 takeshi_narita Exp $
+-- * @version $Id: SPIPW021K00R02.sql,v 1.1 2008/04/02 11:40:40 takeshi_narita Exp $
 -- *
 -- ***************************************************************************
 -- * ログ　:
 -- * 　　　日付  開発者名    目的
 -- * -------------------------------------------------------------------------
--- *　2007.12.18 ASK        新規作成
+-- *　2007.12.19 ASK        新規作成
 -- ***************************************************************************
 --	/*==============================================================================
 	--                  定数定義                                                    
 	--==============================================================================
-	C_PROGRAM_ID    CONSTANT varchar(12)              := 'IPW020K00R02'; -- プログラムＩＤ
-	C_CHOHYO_ID     CONSTANT SREPORT_WK.CHOHYO_ID%TYPE := 'IPW30002011';  -- 帳票ＩＤ
+	C_PROGRAM_ID    CONSTANT varchar(12)              := 'IPW021K00R02'; -- プログラムＩＤ
+	C_CHOHYO_ID     CONSTANT SREPORT_WK.CHOHYO_ID%TYPE := 'IPW30002111';  -- 帳票ＩＤ
 	C_RCD_NOT_FOUND CONSTANT integer                   := 2;              -- 返値「2:対象データなし」
 	--==============================================================================
 	--                  変数定義                                                    
@@ -49,25 +49,33 @@ DECLARE
 	gGyomuYmd SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE; -- 業務日付
 	gBankRnm  VJIKO_ITAKU.BANK_RNM%TYPE;         -- 銀行略称
 	gSeqNo    integer;                           -- 連番
-	v_item    TYPE_SREPORT_WK_ITEM;              -- SREPORT_WK item for pkPrint.insertData
+	v_item    type_sreport_wk_item;              -- 帳票アイテム用composite type
 	--==============================================================================
 	--                  カーソル定義                                                
 	--==============================================================================
 	curMeisai CURSOR FOR
 		SELECT
-			WK05.ISIN_CD,                                                                         -- ＩＳＩＮコード
-			oracle.to_multi_byte(WK05.NBEF_EIGYOBI_TSUCHI::TEXT) AS NBEF_EIGYOBI_TSUCHI,         -- Ｎ営業日前通知
-			WK05.SYS_GNRBARAI_YMD,                                                                -- システム_元利払日
-			CASE WHEN WK05.TOTSUGO_KEKKA_KBN='3' THEN  NULL  ELSE WK05.SYS_SHASAI_ZNDK END  AS SYS_SHASAI_ZNDK,   -- システム_社債残高
-			WK05.KK_MGR_CD,                                                                       -- 機構銘柄コード
-			WK05.MGR_CD,                                                                          -- 銘柄コード
-			WK05.KK_SAKUSEI_YMD,                                                                  -- 機構_作成日
-			WK05.KK_FURIKAE_TEISHI_YMD,                                                           -- 機構_振替停止日
-			WK05.KK_GNRBARAI_YMD,                                                                 -- 機構_元利払日
-			WK05.KK_ZNDK_TSUCHI_F_YMD,                                                            -- 機構_残高通知配信期間(FROM)
-			WK05.KK_ZNDK_TSUCHI_T_YMD,                                                            -- 機構_残高通知配信期間(TO)
-			CASE WHEN WK05.TOTSUGO_KEKKA_KBN='0' THEN  NULL  ELSE WK05.KK_SHASAI_ZNDK END  AS KK_SHASAI_ZNDK,     -- 機構_社債残高
-			VMG1.MGR_RNM,                                                                         -- 銘柄略称
+			WK06.ISIN_CD,                                                                       -- ＩＳＩＮコード
+			WK06.GNR_ZNDK_KBN,                                                                  -- 元利払対象残高区分
+			WK06.SYS_GNRBARAI_YMD,                                                              -- システム_元利払日
+			CASE WHEN WK06.TOTSUGO_KEKKA_KBN='3' THEN  NULL  ELSE WK06.SYS_SHASAI_ZNDK END  AS SYS_SHASAI_ZNDK, -- システム_社債残高
+			CASE WHEN WK06.TOTSUGO_KEKKA_KBN='3' THEN  NULL  ELSE WK06.SYS_GNR_ZNDK END  AS SYS_GNR_ZNDK,       -- システム_元利払対象残高
+			CASE WHEN WK06.TOTSUGO_KEKKA_KBN='3' THEN  NULL  ELSE WK06.SYS_OSAE_ZNDK END  AS SYS_OSAE_ZNDK,     -- システム_差押残高
+			WK06.KK_MGR_CD,                                                                     -- 機構銘柄コード
+			WK06.MGR_CD,                                                                        -- 銘柄コード
+			WK06.KK_SAKUSEI_YMD,                                                                -- 機構_作成日
+			WK06.KK_GNRBARAI_YMD,                                                               -- 機構_元利払日
+			CASE WHEN WK06.TOTSUGO_KEKKA_KBN='0' THEN  NULL  ELSE WK06.KK_GNR_ZNDK END  AS KK_GNR_ZNDK,         -- 機構_元利払対象残高
+			VMG1.MGR_RNM,                                                                       -- 銘柄略称
+			(
+				SELECT
+					CODE_NM
+				FROM
+					SCODE
+				WHERE
+					CODE_SHUBETSU = '742'
+					AND CODE_VALUE = WK06.GNR_ZNDK_KBN
+			) AS GNR_ZNDK_KBN_NM,                                                               -- 元利払対象残高区分名称
 			(
 				SELECT
 					CODE_NM
@@ -75,19 +83,19 @@ DECLARE
 					SCODE
 				WHERE
 					CODE_SHUBETSU = '141'
-					AND CODE_VALUE = WK05.TOTSUGO_KEKKA_KBN
-			) AS TOTSUGO_KEKKA_KBN_NM                                                              -- 突合結果区分
+					AND CODE_VALUE = WK06.TOTSUGO_KEKKA_KBN
+			) AS TOTSUGO_KEKKA_NM                                                                -- 突合結果区分名称
 		FROM
-			CB_GANRI_NITTEI WK05,
+			CB_GANRI_ZANDAKA WK06,
 			MGR_KIHON_VIEW VMG1
 		WHERE
-			WK05.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
-			AND WK05.MGR_CD = VMG1.MGR_CD
-			AND WK05.ITAKU_KAISHA_CD = l_inItakuKaishaCd
+			WK06.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+			AND WK06.MGR_CD = VMG1.MGR_CD
+			AND WK06.ITAKU_KAISHA_CD = l_inItakuKaishaCd
 		ORDER BY
-			WK05.NBEF_EIGYOBI_TSUCHI DESC,
-			WK05.TOTSUGO_KEKKA_KBN DESC,
-			WK05.KK_MGR_CD;
+			WK06.GNR_ZNDK_KBN DESC,
+			WK06.TOTSUGO_KEKKA_KBN DESC,
+			WK06.KK_MGR_CD;
 --==============================================================================
 --                  メイン処理                                                  
 --==============================================================================
@@ -138,7 +146,7 @@ BEGIN
 			KAIIN_ID = l_inItakuKaishaCd;
 	EXCEPTION
 		WHEN NO_DATA_FOUND THEN
-			gBankRnm := '';
+			gBankRnm := '';  -- 委託会社情報が見つからない場合は空白
 	END;
 	-- 帳票ワーク削除
 	DELETE FROM SREPORT_WK
@@ -150,42 +158,40 @@ BEGIN
 		AND CHOHYO_ID = C_CHOHYO_ID;
 	-- 連番初期化
 	gSeqNo := 1;
-	-- 元利払日程予定データ（ＣＢ）取得（EOFまでループ処理）
+	-- 元利払対象残高予定データ（ＣＢ）取得（EOFまでループ処理）
 	FOR recMeisai IN curMeisai LOOP
-		-- 帳票ワーク登録
-		-- Clear toàn bộ item
+		-- 帳票ワーク登録用composite type初期化
 		v_item := ROW();
-		
-		v_item.l_inItem001 := gBankRnm;
-		v_item.l_inItem002 := recMeisai.KK_SAKUSEI_YMD;
-		v_item.l_inItem003 := recMeisai.NBEF_EIGYOBI_TSUCHI;
-		v_item.l_inItem004 := recMeisai.KK_FURIKAE_TEISHI_YMD;
-		v_item.l_inItem005 := recMeisai.KK_ZNDK_TSUCHI_F_YMD;
-		v_item.l_inItem006 := recMeisai.KK_ZNDK_TSUCHI_T_YMD;
-		v_item.l_inItem007 := recMeisai.TOTSUGO_KEKKA_KBN_NM;
-		v_item.l_inItem008 := recMeisai.KK_MGR_CD;
-		v_item.l_inItem009 := recMeisai.ISIN_CD;
-		v_item.l_inItem010 := recMeisai.MGR_CD;
-		v_item.l_inItem011 := recMeisai.MGR_RNM;
-		v_item.l_inItem012 := recMeisai.SYS_GNRBARAI_YMD;
-		v_item.l_inItem013 := recMeisai.SYS_SHASAI_ZNDK;
-		v_item.l_inItem014 := recMeisai.KK_GNRBARAI_YMD;
-		v_item.l_inItem015 := recMeisai.KK_SHASAI_ZNDK;
-		v_item.l_inItem016 := C_CHOHYO_ID;
-		v_item.l_inItem017 := l_inUserId;
-		v_item.l_inItem018 := l_inKjnYmd;
+		v_item.l_inItem001 := gBankRnm;                    -- 委託会社略称
+		v_item.l_inItem002 := recMeisai.KK_SAKUSEI_YMD;    -- 機構_作成日
+		v_item.l_inItem003 := recMeisai.GNR_ZNDK_KBN;      -- 元利払対象残高区分
+		v_item.l_inItem004 := recMeisai.GNR_ZNDK_KBN_NM;   -- 元利払対象残高区分名称
+		v_item.l_inItem005 := recMeisai.TOTSUGO_KEKKA_NM;  -- 突合結果区分名称
+		v_item.l_inItem006 := recMeisai.KK_MGR_CD;         -- 機構銘柄コード
+		v_item.l_inItem007 := recMeisai.ISIN_CD;           -- ＩＳＩＮコード
+		v_item.l_inItem008 := recMeisai.MGR_CD;            -- 銘柄コード
+		v_item.l_inItem009 := recMeisai.MGR_RNM;           -- 銘柄略称
+		v_item.l_inItem010 := recMeisai.SYS_SHASAI_ZNDK;   -- システム_社債残高
+		v_item.l_inItem011 := recMeisai.SYS_OSAE_ZNDK;     -- 差押分
+		v_item.l_inItem012 := recMeisai.SYS_GNRBARAI_YMD;  -- システム_元利払日
+		v_item.l_inItem013 := recMeisai.SYS_GNR_ZNDK;      -- システム_元利払対象残高
+		v_item.l_inItem014 := recMeisai.KK_GNRBARAI_YMD;   -- 機構_元利払日
+		v_item.l_inItem015 := recMeisai.KK_GNR_ZNDK;       -- 機構_元利払対象残高
+		v_item.l_inItem016 := C_CHOHYO_ID;                 -- 帳票ＩＤ
+		v_item.l_inItem017 := l_inUserId;                  -- ユーザＩＤ
+		v_item.l_inItem018 := l_inKjnYmd;                  -- 基準日
 		
 		CALL pkPrint.insertData(
-			l_inKeyCd      => l_inItakuKaishaCd,
-			l_inUserId     => l_inUserId,
-			l_inChohyoKbn  => l_inChohyoKbn,
-			l_inSakuseiYmd => gGyomuYmd,
-			l_inChohyoId   => C_CHOHYO_ID,
-			l_inSeqNo      => gSeqNo,
-			l_inHeaderFlg  => 1,
-			l_inItem       => v_item,
-			l_inKousinId   => l_inUserId,
-			l_inSakuseiId  => l_inUserId
+			l_inKeyCd      => l_inItakuKaishaCd,           -- 識別コード
+			l_inUserId     => l_inUserId,                  -- ユーザＩＤ
+			l_inChohyoKbn  => l_inChohyoKbn,               -- 帳票区分
+			l_inSakuseiYmd => gGyomuYmd,                   -- 作成年月日
+			l_inChohyoId   => C_CHOHYO_ID,                 -- 帳票ＩＤ
+			l_inSeqNo      => gSeqNo,                      -- 連番
+			l_inHeaderFlg  => 1,                           -- ヘッダフラグ
+			l_inItem       => v_item,                      -- アイテムcomposite type
+			l_inKousinId   => l_inUserId,                  -- 更新者
+			l_inSakuseiId  => l_inUserId                   -- 作成者
 		);
 		-- 連番インクリメント
 		gSeqNo := gSeqNo + 1;
@@ -225,7 +231,8 @@ EXCEPTION
 		l_outSqlErrM := SQLSTATE || SQLERRM;
 		RETURN;
 END;
+
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spipw020k00r02 ( l_inItakuKaishaCd CHAR, l_inUserId CHAR, l_inChohyoKbn CHAR, l_inKjnYmd CHAR, l_outSqlCode OUT integer, l_outSqlErrM OUT text ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spipw021k00r02 ( l_inItakuKaishaCd TEXT, l_inUserId TEXT, l_inChohyoKbn TEXT, l_inKjnYmd TEXT, l_outSqlCode OUT integer, l_outSqlErrM OUT text ) FROM PUBLIC;

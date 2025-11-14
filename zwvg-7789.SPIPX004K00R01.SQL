@@ -245,12 +245,17 @@ BEGIN
 	-- 業務日付取得
 	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 委託会社略名取得
-	SELECT
-		CASE WHEN JIKO_DAIKO_KBN='2' THEN  BANK_RNM  ELSE ' ' END
-	INTO STRICT
-		gItakuKaishaRnm
-	FROM VJIKO_ITAKU
-	WHERE KAIIN_ID = l_inItakuKaishaCd;
+	BEGIN
+		SELECT
+			CASE WHEN JIKO_DAIKO_KBN='2' THEN  BANK_RNM  ELSE ' ' END
+		INTO STRICT
+			gItakuKaishaRnm
+		FROM VJIKO_ITAKU
+		WHERE KAIIN_ID = l_inItakuKaishaCd;
+	EXCEPTION
+		WHEN NO_DATA_FOUND THEN
+			gItakuKaishaRnm := '';
+	END;
 	-- 帳票ワークの削除
 	DELETE FROM SREPORT_WK
 		WHERE

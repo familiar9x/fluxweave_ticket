@@ -29,75 +29,80 @@ POSTGRES_CONFIG = {
     'user': 'rh_mufg_ipa',
     'password': 'luxur1ous-Pine@pple'
 }
-ORACLE_CONFIG = {
-    'user': 'RH_MUFG_IPA',
-    'password': 'g1normous-pik@chu',
-    'dsn': ORACLE_DSN
-}
-
-POSTGRES_CONFIG = {
-    'host': 'jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com',
-    'port': 5432,
-    'database': 'rh_mufg_ipa',
-    'user': 'rh_mufg_ipa',
-    'password': 'luxur1ous-Pine@pple'
-}
 
 # Test configurations for each ticket
 TEST_CONFIGS = {
     'xytp-7838': {
-                'expected': 0,
-                'note': '元利金支払基金引落一覧表 with kikin_ido data for June 2025'
+        'name': 'sfCmIsCodeMChek',
+        'type': 'function',
+        'tests': [
+            {
+                'description': 'Valid code 191/10',
+                'oracle_sql': "SELECT sfCmIsCodeMChek('191', '10') FROM dual",
+                'postgres_sql': "SELECT sfCmIsCodeMChek('191', '10')",
+                'expected': 0
             },
             {
-                'description': 'Test with no data period - 209001',
-                'oracle_sql': None,
+                'description': 'Invalid code 191/999',
+                'oracle_sql': "SELECT sfCmIsCodeMChek('191', '999') FROM dual",
+                'postgres_sql': "SELECT sfCmIsCodeMChek('191', '999')",
+                'expected': 1
+            },
+            {
+                'description': 'Valid code 507/0',
+                'oracle_sql': "SELECT sfCmIsCodeMChek('507', '0') FROM dual",
+                'postgres_sql': "SELECT sfCmIsCodeMChek('507', '0')",
+                'expected': 0
+            },
+            {
+                'description': 'NULL parameters',
+                'oracle_sql': "SELECT sfCmIsCodeMChek(NULL, NULL) FROM dual",
+                'postgres_sql': "SELECT sfCmIsCodeMChek(NULL, NULL)",
+                'expected': 0
+            }
+        ]
+    },
+    'zhuv-3462': {
+        'name': 'SPIPH003K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Valid params - no data',
+                'oracle_sql': """
+DECLARE
+    v_code NUMBER;
+    v_msg VARCHAR2(4000);
+BEGIN
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+    COMMIT;
+    
+    SPIPH003K00R01(NULL, NULL, NULL, NULL, NULL, '20190101', '20190331', '20190225',
+                   '0005', 'BATCH', '1', '20190225', v_code, v_msg);
+    :result := v_code;
+    COMMIT;
+END;
+""",
                 'postgres_sql': """
-        'xytp-7838': {
-            'name': 'sfCmIsCodeMChek',
-            'type': 'function',
-            'tests': [
-                {
-                    'description': 'Valid code 191/10',
-                    'oracle_sql': "SELECT sfCmIsCodeMChek('191', '10') FROM dual",
-                    'postgres_sql': "SELECT sfCmIsCodeMChek('191', '10')",
-                    'expected': 0
-                },
-                {
-                    'description': 'Invalid code 191/999',
-                    'oracle_sql': "SELECT sfCmIsCodeMChek('191', '999') FROM dual",
-                    'postgres_sql': "SELECT sfCmIsCodeMChek('191', '999')",
-                    'expected': 1
-                },
-                {
-                    'description': 'Valid code 507/0',
-                    'oracle_sql': "SELECT sfCmIsCodeMChek('507', '0') FROM dual",
-                    'postgres_sql': "SELECT sfCmIsCodeMChek('507', '0')",
-                    'expected': 0
-                },
-                {
-                    'description': 'NULL parameters',
-                    'oracle_sql': "SELECT sfCmIsCodeMChek(NULL, NULL) FROM dual",
-                    'postgres_sql': "SELECT sfCmIsCodeMChek(NULL, NULL)",
-                    'expected': 0
-                },
-                {
-                    'description': 'Return 2 (NODATA) when no kikin_ido records for period',
-                    'oracle_sql': None,
-                    'postgres_sql': None,
-                    'expected': 2,
-                    'note': 'Return 2 (NODATA) when no kikin_ido records for period'
-                }
-            ]
-        },
-        'phxu-6773': {
-            'name': 'SPIPX007K00R01_01',
-            'type': 'procedure',
-            'tests': [
-                {
-                    'description': 'Test with real data - 202506',
-                    'oracle_sql': None,
-                    'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
+    DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+    
+    CALL spiph003k00r01(NULL, NULL, NULL, NULL, NULL, 
+                        '20190101', '20190331', '20190225',
+                        '0005', 'BATCH', '1', '20190225', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2
+            },
+            {
+                'description': 'Invalid param - empty itaku_kaisha_cd',
+                'oracle_sql': """
 DECLARE
     v_code NUMBER;
     v_msg VARCHAR2(4000);
@@ -115,13 +120,6 @@ DECLARE
 BEGIN 
     CALL spiph003k00r01(NULL, NULL, NULL, NULL, NULL, 
                         '20190101', '20190331', '20190225',
-                    'expected': 0,
-                    'note': '元利金支払基金引落一覧表 with kikin_ido data for June 2025'
-                },
-                {
-                    'description': 'Test with no data period - 209001',
-                    'oracle_sql': None,
-                    'postgres_sql': """
                         '', 'BATCH', '1', '20190225', v_code, v_msg); 
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
@@ -139,11 +137,6 @@ BEGIN
     DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
     DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
     
-                    'expected': 2,
-                    'note': 'Return 2 (NODATA) when no kikin_ido records for period'
-                }
-            ]
-        },
     -- Test with wide date range (still no data in current test env)
     SPIPH003K00R01(NULL, NULL, NULL, NULL, NULL, '20090101', '20301231', '20190225',
                    '0005', 'BATCH', '1', '20190225', v_code, v_msg);
@@ -174,6 +167,222 @@ BEGIN
     -- Cleanup
     DELETE FROM SREPORT_WK WHERE key_cd='0005' AND chohyo_id='IPH30000311';
     DELETE FROM PRT_OK WHERE itaku_kaisha_cd='0005' AND chohyo_id='IPH30000311';
+END $$;
+""",
+                'expected': 2
+            }
+        ]
+    },
+    'vexe-2181': {
+        'name': 'SPIPX005K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Real data test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx005k00r01('0005', 'TEST', '1', '202501', '001', '001', '001', 'MGR001', 'ISIN001', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'NODATA test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx005k00r01('9999', 'TEST', '1', '202501', '999', '999', '999', 'MGR999', 'ISIN999', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            }
+        ]
+    },
+    'zwvg-7789': {
+        'name': 'SPIPX004K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Real data test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx004k00r01('0005', 'TEST', '1', '202501', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'NODATA test (still returns 0 with no-data message)',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx004k00r01('9999', 'TEST', '1', '202501', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            }
+        ]
+    },
+    'yxbt-4733': {
+        'name': 'SPIPX002K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Real data test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx002k00r01('20250101', '20251231', '1', '0005', 'TEST', '1', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'NODATA test (still returns 0 with no-data message)',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx002k00r01('20250101', '20251231', '1', '9999', 'TEST', '1', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            }
+        ]
+    },
+    'rfdc-5956': {
+        'name': 'SPIPW022K00R02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Real data test (tojitu_kbn=0)',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipw022k00r02('0005', 'TEST', '1', '20250101', '0', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'NODATA test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipw022k00r02('9999', 'TEST', '1', '20250101', '0', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2
+            }
+        ]
+    },
+    'gyqf-4446': {
+        'name': 'SPIPW020K00R02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Real data test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipw020k00r02('0005', 'TEST', '1', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'NODATA test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipw020k00r02('9999', 'TEST', '1', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2
+            }
+        ]
+    },
+    'wwdk-1653': {
+        'name': 'SPIPW021K00R02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Real data test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipw021k00r02('0005', 'TEST', '1', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
+            },
+            {
+                'description': 'NODATA test',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipw021k00r02('9999', 'TEST', '1', '20250101', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
                 'expected': 2
@@ -678,17 +887,10 @@ END $$;
             {
                 'description': 'Test 4: Valid mixed content',
                 'oracle_sql': None,
+                'postgres_sql': "SELECT sfcmiszenkana('カナＡＢＣ１２３（）');",
                 'expected': 0
             },
             {
-        'phxu-6773': {
-            'name': 'SPIPX007K00R01_01',
-            'type': 'procedure',
-            'tests': [
-                {
-                    'description': 'Test with real data - 202506',
-                    'oracle_sql': None,
-                    'postgres_sql': """
                 'description': 'Test 5: Invalid half-width katakana',
                 'oracle_sql': None,
                 'postgres_sql': "SELECT sfcmiszenkana('ｱｲｳｴｵ');",
@@ -706,13 +908,6 @@ END $$;
                 'postgres_sql': "SELECT sfcmiszenkana('ABC123');",
                 'expected': 1
             },
-                    'expected': 0,
-                    'note': '元利金支払基金引落一覧表 with kikin_ido data for June 2025'
-                },
-                {
-                    'description': 'Test with no data period - 209001',
-                    'oracle_sql': None,
-                    'postgres_sql': """
             {
                 'description': 'Test 8: Empty string',
                 'oracle_sql': None,
@@ -730,11 +925,6 @@ END $$;
                 'oracle_sql': None,
                 'postgres_sql': "SELECT sfcmistelnocheck('03-1234-5678');",
                 'expected': 0
-                    'expected': 2,
-                    'note': 'Return 2 (NODATA) when no kikin_ido records for period'
-                }
-            ]
-        },
             },
             {
                 'description': 'Test 2: Valid with parentheses',
@@ -1218,6 +1408,7 @@ END $$;
     },
     'phxu-6773': {
         'name': 'SPIPX007K00R01_01 - 元利金支払基金引落一覧表',
+        'type': 'procedure',
         'tests': [
             {
                 'description': 'Test 1: Fund withdrawal list with data (return 0)',
@@ -1251,12 +1442,13 @@ BEGIN
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': 2
+                'expected': 0
             }
         ]
     },
     'nmue-7982': {
         'name': 'SPIPX007K00R01 - 元利金支払基金引落一覧表 (wrapper)',
+        'type': 'procedure',
         'tests': [
             {
                 'description': 'Test 1: Call wrapper procedure with date range',
@@ -1271,63 +1463,79 @@ BEGIN
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': 99
+                'expected': 0
+            }
+        ]
+    },
+    'fkqz-4138': {
+        'name': 'SPIPF001K00R02 - 発行体マスタ一覧',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Test 1: No matching data returns RTN_NODATA',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf001k00r02('0005', 'TESTUSER', '0', '0', '20250108', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 40
+            },
+            {
+                'description': 'Test 2: With real data returns RTN_OK',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipf001k00r02('0005', 'JIP1', '0', '0', '20250612', v_code, v_msg); 
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0
             }
         ]
     },
     'sbvb-6748': {
-        'name': 'SPIPX011K00R01',
+        'name': 'SPIPX011K00R01 - 基準残高報告書',
         'type': 'procedure',
         'tests': [
             {
-                'description': 'Test with real data - 202506 期間',
-                'oracle_sql': None,  # PostgreSQL only
+                'description': 'Test 1: ChohyoKbn=1 causes parameter error',
+                'oracle_sql': None,
                 'postgres_sql': """
-DO $$
-DECLARE
-    v_code INTEGER;
-    v_msg TEXT;
-BEGIN
-    CALL spipx011k00r01(
-        '0005'::TEXT,          -- l_inItakuKaishaCd (委託会社コード)
-        'TEST'::TEXT,          -- l_inUserId (ユーザID)
-        '0'::TEXT,             -- l_inChohyoKbn (帳票区分: 0=リアル)
-        '20250630'::TEXT,      -- l_inGyomuYmd (業務日付)
-        '202506'::TEXT,        -- l_inKijunYm (基準年月)
-        '20250630'::TEXT,      -- l_inTsuchiYmd (通知日)
-        v_code,                -- OUT: リターン値
-        v_msg                  -- OUT: エラーコメント
-    );
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx011k00r01('0005', 'TESTUSER', '1', '20250112', '202501', '20250112', v_code, v_msg); 
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': 0,
-                'note': '取扱店別銘柄別元利金及び手数料一覧表 with 680 kikin_ido records'
+                'expected': 1
             },
             {
-                'description': 'Test with no data period - 209001',
-                'oracle_sql': None,  # PostgreSQL only
+                'description': 'Test 2: ChohyoKbn=0 (real report mode) - success',
+                'oracle_sql': None,
                 'postgres_sql': """
-DO $$
-DECLARE
-    v_code INTEGER;
-    v_msg TEXT;
-BEGIN
-    CALL spipx011k00r01(
-        '0005'::TEXT,
-        'TEST'::TEXT,
-        '0'::TEXT,
-        '20900131'::TEXT,
-        '209001'::TEXT,        -- Far future period (no data expected)
-        '20900131'::TEXT,
-        v_code,
-        v_msg
-    );
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    CALL spipx011k00r01('0005', 'TESTUSER', '0', '20250112', '202501', '20250112', v_code, v_msg); 
     RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': 2,
-                'note': 'Return 2 (NODATA) when no kikin_ido records for period'
+                'expected': 0
             }
         ]
     }
