@@ -25,14 +25,14 @@ DECLARE
 --	 * @author	ASK
 --	 * @version	$Revision: 1.6 $
 --	 * 
---	 * @param	l_inItakuKaishaCd	IN  CHAR		委託会社コード
---	 * @param	l_inUserId			IN  CHAR		ユーザID
---	 * @param	l_inChohyoKbn		IN  CHAR		帳票区分
---	 * @param	l_inGyomuYmd		IN  CHAR		業務日付
---	 * @param	l_inKijunYm			IN  CHAR		基準年月
---	 * @param	l_inTsuchiYmd		IN  CHAR		通知日
+--	 * @param	l_inItakuKaishaCd	IN  TEXT		委託会社コード
+--	 * @param	l_inUserId			IN  TEXT		ユーザID
+--	 * @param	l_inChohyoKbn		IN  TEXT		帳票区分
+--	 * @param	l_inGyomuYmd		IN  TEXT		業務日付
+--	 * @param	l_inKijunYm			IN  TEXT		基準年月
+--	 * @param	l_inTsuchiYmd		IN  TEXT		通知日
 --	 * @param	l_outSqlCode		OUT INTEGER		リターン値	0:正常終了 1:異常終了 2:正常終了(対象データなし) 99:致命的な異常終了
---	 * @param	l_outSqlErrM		OUT VARCHAR2	エラーコメント
+--	 * @param	l_outSqlErrM		OUT VARCHAR	エラーコメント
 --	 
 	--==============================================================================*
 --		デバッグ機能
@@ -567,7 +567,7 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spipx011k00r01 ( l_inItakuKaishaCd CHAR  ,l_inUserId CHAR  ,l_inChohyoKbn CHAR  ,l_inGyomuYmd CHAR  ,l_inKijunYm CHAR  ,l_inTsuchiYmd CHAR  ,l_outSqlCode OUT numeric  ,l_outSqlErrM OUT text ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spipx011k00r01 ( l_inItakuKaishaCd TEXT  ,l_inUserId TEXT  ,l_inChohyoKbn TEXT  ,l_inGyomuYmd TEXT  ,l_inKijunYm TEXT  ,l_inTsuchiYmd TEXT  ,l_outSqlCode OUT numeric  ,l_outSqlErrM OUT text ) FROM PUBLIC;
 
 
 
@@ -606,13 +606,13 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spipx011k00r01_createbun ( l_inReportID CHAR ,l_inPatternCd BUN.BUN_PATTERN_CD%TYPE ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spipx011k00r01_createbun ( l_inReportID TEXT ,l_inPatternCd BUN.BUN_PATTERN_CD%TYPE ) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE FUNCTION spipx011k00r01_warekichangezerosuppressdot (l_inKijunYmd CHAR) RETURNS char AS $body$
+CREATE OR REPLACE FUNCTION spipx011k00r01_warekichangezerosuppressdot (l_inKijunYmd TEXT) RETURNS char AS $body$
 DECLARE
 
 	warekiStr varchar(12);
@@ -635,4 +635,4 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON FUNCTION spipx011k00r01_warekichangezerosuppressdot (l_inKijunYmd CHAR) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spipx011k00r01_warekichangezerosuppressdot (l_inKijunYmd TEXT) FROM PUBLIC;

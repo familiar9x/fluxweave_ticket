@@ -374,6 +374,29 @@ END $$;
                 'expected': 0  # RTN_OK
             }
         ]
+    },
+    'znjg-7874': {
+        'name': 'SPIPX012K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Principal and interest payment fund balance report - success',
+                'oracle_sql': None,
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    
+    CALL spipx012k00r01('0005', 'TESTUSER', '0', '20240401', 'IPX30001201', '', '', '', 'TEST0001', '', '202404', '20240401', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # RTN_OK
+            }
+        ]
     }
 }
 

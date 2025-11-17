@@ -213,6 +213,7 @@ convert_complex_file() {
     sed -i -E 's/\bRAW\s*\(\s*[0-9]+\s*\)/BYTEA/g' "$file"
     sed -i 's/\bRAW\b/BYTEA/g' "$file"
 
+    
     #################################################################
     # Step 4: NVL -> COALESCE (chỉ cho pattern chuẩn NVL(...))
     #################################################################
@@ -252,6 +253,35 @@ convert_complex_file() {
     sed -i 's/^\/$/$body$;/' "$file"
 
     echo "Basic conversion complete for: $file"
+
+    ########################################################
+    # Cảnh báo: RAISE NOTICE chưa được comment (--)
+    ########################################################
+    local uncomm_notices
+    uncomm_notices=$(grep -ni "RAISE NOTICE" "$file" 2>/dev/null | grep -vE "^[[:space:]]*--|--[[:space:]]*RAISE" || true)
+    if [[ -n "$uncomm_notices" ]]; then
+        has_any=1
+        echo ">>> [UNCOMMENTED_NOTICE] Phát hiện RAISE NOTICE chưa được comment (--)"
+        echo "    PostgreSQL nên comment hoặc loại bỏ khi release chính thức."
+        echo "$uncomm_notices"
+        echo
+    fi
+
+    ########################################################
+    # Cảnh báo: Gọi pkPrint.insertData mà chưa có khai báo
+    #           v_item TYPE_SREPORT_WK_ITEM;
+    ########################################################
+    local has_insert
+    has_insert=$(grep -qi "pkprint\.insertdata" "$file" && echo 1 || echo 0)
+    local has_decl
+    has_decl=$(grep -qi "v_item[[:space:]]\+TYPE_SREPORT_WK_ITEM" "$file" && echo 1 || echo 0)
+    if [[ $has_insert -eq 1 && $has_decl -eq 0 ]]; then
+        has_any=1
+        echo ">>> [PKPRINT_ITEM_DECLARATION] Có pkPrint.insertData() nhưng chưa khai báo v_item TYPE_SREPORT_WK_ITEM;"
+        echo "    → Cần thêm dòng: v_item TYPE_SREPORT_WK_ITEM;"
+        grep -ni "pkprint\\.insertdata" "$file" 2>/dev/null || true
+        echo
+    fi
 
     #####################################################
     # Chạy check cảnh báo các chỗ Oracle-style còn lại

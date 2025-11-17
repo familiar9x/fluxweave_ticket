@@ -720,7 +720,7 @@ BEGIN
 		RETURN;
 	END IF;
 	
-	RAISE NOTICE '[DEBUG] After parameter validation. l_inChohyoKbn=%, l_inKijunYm=%', l_inChohyoKbn, l_inKijunYm;
+	--RAISE NOTICE '[DEBUG] After parameter validation. l_inChohyoKbn=%, l_inKijunYm=%', l_inChohyoKbn, l_inKijunYm;
 	
 	-- 初期設定 
 	IF DEBUG = 1 THEN CALL pkLog.debug(l_inUserId, l_inChohyoId, '2. 初期設定');END IF;
@@ -814,7 +814,7 @@ BEGIN
 	-- 帳票ワークテーブル登録処理 -データ 
 	IF DEBUG = 1 THEN CALL pkLog.debug(l_inUserId, l_inChohyoId, '5. 帳票ワークテーブル登録処理 -データ');END IF;
 	
-	RAISE NOTICE '[DEBUG] About to open cursor curMeisai with gKijunYm=%', gKijunYm;
+	--RAISE NOTICE '[DEBUG] About to open cursor curMeisai with gKijunYm=%', gKijunYm;
 	
 	-- 明細レコード登録
 	FOR recMeisai IN  curMeisai LOOP
