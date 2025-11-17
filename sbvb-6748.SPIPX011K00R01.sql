@@ -611,7 +611,7 @@ LANGUAGE PLPGSQL
 
 
 
-
+drop FUNCTION spipx011k00r01_warekichangezerosuppressdot (l_inKijunYmd TEXT) ;
 CREATE OR REPLACE FUNCTION spipx011k00r01_warekichangezerosuppressdot (l_inKijunYmd TEXT) RETURNS char AS $body$
 DECLARE
 
