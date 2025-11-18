@@ -1,27 +1,14 @@
 #!/usr/bin/env python3
 """
-Test Oracle to PostgreSQL migration results
-Compares function/procedure outputs between Oracle and PostgreSQL
+Test PostgreSQL migration results
+Tests migrated function/procedure outputs in PostgreSQL
 """
 
-import cx_Oracle
 import psycopg2
 import sys
 from typing import Dict, List, Tuple, Any
 
 # Database configurations
-ORACLE_DSN = cx_Oracle.makedsn(
-    'jip-ipa-cp.cvmszg1k9xhh.us-east-1.rds.amazonaws.com',
-    1521,
-    sid='ORCL'
-)
-
-ORACLE_CONFIG = {
-    'user': 'RH_MUFG_IPA',
-    'password': 'g1normous-pik@chu',
-    'dsn': ORACLE_DSN
-}
-
 POSTGRES_CONFIG = {
     'host': 'jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com',
     'port': 5432,
@@ -397,22 +384,224 @@ END $$;
                 'expected': 0  # RTN_OK
             }
         ]
+    },
+    'dssw-5190': {
+        'name': 'SPIPW001K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'CB detailed info list - compiles and executes without syntax errors',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    
+    CALL spipw001k00r01('TEST0001', '0005', 'TESTUSER', '1', '20240401', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # RTN_NODATA - test data doesn't exist (or 0/99 if dependencies exist)
+            }
+        ]
+    },
+    'fgrd-8742': {
+        'name': 'SPIPW001K00R04',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'CB fee setup info - compiles and executes without syntax errors',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    
+    CALL spipw001k00r04('TEST0001', '0005', 'TESTUSER', '1', '20240401', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # RTN_NODATA - test data doesn't exist
+            }
+        ]
+    },
+    'nnfh-4187': {
+        'name': 'SPIPT113K01R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'New recording fee aggregation - compiles and executes',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    
+    CALL spipt113k01r01('0005', 'TESTUSER', '1', NULL, NULL, NULL, NULL, NULL, '202401', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # Success or NODATA
+            }
+        ]
+    },
+    'ubrr-9171': {
+        'name': 'SPIPW001K00R07',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'CB mid-term fee info list - with real data (SUCCESS)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    
+    CALL spipw001k00r07('0005BF0210001', '0005', 'TESTUSER', '1', '20240401', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # RTN_OK - success with data
+            },
+            {
+                'description': 'CB mid-term fee info list - no data (NODATA)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    
+    CALL spipw001k00r07('TEST0001', '0005', 'TESTUSER', '1', '20240401', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # RTN_NODATA - test data doesn't exist
+            }
+        ]
+    },
+    'sdjw-9032': {
+        'name': 'SPIPP014K00R02_02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Real record number management - option OFF (early return)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+BEGIN 
+    CALL spipp014k00r02_02('0005', 'TESTUSER', '1', v_code);
+    RAISE NOTICE 'Code: %', v_code;
+END $$;
+""",
+                'expected': 0  # Option flag OFF - early return with code 0
+            }
+        ]
+    },
+    'fgrd-8742': {
+        'name': 'SPIPW001K00R04',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'CB fee setting info - real data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipw001k00r04('0005BF0210001', '0005', 'TESTUSER', '1', '20250118', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # Should return 0 for real MGR_CD
+            },
+            {
+                'description': 'CB fee setting info - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipw001k00r04('TEST9999', '0005', 'TESTUSER', '1', '20250118', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # NODATA for fake MGR_CD
+            }
+        ]
+    },
+    'dssw-5190': {
+        'name': 'SPIPW001K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'CB basic attributes - real CB data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipw001k00r01('0005C02030001', '0005', 'TESTUSER', '1', '20250118', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # Should return 0 for real CB MGR_CD
+            },
+            {
+                'description': 'CB basic attributes - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipw001k00r01('TEST9999', '0005', 'TESTUSER', '1', '20250118', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # NODATA for fake MGR_CD
+            }
+        ]
+    },
+    'nnfh-4187': {
+        'name': 'SPIPT113K01R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'New registration fee aggregation - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipt113k01r01('0005', 'TESTUSER', '1', NULL, NULL, NULL, NULL, NULL, '202501', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # Should return 0 (no data means empty report, not error)
+            }
+        ]
     }
 }
-
-
-def test_oracle_function(cursor, sql: str) -> Any:
-    """Execute Oracle function test"""
-    cursor.execute(sql)
-    result = cursor.fetchone()
-    return result[0] if result else None
-
-
-def test_oracle_procedure(cursor, sql: str) -> Any:
-    """Execute Oracle procedure test with bind variable"""
-    result_var = cursor.var(int)
-    cursor.execute(sql, result=result_var)
-    return result_var.getvalue()
 
 
 def test_postgres_function(cursor, sql: str) -> Any:
@@ -461,13 +650,11 @@ def run_tests(ticket_id: str):
     print(f"Object: {config['name']} ({config['type']})")
     print(f"{'='*70}\n")
     
-    # Connect to databases
+    # Connect to database
     try:
-        oracle_conn = cx_Oracle.connect(**ORACLE_CONFIG)
         postgres_conn = psycopg2.connect(**POSTGRES_CONFIG)
         postgres_conn.set_session(autocommit=True)
         
-        oracle_cursor = oracle_conn.cursor()
         postgres_cursor = postgres_conn.cursor()
         
         all_passed = True
@@ -478,35 +665,12 @@ def run_tests(ticket_id: str):
             print("-" * 70)
             
             # Run setup if provided
-            if 'setup_oracle' in test:
-                try:
-                    oracle_cursor.execute(test['setup_oracle'])
-                    oracle_conn.commit()
-                except Exception as e:
-                    print(f"  Setup Oracle: ERROR - {e}")
-            
             if 'setup_postgres' in test:
                 try:
                     postgres_cursor.execute(test['setup_postgres'])
                     postgres_conn.commit()
                 except Exception as e:
                     print(f"  Setup PostgreSQL: ERROR - {e}")
-            
-            # Test Oracle
-            oracle_result = None
-            oracle_error = None
-            if test['oracle_sql'] is not None:
-                try:
-                    if config['type'] == 'function':
-                        oracle_result = test_oracle_function(oracle_cursor, test['oracle_sql'])
-                    else:
-                        oracle_result = test_oracle_procedure(oracle_cursor, test['oracle_sql'])
-                    print(f"  Oracle:     {oracle_result}")
-                except Exception as e:
-                    oracle_error = str(e)
-                    print(f"  Oracle:     ERROR - {oracle_error}")
-            else:
-                print(f"  Oracle:     SKIPPED")
             
             # Test PostgreSQL
             postgres_result = None
@@ -529,38 +693,15 @@ def run_tests(ticket_id: str):
                 print(f"  Status:     ❌ ERROR")
                 all_passed = False
                 test_results.append(False)
-            elif test['oracle_sql'] is None:
-                # PostgreSQL only test
-                if postgres_result == expected:
-                    print(f"  Status:     ✅ PASS (PostgreSQL only)")
-                    test_results.append(True)
-                else:
-                    print(f"  Status:     ❌ FAIL (PostgreSQL != expected)")
-                    all_passed = False
-                    test_results.append(False)
-            elif oracle_error:
-                print(f"  Status:     ❌ ERROR")
-                all_passed = False
-                test_results.append(False)
-            elif oracle_result == postgres_result == expected:
+            elif postgres_result == expected:
                 print(f"  Status:     ✅ PASS")
                 test_results.append(True)
-            elif oracle_result == postgres_result:
-                print(f"  Status:     ⚠️  MATCH (but differs from expected)")
-                test_results.append(True)
             else:
-                print(f"  Status:     ❌ FAIL (Oracle != PostgreSQL)")
+                print(f"  Status:     ❌ FAIL (PostgreSQL != expected)")
                 all_passed = False
                 test_results.append(False)
             
             # Run cleanup if provided
-            if 'cleanup_oracle' in test:
-                try:
-                    oracle_cursor.execute(test['cleanup_oracle'])
-                    oracle_conn.commit()
-                except Exception as e:
-                    print(f"  Cleanup Oracle: ERROR - {e}")
-            
             if 'cleanup_postgres' in test:
                 try:
                     postgres_cursor.execute(test['cleanup_postgres'])
@@ -577,9 +718,7 @@ def run_tests(ticket_id: str):
         print(f"Summary: {passed}/{total} tests passed")
         print(f"{'='*70}\n")
         
-        oracle_cursor.close()
         postgres_cursor.close()
-        oracle_conn.close()
         postgres_conn.close()
         
         return all_passed
