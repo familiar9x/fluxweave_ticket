@@ -129,18 +129,26 @@ Gọi pkPrint.insertData với composite type:
 RETURN pkconstant.SUCCESS; -> RETURN pkconstant.success();
 RETURN pkconstant.FATAL; -> RETURN pkconstant.fatal();
 
+
 Dynamic SQL chứa Oracle (+) outer join syntax (15 chỗ)
 PostgreSQL không support (+), cần convert sang LEFT JOIN. ví dụ: FROM H03
 LEFT OUTER JOIN WT03 ON (H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD AND H03.MGR_CD = WT03.MGR_CD). 
+
+Nested function -> Tách thành function/procedure top-level và truyền tham số
+
+
 
 
 IMPORTANT: PLEASE MAKE SURE TO EXECUTE EACH FUNCTION/PROCEDURES AND ENSURE IT FUNCTION CORRECTLY.
 
 Make sure that the function does not return 99, if it is, debug by using `raise notice` to identify and resolve the cause.
 For input, query MGR_KIHON table for data
-Nested function
+Nested function -> Tách thành function/procedure top-level và truyền tham số
 
 The generator should be already fixing this, but if it missed anything, please convert nested function so that it's prefixed with parent function name. Example: https://github.com/weaveio/jip-ipa/blob/main/db/plsql/ipa/issueAgent/newRecordReserve/ip00101/sfIpMgrKihonValidate.sql#L810
+-> Tách thành function/procedure top-level và truyền tham số
+
+
 Requirements
 
 Migrate the codes by starting with the generarted codes. Used the generated codes, fix any issues, and then compiled to make sure there are no error and that table or view is created.

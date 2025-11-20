@@ -600,6 +600,337 @@ END $$;
                 'expected': 0  # Should return 0 (no data means empty report, not error)
             }
         ]
+    },
+    'kvfv-2258': {
+        'name': 'SPIPJ212K00R02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Redemption schedule list - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipj212k00r02('TESTUSER', '0005', '20250101', '20251231', 
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                        v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # NODATA when no matching records
+            }
+        ]
+    },
+    'hewu-5707': {
+        'name': 'SPIPP004K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Payment notification (real record number management) - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp004k00r01('TESTUSER', '0005', '20250101', '20251231', 
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                        v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS (compiles and executes correctly)
+            }
+        ]
+    },
+    'meay-0788': {
+        'name': 'SPIPP007K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Counterparty holdings list - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp007k00r01('0005', 'TESTUSER', '1', '20250119',
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                        v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS (compiles and executes correctly)
+            }
+        ]
+    },
+    'nddn-4945': {
+        'name': 'SPIPK004K00R02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Coexisting issue balance change detail - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL rh_mufg_ipa.spipk004k00r02(
+        '1',           -- l_inShasaiFlg: all special bonds
+        '',            -- l_inHktCd
+        '',            -- l_inKozaTenCd
+        '',            -- l_inKozaTenCifCd
+        '',            -- l_inMgrCd
+        '',            -- l_inIsinCd
+        '',            -- l_inJtkKbn
+        '20250101',    -- l_inGnrbaraiFYmd
+        '20250228',    -- l_inGnrbaraiTYmd
+        '01',          -- l_inItakuKaishaCd
+        'testuser',    -- l_inUserId (8 chars max)
+        '1',           -- l_inChohyoKbn
+        to_char(current_date, 'YYYYMMDD'),  -- l_inGyomuYmd
+        v_code,
+        v_msg
+    );
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # NODATA when no matching records
+            }
+        ]
+    },
+    'vkem-0740': {
+        'name': 'SPIPI062K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Sales office fee schedule - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipi062k00r01('202501', '', '0005', 'TESTUSER', '1', '20250119', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS (compiles and executes correctly)
+            }
+        ]
+    },
+    'gnwx-5345': {
+        'name': 'SPIPI062K00R01_01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Sales office fee schedule detail - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipi062k00r01_01('202501', '', '0005', 'TESTUSER', '1', '20250119', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS (compiles and executes correctly)
+            }
+        ]
+    },
+    'rtfn-1141': {
+        'name': 'SPIPK004K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Coexisting issue balance report - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code numeric;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipk004k00r01(
+        '1',           -- l_inShasaiFlg: all special bonds
+        '202501',      -- l_inKijunYm
+        '',            -- l_inHktCd
+        '',            -- l_inKozaTenCd
+        '',            -- l_inKozaTenCifCd
+        '',            -- l_inMgrCd
+        '',            -- l_inIsinCd
+        '',            -- l_inJtkKbn
+        '01',          -- l_inItakuKaishaCd
+        'TESTUSER',    -- l_inUserId
+        '1',           -- l_inChohyoKbn
+        '20250119',    -- l_inGyomuYmd
+        v_code,
+        v_msg
+    );
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS (compiles and executes correctly)
+            }
+        ]
+    },
+    'bwag-4459': {
+        'name': 'SPIPP001K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Redemption annual table (real record number management) - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp001k00r01('0005', 'TESTUSER', '1', '', '', '202501', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS (compiles and executes correctly)
+            }
+        ]
+    },
+    'jcdv-2426': {
+        'name': 'SPIPP002K00R01_02',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Bond register (real record number method) - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp002k00r01_02('0005', '20250119', 'TESTUSER', '1', '20250119', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # NODATA when no matching records
+            }
+        ]
+    },
+    'wjkw-5194': {
+        'name': 'SPIPP003K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Redemption record number notification (real record number management) - success',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp003k00r01('0005', 'TESTUSER', '1', '202501', '20250119', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS
+            }
+        ]
+    },
+    'tbrp-6197': {
+        'name': 'SPIPP005K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Principal and interest payment list by settlement method - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp005k00r01('0005', 'TESTUSER', '1', '202501', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # NODATA when no matching records
+            }
+        ]
+    },
+    'qcmk-4653': {
+        'name': 'SPIPP006K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Counterparty principal and interest transfer list - no data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp006k00r01('0005', 'TESTUSER', '1', '202501', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 2  # NODATA when no matching records
+            }
+        ]
+    },
+    'qgej-4446': {
+        'name': 'SPIPP012K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Bond denomination comparison table - success',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp012k00r01('0005', 'TESTUSER', '1', '', '', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS
+            }
+        ]
+    },
+    'nvyf-5009': {
+        'name': 'SPIPP017K00R01',
+        'type': 'procedure',
+        'tests': [
+            {
+                'description': 'Bond denomination management table - success',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    DELETE FROM SREPORT_WK WHERE user_id='TESTUSER';
+    CALL spipp017k00r01('0005', 'TESTUSER', '1', '', '', '202501', v_code, v_msg);
+    RAISE NOTICE 'Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': 0  # SUCCESS
+            }
+        ]
     }
 }
 
