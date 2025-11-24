@@ -130,7 +130,7 @@ RETURN pkconstant.SUCCESS; -> RETURN pkconstant.success();
 RETURN pkconstant.FATAL; -> RETURN pkconstant.fatal();
 
 
-Dynamic SQL chứa Oracle (+) outer join syntax (15 chỗ)
+Dynamic SQL chứa Oracle (+) outer join 
 PostgreSQL không support (+), cần convert sang LEFT JOIN. ví dụ: FROM H03
 LEFT OUTER JOIN WT03 ON (H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD AND H03.MGR_CD = WT03.MGR_CD). 
 

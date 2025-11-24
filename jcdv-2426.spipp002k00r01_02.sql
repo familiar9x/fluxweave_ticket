@@ -3,7 +3,8 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spipp002k00r01_02 ( l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE,            -- 委託会社コード
+CREATE OR REPLACE PROCEDURE spipp002k00r01_02 ( 
+	l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE,            -- 委託会社コード
  l_inGyomuYmd SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE, -- 業務日付
  l_inUserId SREPORT_WK.USER_ID%TYPE,           -- ユーザーＩＤ
  l_inChohyoKbn SREPORT_WK.CHOHYO_KBN%TYPE,        -- 帳票区分
@@ -345,7 +346,7 @@ BEGIN
 			l_inSakuseiYmd	=> l_inGyomuYmd,
 			l_inChohyoId	=> C_CHOHYO_SOUFU_ID,
 			l_inSeqNo		=> gSeqNo::integer,
-			l_inHeaderFlg	=> 1,
+			l_inHeaderFlg	=> '1',
 			l_inItem		=> v_item,
 			l_inKousinId	=> l_inUserId,
 			l_inSakuseiId	=> l_inUserId
@@ -512,7 +513,7 @@ BEGIN
 			l_inSakuseiYmd	=> l_inGyomuYmd,
 		l_inChohyoId	=> C_CHOHYO_GENBO_ID,
 			l_inSeqNo		=> gSeqNo::integer,
-			l_inHeaderFlg	=> 0,
+			l_inHeaderFlg	=> '0',
 			l_inItem		=> v_item,
 			l_inKousinId	=> l_inUserId,
 			l_inSakuseiId	=> l_inUserId
@@ -546,7 +547,7 @@ BEGIN
 			l_inSakuseiYmd	=> l_inGyomuYmd,
 		l_inChohyoId	=> C_CHOHYO_GENBO_ID,
 		l_inSeqNo		=> gSeqNo::integer,
-		l_inHeaderFlg	=> 1,
+		l_inHeaderFlg	=> '1',
 			l_inItem		=> v_item,
 			l_inKousinId	=> l_inUserId,
 			l_inSakuseiId	=> l_inUserId

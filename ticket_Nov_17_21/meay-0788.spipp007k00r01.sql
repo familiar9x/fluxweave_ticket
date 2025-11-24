@@ -260,7 +260,7 @@ BEGIN
 					l_inSakuseiYmd => gGyomuYmd,
 					l_inChohyoId   => C_CHOHYO_ID,
 					l_inSeqNo      => gSeqNo::integer,
-					l_inHeaderFlg  => 1,
+					l_inHeaderFlg  => '1',
 					l_inItem       => v_item,
 					l_inKousinId   => l_inUserId,
 					l_inSakuseiId  => l_inUserId
@@ -298,7 +298,7 @@ BEGIN
 			l_inSakuseiYmd => gGyomuYmd,
 			l_inChohyoId   => C_CHOHYO_ID,
 			l_inSeqNo      => gSeqNo::integer,
-			l_inHeaderFlg  => 1,
+			l_inHeaderFlg  => '1',
 			l_inItem       => v_item,
 			l_inKousinId   => l_inUserId,
 			l_inSakuseiId  => l_inUserId
@@ -336,7 +336,7 @@ BEGIN
 			l_inSakuseiYmd => gGyomuYmd,
 			l_inChohyoId   => C_CHOHYO_ID,
 			l_inSeqNo      => gSeqNo::integer,
-			l_inHeaderFlg  => 1,
+			l_inHeaderFlg  => '1',
 			l_inItem       => v_item,
 			l_inKousinId   => l_inUserId,
 			l_inSakuseiId  => l_inUserId

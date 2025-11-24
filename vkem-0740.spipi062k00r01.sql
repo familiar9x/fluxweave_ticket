@@ -3,13 +3,14 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spipi062k00r01 ( l_inKijunYm CHAR,			--基準年月
- l_inEigyotenCd CHAR,		--営業店コード
- l_inItakuKaishaCd CHAR,		--委託会社コード
- l_inUserId CHAR,		--ユーザーID
- l_inChohyoKbn CHAR,		--帳票区分
- l_inGyomuYmd CHAR,		--業務日付
- l_outSqlCode OUT numeric,		--リターン値
+CREATE OR REPLACE PROCEDURE spipi062k00r01 ( 
+	l_inKijunYm TEXT,			--基準年月
+ l_inEigyotenCd TEXT,		--営業店コード
+ l_inItakuKaishaCd TEXT,		--委託会社コード
+ l_inUserId TEXT,		--ユーザーID
+ l_inChohyoKbn TEXT,		--帳票区分
+ l_inGyomuYmd TEXT,		--業務日付
+ l_outSqlCode OUT integer,		--リターン値
  l_outSqlErrM OUT text	--エラーコメント
  ) AS $body$
 DECLARE

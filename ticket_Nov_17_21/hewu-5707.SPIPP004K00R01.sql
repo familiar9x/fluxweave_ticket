@@ -3,7 +3,8 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spipp004k00r01 ( l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE,     -- 委託会社コード
+CREATE OR REPLACE PROCEDURE spipp004k00r01 ( 
+	l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE,     -- 委託会社コード
  l_inUserId SREPORT_WK.USER_ID%TYPE,    -- ユーザーＩＤ
  l_inChohyoKbn SREPORT_WK.CHOHYO_KBN%TYPE, -- 帳票区分
  l_inMgrCd MGR_KIHON.MGR_CD%TYPE,      -- 銘柄コード
@@ -550,7 +551,7 @@ BEGIN
 					l_inSakuseiYmd => gGyomuYmd,
 					l_inChohyoId   => C_REPORT_ID,
 					l_inSeqNo      => gSeqNo::integer,
-					l_inHeaderFlg  => 1,
+					l_inHeaderFlg  => '1',
 					l_inItem       => v_item,
 					l_inKousinId   => l_inUserId,
 					l_inSakuseiId  => l_inUserId
@@ -623,7 +624,7 @@ BEGIN
 				l_inSakuseiYmd => gGyomuYmd,
 				l_inChohyoId   => C_REPORT_ID,
 				l_inSeqNo      => gSeqNo::integer,
-				l_inHeaderFlg  => 1,
+				l_inHeaderFlg  => '1',
 				l_inItem       => v_item,
 				l_inKousinId   => l_inUserId,
 				l_inSakuseiId  => l_inUserId
@@ -792,7 +793,7 @@ BEGIN
 			l_inSakuseiYmd => gGyomuYmd,
 			l_inChohyoId   => C_REPORT_ID,
 			l_inSeqNo      => gSeqNo::integer,
-			l_inHeaderFlg  => 1,
+			l_inHeaderFlg  => '1',
 			l_inItem       => v_item,
 			l_inKousinId   => l_inUserId,
 			l_inSakuseiId  => l_inUserId

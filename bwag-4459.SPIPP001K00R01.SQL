@@ -3,7 +3,8 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spipp001k00r01 ( l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE,     -- 委託会社コード
+CREATE OR REPLACE PROCEDURE spipp001k00r01 ( 
+    l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE,     -- 委託会社コード
  l_inUserId SREPORT_WK.USER_ID%TYPE,    -- ユーザーＩＤ
  l_inChohyoKbn SREPORT_WK.CHOHYO_KBN%TYPE, -- 帳票区分
  l_inMgrCd MGR_KIHON.MGR_CD%TYPE,      -- 銘柄コード
@@ -48,6 +49,7 @@ DECLARE
 	--==============================================================================
 	--                  変数定義                                                    
 	--==============================================================================
+	v_item type_sreport_wk_item;						-- Composite type for pkPrint.insertData
 	gSeqNo              numeric;                            -- シーケンス
 	gSeqStartA          numeric;                            -- シーケンス開始（更新用Ａ）
 	gSeqEndA            numeric;                            -- シーケンス終了（更新用Ａ）
@@ -62,12 +64,12 @@ DECLARE
 	gProKenshuCd        numeric;                            -- 券種コード（編集用）
 	gProMgrNm           MGR_KIHON.MGR_NM%TYPE;             -- 銘柄名称(正式 OR 略称)（編集用）
 	gNoDataFlg          char(1);                           -- 対象データなし作成フラグ('0'：作成しない '1'：作成する)
-	-- 券種情報 (converted to arrays)
-	gKKenshuCd          numeric[];                         -- 券種コード array
-	gKMaisu             numeric[];                         -- 枚数 array
-	gKRishigakuFirst    numeric[];                         -- 利子額（初期）array
-	gKRishigakuMid      numeric[];                         -- 利子額（通常）array
-	gKRishigakuLast     numeric[];                         -- 利子額（終期）array
+	-- 券種情報 (arrays)
+	gKKenshuCd          numeric[];                         -- 券種コード
+	gKMaisu             numeric[];                         -- 枚数
+	gKRishigakuFirst    numeric[];                         -- 利子額（初期）
+	gKRishigakuMid      numeric[];                         -- 利子額（通常）
+	gKRishigakuLast     numeric[];                         -- 利子額（終期）
 	gKKbgShokanKindNm   SCODE.CODE_NM%TYPE;                -- 償還種類名称
 	gKCnt               numeric;                            -- カウント（券種用）
 	-- 読込データ
@@ -368,12 +370,6 @@ BEGIN
 	gSeqEndB            := 0;   -- シーケンス終了（更新用Ｂ）
 	gBreakHktCd         := ' '; -- 発行体コード（ブレイク確認用）
 	gBreakIsinCd        := ' '; --ＩＳＩＮコード（ブレイク確認用）
-	-- Initialize arrays (5 elements for 0-4 index)
-	gKKenshuCd          := ARRAY[NULL, NULL, NULL, NULL, NULL]::numeric[];
-	gKMaisu             := ARRAY[NULL, NULL, NULL, NULL, NULL]::numeric[];
-	gKRishigakuFirst    := ARRAY[NULL, NULL, NULL, NULL, NULL]::numeric[];
-	gKRishigakuMid      := ARRAY[NULL, NULL, NULL, NULL, NULL]::numeric[];
-	gKRishigakuLast     := ARRAY[NULL, NULL, NULL, NULL, NULL]::numeric[];
 	-- ヘッダレコードを追加
 	CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, gGyomuYmd, C_CHOHYO_ID);
 	-- データ読込
@@ -427,7 +423,17 @@ BEGIN
 				gKibangoTo := recMeisai.KIBANGO_TO;
 			ELSE
 				-- 登録前編集 ＋ 帳票ワーク登録処理
-				CALL SPIPP001K00R01_insertData();
+				CALL SPIPP001K00R01_insertData(
+					l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, gGyomuYmd, C_CHOHYO_ID, gItakuKaishaRnm, gMgrFlg,
+					gSeqNo, gNo, gSeqStartA, gSeqEndA, gSeqStartB, gSeqEndB, gMunitGensaiKngkSum, gKCnt,
+					gBreakHktCd, gBreakIsinCd, gBreakShokanKjt, gBreakShokanYmd, gBreakKbgShokanKbn,
+					gItakuKaishaCd, gMgrCd, gHktCd, gIsinCd, gShokanKjt, gShokanYmd, gKbgShokanKbn,
+					gMunitGensaiKngk, gKenshuCd, gKibangoFrom, gKibangoTo, gSensatsuNo,
+					gMgrNm, gMgrRnm, gHakkoYmd, gRiritsu, gFullshokanKjt, gShasaiTotal, gKakushasaiKngk,
+					gHakkoTsukaNm, gShokanTsukaNm, gHktRnm, gJtkKbnNm, gKbgShokanKbnNm, gFurikaesogaku,
+					gKknChokyuKjt, gKknChokyuYmd,
+					gKKenshuCd, gKMaisu, gKRishigakuFirst, gKRishigakuMid, gKRishigakuLast, gKKbgShokanKindNm
+				);
 				-- ブレイク確認用変数へ格納
 				gBreakHktCd        := gHktCd;        -- 発行体コード
 				gBreakIsinCd       := gIsinCd;       -- ＩＳＩＮコード
@@ -516,95 +522,122 @@ BEGIN
 				-- 対象データなし作成フラグ・オフ
 				gNoDataFlg := '0';
 				-- 銘柄名称(正式 OR 略称)編集
-				CALL SPIPP001K00R01_setMgrNm();
+				CALL SPIPP001K00R01_setMgrNm(gMgrFlg, gMgrNm, gMgrRnm, gProMgrNm);
 				-- 帳票ワーク登録
-				CALL pkPrint.SPIPP001K00R01_insertData(
-					l_inKeyCd      => l_inItakuKaishaCd,   -- 識別コード
-					l_inUserId     => l_inUserId,          -- ユーザＩＤ
-					l_inChohyoKbn  => l_inChohyoKbn,       -- 帳票区分
-					l_inSakuseiYmd => gGyomuYmd,           -- 作成日付
-					l_inChohyoId   => C_CHOHYO_ID,         -- 帳票ＩＤ
-					l_inSeqNo      => gSeqNo,              -- シーケンス
-					l_inHeaderFlg  => 1,                   -- ヘッダフラグ
-					l_inItem001    => gItakuKaishaRnm,     -- 委託会社略名
-					l_inItem002    => l_inUserId,          -- ユーザーＩＤ
-					l_inItem003    => gMgrCd,              -- 銘柄コード
-					l_inItem004    => gProMgrNm,           -- 銘柄名称(正式 OR 略称)
-					l_inItem005    => gIsinCd,             -- ＩＳＩＮコード
-					l_inItem006    => gHktCd,              -- 発行体コード
-					l_inItem007    => gHktRnm,             -- 発行体略称
-					l_inItem008    => gJtkKbnNm,           -- 受託区分名称
-					l_inItem009    => gHakkoYmd,           -- 発行年月日
-					l_inItem010    => gHakkoTsukaNm,       -- 発行通貨名称
-					l_inItem011    => gRiritsu,            -- 利率
-					l_inItem012    => gShokanTsukaNm,      -- 償還通貨名称
-					l_inItem013    => gKKbgShokanKindNm,   -- 償還種類名称
-					l_inItem014    => gFullshokanKjt,      -- 満期償還期日
-					l_inItem017    => gShasaiTotal,        -- 社債の総額
-					l_inItem018    => gFurikaesogaku,      -- 振替金額
-					l_inItem019    => gKakushasaiKngk,     -- 各社債の金額
-					l_inItem020    => gKKenshuCd[0+1],       -- 券種コード１
-					l_inItem021    => gKMaisu[0+1],          -- 枚数１
-					l_inItem022    => gKRishigakuFirst[0+1], -- 利子額（初期）１
-					l_inItem023    => gKRishigakuMid[0+1],   -- 利子額（通常）１
-					l_inItem024    => gKRishigakuLast[0+1],  -- 利子額（終期）１
-					l_inItem025    => gKKenshuCd[1+1],       -- 券種コード２
-					l_inItem026    => gKMaisu[1+1],          -- 枚数２
-					l_inItem027    => gKRishigakuFirst[1+1], -- 利子額（初期）２
-					l_inItem028    => gKRishigakuMid[1+1],   -- 利子額（通常）２
-					l_inItem029    => gKRishigakuLast[1+1],  -- 利子額（終期）２
-					l_inItem030    => gKKenshuCd[2+1],       -- 券種コード３
-					l_inItem031    => gKMaisu[2+1],          -- 枚数３
-					l_inItem032    => gKRishigakuFirst[2+1], -- 利子額（初期）３
-					l_inItem033    => gKRishigakuMid[2+1],   -- 利子額（通常）３
-					l_inItem034    => gKRishigakuLast[2+1],  -- 利子額（終期）３
-					l_inItem035    => gKKenshuCd[3+1],       -- 券種コード４
-					l_inItem036    => gKMaisu[3+1],          -- 枚数４
-					l_inItem037    => gKRishigakuFirst[3+1], -- 利子額（初期）４
-					l_inItem038    => gKRishigakuMid[3+1],   -- 利子額（通常）４
-					l_inItem039    => gKRishigakuLast[3+1],  -- 利子額（終期）４
-					l_inItem040    => gKKenshuCd[4+1],       -- 券種コード５
-					l_inItem041    => gKMaisu[4+1],          -- 枚数５
-					l_inItem042    => gKRishigakuFirst[4+1], -- 利子額（初期）５
-					l_inItem043    => gKRishigakuMid[4+1],   -- 利子額（通常）５
-					l_inItem044    => gKRishigakuLast[4+1],  -- 利子額（終期）５
-					l_inItem055    => C_CHOHYO_ID,         -- 帳票ＩＤ
-					l_inKousinId   => l_inUserId,          -- 更新者
-					l_inSakuseiId  => l_inUserId            -- 作成者
-				);
+						-- Clear composite type
+		v_item := ROW();
+		
+		v_item.l_inItem001 := gItakuKaishaRnm;	-- 委託会社略名
+		v_item.l_inItem002 := l_inUserId;	-- ユーザーＩＤ
+		v_item.l_inItem003 := gMgrCd;	-- 銘柄コード
+		v_item.l_inItem004 := gProMgrNm;	-- 銘柄名称(正式 OR 略称)
+		v_item.l_inItem005 := gIsinCd;	-- ＩＳＩＮコード
+		v_item.l_inItem006 := gHktCd;	-- 発行体コード
+		v_item.l_inItem007 := gHktRnm;	-- 発行体略称
+		v_item.l_inItem008 := gJtkKbnNm;	-- 受託区分名称
+		v_item.l_inItem009 := gHakkoYmd;	-- 発行年月日
+		v_item.l_inItem010 := gHakkoTsukaNm;	-- 発行通貨名称
+		v_item.l_inItem011 := gRiritsu;	-- 利率
+		v_item.l_inItem012 := gShokanTsukaNm;	-- 償還通貨名称
+		v_item.l_inItem013 := gKKbgShokanKindNm;	-- 償還種類名称
+		v_item.l_inItem014 := gFullshokanKjt;	-- 満期償還期日
+		v_item.l_inItem017 := gShasaiTotal;	-- 社債の総額
+		v_item.l_inItem018 := gFurikaesogaku;	-- 振替金額
+		v_item.l_inItem019 := gKakushasaiKngk;	-- 各社債の金額
+		v_item.l_inItem020 := gKKenshuCd[0+1];	-- 券種コード１
+		v_item.l_inItem021 := gKMaisu[0+1];	-- 枚数１
+		v_item.l_inItem022 := gKRishigakuFirst[0+1];	-- 利子額（初期）１
+		v_item.l_inItem023 := gKRishigakuMid[0+1];	-- 利子額（通常）１
+		v_item.l_inItem024 := gKRishigakuLast[0+1];	-- 利子額（終期）１
+		v_item.l_inItem025 := gKKenshuCd[1+1];	-- 券種コード２
+		v_item.l_inItem026 := gKMaisu[1+1];	-- 枚数２
+		v_item.l_inItem027 := gKRishigakuFirst[1+1];	-- 利子額（初期）２
+		v_item.l_inItem028 := gKRishigakuMid[1+1];	-- 利子額（通常）２
+		v_item.l_inItem029 := gKRishigakuLast[1+1];	-- 利子額（終期）２
+		v_item.l_inItem030 := gKKenshuCd[2+1];	-- 券種コード３
+		v_item.l_inItem031 := gKMaisu[2+1];	-- 枚数３
+		v_item.l_inItem032 := gKRishigakuFirst[2+1];	-- 利子額（初期）３
+		v_item.l_inItem033 := gKRishigakuMid[2+1];	-- 利子額（通常）３
+		v_item.l_inItem034 := gKRishigakuLast[2+1];	-- 利子額（終期）３
+		v_item.l_inItem035 := gKKenshuCd[3+1];	-- 券種コード４
+		v_item.l_inItem036 := gKMaisu[3+1];	-- 枚数４
+		v_item.l_inItem037 := gKRishigakuFirst[3+1];	-- 利子額（初期）４
+		v_item.l_inItem038 := gKRishigakuMid[3+1];	-- 利子額（通常）４
+		v_item.l_inItem039 := gKRishigakuLast[3+1];	-- 利子額（終期）４
+		v_item.l_inItem040 := gKKenshuCd[4+1];	-- 券種コード５
+		v_item.l_inItem041 := gKMaisu[4+1];	-- 枚数５
+		v_item.l_inItem042 := gKRishigakuFirst[4+1];	-- 利子額（初期）５
+		v_item.l_inItem043 := gKRishigakuMid[4+1];	-- 利子額（通常）５
+		v_item.l_inItem044 := gKRishigakuLast[4+1];	-- 利子額（終期）５
+		v_item.l_inItem055 := C_CHOHYO_ID;	-- 帳票ＩＤ
+		
+		-- Call pkPrint.insertData with composite type
+		CALL pkPrint.insertData(
+			l_inKeyCd		=> l_inItakuKaishaCd,
+			l_inUserId		=> l_inUserId,
+			l_inChohyoKbn	=> l_inChohyoKbn,
+			l_inSakuseiYmd	=> gGyomuYmd,
+			l_inChohyoId	=> C_CHOHYO_ID,
+			l_inSeqNo		=> gSeqNo::integer,
+			l_inHeaderFlg	=> 1,
+			l_inItem		=> v_item,
+			l_inKousinId	=> l_inUserId,
+			l_inSakuseiId	=> l_inUserId
+		);
 			END IF;
 		END IF;
 		-- 対象データなし作成フラグがオンの時
 		IF gNoDataFlg = '1' THEN
 			-- 帳票ワーク登録
-			CALL pkPrint.SPIPP001K00R01_insertData(
-				l_inKeyCd      => l_inItakuKaishaCd, -- 識別コード
-				l_inUserId     => l_inUserId,        -- ユーザＩＤ
-				l_inChohyoKbn  => l_inChohyoKbn,     -- 帳票区分
-				l_inSakuseiYmd => gGyomuYmd,         -- 作成日付
-				l_inChohyoId   => C_CHOHYO_ID,       -- 帳票ＩＤ
-				l_inSeqNo      => gSeqNo,            -- シーケンス
-				l_inHeaderFlg  => 1,                 -- ヘッダフラグ
-				l_inItem001    => gItakuKaishaRnm,   -- 委託会社略名
-				l_inItem002    => l_inUserId,        -- ユーザーＩＤ
-				l_inItem055    => C_CHOHYO_ID,       -- 帳票ＩＤ
-				l_inItem057    => '対象データなし',  -- 対象データなし
-				l_inKousinId   => l_inUserId,        -- 更新者
-				l_inSakuseiId  => l_inUserId          -- 作成者
-			);
+					-- Clear composite type
+		v_item := ROW();
+		
+		v_item.l_inItem001 := gItakuKaishaRnm;	-- 委託会社略名
+		v_item.l_inItem002 := l_inUserId;	-- ユーザーＩＤ
+		v_item.l_inItem055 := C_CHOHYO_ID;	-- 帳票ＩＤ
+		v_item.l_inItem057 := '対象データなし';	-- 対象データなし
+		
+		-- Call pkPrint.insertData with composite type
+		CALL pkPrint.insertData(
+			l_inKeyCd		=> l_inItakuKaishaCd,
+			l_inUserId		=> l_inUserId,
+			l_inChohyoKbn	=> l_inChohyoKbn,
+			l_inSakuseiYmd	=> gGyomuYmd,
+			l_inChohyoId	=> C_CHOHYO_ID,
+			l_inSeqNo		=> gSeqNo::integer,
+			l_inHeaderFlg	=> 1,
+			l_inItem		=> v_item,
+			l_inKousinId	=> l_inUserId,
+			l_inSakuseiId	=> l_inUserId
+		);
 		END IF;
 	-- 読込データが存在する時
 	ELSE
 		-- 登録前編集 ＋ 帳票ワーク登録処理
-		CALL SPIPP001K00R01_insertData();
+		CALL SPIPP001K00R01_insertData(
+			l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, gGyomuYmd, C_CHOHYO_ID, gItakuKaishaRnm, gMgrFlg,
+			gSeqNo, gNo, gSeqStartA, gSeqEndA, gSeqStartB, gSeqEndB, gMunitGensaiKngkSum, gKCnt,
+			gBreakHktCd, gBreakIsinCd, gBreakShokanKjt, gBreakShokanYmd, gBreakKbgShokanKbn,
+			gItakuKaishaCd, gMgrCd, gHktCd, gIsinCd, gShokanKjt, gShokanYmd, gKbgShokanKbn,
+			gMunitGensaiKngk, gKenshuCd, gKibangoFrom, gKibangoTo, gSensatsuNo,
+			gMgrNm, gMgrRnm, gHakkoYmd, gRiritsu, gFullshokanKjt, gShasaiTotal, gKakushasaiKngk,
+			gHakkoTsukaNm, gShokanTsukaNm, gHktRnm, gJtkKbnNm, gKbgShokanKbnNm, gFurikaesogaku,
+			gKknChokyuKjt, gKknChokyuYmd,
+			gKKenshuCd, gKMaisu, gKRishigakuFirst, gKRishigakuMid, gKRishigakuLast, gKKbgShokanKindNm
+		);
 		-- 帳票ワーク更新
-		CALL SPIPP001K00R01_updateWorkA();
-		CALL SPIPP001K00R01_updateWorkB();
+		CALL SPIPP001K00R01_updateWorkA(
+			l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, gGyomuYmd, C_CHOHYO_ID,
+			gSeqNo, gSeqStartA, gSeqEndA, gNo
+		);
+		CALL SPIPP001K00R01_updateWorkB(
+			l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, gGyomuYmd, C_CHOHYO_ID,
+			gSeqNo, gSeqStartB, gSeqEndB, gMunitGensaiKngkSum
+		);
 	END IF;
 	-- 正常終了
 	l_outSqlCode := pkconstant.success();
 	l_outSqlErrM := '';
-	-- Arrays are automatically freed at end of procedure block
 -- エラー処理
 EXCEPTION
 	WHEN OTHERS THEN
@@ -623,142 +656,245 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spipp001k00r01_insertdata () AS $body$
+CREATE OR REPLACE PROCEDURE spipp001k00r01_insertdata(
+	-- Main parameters
+	IN  p_itaku_kaisha_cd SREPORT_WK.KEY_CD%TYPE,
+	IN  p_user_id         SREPORT_WK.USER_ID%TYPE,
+	IN  p_chohyo_kbn      SREPORT_WK.CHOHYO_KBN%TYPE,
+	IN  p_gyomu_ymd       SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE,
+	IN  p_chohyo_id       SREPORT_WK.CHOHYO_ID%TYPE,
+	IN  p_itaku_kaisha_rnm SOWN_INFO.BANK_RNM%TYPE,
+	IN  p_mgr_flg         MPROCESS_CTL.CTL_VALUE%TYPE,
+	-- State variables (INOUT)
+	INOUT p_seq_no        numeric,
+	INOUT p_no            numeric,
+	INOUT p_seq_start_a   numeric,
+	INOUT p_seq_end_a     numeric,
+	INOUT p_seq_start_b   numeric,
+	INOUT p_seq_end_b     numeric,
+	INOUT p_munit_gensai_kngk_sum numeric,
+	INOUT p_k_cnt         numeric,
+	-- Break check variables (INOUT)
+	INOUT p_break_hkt_cd        MGR_KIHON.HKT_CD%TYPE,
+	INOUT p_break_isin_cd       MGR_KIHON.ISIN_CD%TYPE,
+	INOUT p_break_shokan_kjt    KBG_SHOKIJ.SHOKAN_KJT%TYPE,
+	INOUT p_break_shokan_ymd    KBG_SHOKIJ.SHOKAN_YMD%TYPE,
+	INOUT p_break_kbg_shokan_kbn KBG_SHOKIJ.KBG_SHOKAN_KBN%TYPE,
+	-- Current data (IN)
+	IN  p_itaku_kaisha_cd_data KBG_SHOKIJ.ITAKU_KAISHA_CD%TYPE,
+	IN  p_mgr_cd          KBG_SHOKIJ.MGR_CD%TYPE,
+	IN  p_hkt_cd          MGR_KIHON.HKT_CD%TYPE,
+	IN  p_isin_cd         MGR_KIHON.ISIN_CD%TYPE,
+	IN  p_shokan_kjt      KBG_SHOKIJ.SHOKAN_KJT%TYPE,
+	IN  p_shokan_ymd      KBG_SHOKIJ.SHOKAN_YMD%TYPE,
+	IN  p_kbg_shokan_kbn  KBG_SHOKIJ.KBG_SHOKAN_KBN%TYPE,
+	IN  p_munit_gensai_kngk KBG_SHOKIJ.MUNIT_GENSAI_KNGK%TYPE,
+	IN  p_kenshu_cd       KBG_SHOKBG.KENSHU_CD%TYPE,
+	IN  p_kibango_from    KBG_SHOKBG.KIBANGO_FROM%TYPE,
+	IN  p_kibango_to      KBG_SHOKBG.KIBANGO_TO%TYPE,
+	IN  p_sensatsu_no     KBG_SHOKBG.SENSATSU_NO%TYPE,
+	IN  p_mgr_nm          MGR_KIHON.MGR_NM%TYPE,
+	IN  p_mgr_rnm         MGR_KIHON.MGR_RNM%TYPE,
+	IN  p_hakko_ymd       MGR_KIHON.HAKKO_YMD%TYPE,
+	IN  p_riritsu         MGR_KIHON.RIRITSU%TYPE,
+	IN  p_fullshokan_kjt  MGR_KIHON.FULLSHOKAN_KJT%TYPE,
+	IN  p_shasai_total    MGR_KIHON.SHASAI_TOTAL%TYPE,
+	IN  p_kakushasai_kngk MGR_KIHON.KAKUSHASAI_KNGK%TYPE,
+	IN  p_hakko_tsuka_nm  MTSUKA.TSUKA_NM%TYPE,
+	IN  p_shokan_tsuka_nm MTSUKA.TSUKA_NM%TYPE,
+	IN  p_hkt_rnm         MHAKKOTAI.HKT_RNM%TYPE,
+	IN  p_jtk_kbn_nm      SCODE.CODE_NM%TYPE,
+	IN  p_kbg_shokan_kbn_nm SCODE.CODE_NM%TYPE,
+	IN  p_furikaesogaku   numeric,
+	IN  p_kkn_chokyu_kjt  KBG_SHOKIJ.KKN_CHOKYU_KJT%TYPE,
+	IN  p_kkn_chokyu_ymd  KBG_SHOKIJ.KKN_CHOKYU_YMD%TYPE,
+	-- Kenshu arrays (INOUT)
+	INOUT p_k_kenshu_cd          numeric[],
+	INOUT p_k_maisu              numeric[],
+	INOUT p_k_rishigaku_first    numeric[],
+	INOUT p_k_rishigaku_mid      numeric[],
+	INOUT p_k_rishigaku_last     numeric[],
+	INOUT p_k_kbg_shokan_kind_nm SCODE.CODE_NM%TYPE
+) AS $body$
+DECLARE
+	recKenshuA RECORD;
+	v_pro_kenshu_cd numeric;
+	v_pro_mgr_nm MGR_KIHON.MGR_NM%TYPE;
+	v_item TYPE_SREPORT_WK_ITEM;
 BEGIN
 	-- 初回でなく、
 	-- 発行体コード又はＩＳＩＮコード又は
 	-- 償還期日又は償還日又は
 	-- 償還区分（実質記番号用）がブレイク時
-	IF gSeqNo != 1 THEN
-		IF gBreakHktCd != gHktCd
-		OR gBreakIsinCd != gIsinCd
-		OR gBreakShokanKjt != gShokanKjt
-		OR gBreakShokanYmd != gShokanYmd
-		OR gBreakKbgShokanKbn != gKbgShokanKbn THEN
+	IF p_seq_no != 1 THEN
+		IF p_break_hkt_cd != p_hkt_cd
+		OR p_break_isin_cd != p_isin_cd
+		OR p_break_shokan_kjt != p_shokan_kjt
+		OR p_break_shokan_ymd != p_shokan_ymd
+		OR p_break_kbg_shokan_kbn != p_kbg_shokan_kbn THEN
 			-- 帳票ワーク更新
-			CALL updateWorkA();
-			IF gBreakHktCd = gHktCd
-			AND gBreakIsinCd = gIsinCd THEN
+			CALL spipp001k00r01_updateworka(
+				p_itaku_kaisha_cd,
+				p_user_id,
+				p_chohyo_kbn,
+				p_gyomu_ymd,
+				p_chohyo_id,
+				p_seq_no,
+				p_seq_start_a,
+				p_seq_end_a,
+				p_no
+			);
+			IF p_break_hkt_cd = p_hkt_cd
+			AND p_break_isin_cd = p_isin_cd THEN
 				-- ナンバー
-				gNo := gNo + 1;
+				p_no := p_no + 1;
 				-- 銘柄単位元本減債金額（合計）
-				gMunitGensaiKngkSum := gMunitGensaiKngkSum + gMunitGensaiKngk;
+				p_munit_gensai_kngk_sum := p_munit_gensai_kngk_sum + p_munit_gensai_kngk;
 			ELSE
 				-- 帳票ワーク更新
-				CALL updateWorkB();
+				CALL spipp001k00r01_updateworkb(
+					p_itaku_kaisha_cd,
+					p_user_id,
+					p_chohyo_kbn,
+					p_gyomu_ymd,
+					p_chohyo_id,
+					p_seq_no,
+					p_seq_start_b,
+					p_seq_end_b,
+					p_munit_gensai_kngk_sum
+				);
 				-- ナンバー
-				gNo := 1;
+				p_no := 1;
 				-- 銘柄単位元本減債金額（合計）
-				gMunitGensaiKngkSum := gMunitGensaiKngk;
+				p_munit_gensai_kngk_sum := p_munit_gensai_kngk;
 			END IF;
 		END IF;
 	END IF;
 	-- 発行体コード又はＩＳＩＮコードがブレイク時
-	IF gBreakHktCd != gHktCd
-	OR gBreakIsinCd != gIsinCd THEN
+	IF p_break_hkt_cd != p_hkt_cd
+	OR p_break_isin_cd != p_isin_cd THEN
 		-- 変数初期化
-		FOR gKCnt IN 0..4 LOOP
-			gKKenshuCd[gKCnt+1]       := NULL; -- 券種コード
-			gKMaisu[gKCnt+1]          := NULL; -- 枚数
-			gKRishigakuFirst[gKCnt+1] := NULL; -- 利子額（初期）
-			gKRishigakuMid[gKCnt+1]   := NULL; -- 利子額（通常）
-			gKRishigakuLast[gKCnt+1]  := NULL; -- 利子額（終期）
+		FOR p_k_cnt IN 0..4 LOOP
+			p_k_kenshu_cd[p_k_cnt+1]       := NULL; -- 券種コード
+			p_k_maisu[p_k_cnt+1]          := NULL; -- 枚数
+			p_k_rishigaku_first[p_k_cnt+1] := NULL; -- 利子額（初期）
+			p_k_rishigaku_mid[p_k_cnt+1]   := NULL; -- 利子額（通常）
+			p_k_rishigaku_last[p_k_cnt+1]  := NULL; -- 利子額（終期）
 		END LOOP;
 		-- 償還種類名称
-		gKKbgShokanKindNm := NULL;
+		p_k_kbg_shokan_kind_nm := NULL;
 		-- カウント（券種用）
-		gKCnt := 0;
+		p_k_cnt := 0;
 		-- 券種情報取得
-		FOR recKenshuA IN curKenshuA
+		FOR recKenshuA IN 
+			SELECT
+				KENSHU_CD,
+				MAISU,
+				RISHIGAKU_FIRST,
+				RISHIGAKU_MID,
+				RISHIGAKU_LAST,
+				(SELECT CODE_NM FROM SCODE WHERE CODE_SHUBETSU = '227' AND CODE_VALUE = KBG_SHOKAN_KIND) AS KBG_SHOKAN_KIND_NM
+			FROM KBG_KENSHU
+			WHERE ITAKU_KAISHA_CD = p_itaku_kaisha_cd_data AND MGR_CD = p_mgr_cd
+			ORDER BY KENSHU_CD
 		LOOP
-			gKKenshuCd[gKCnt+1]       := recKenshuA.KENSHU_CD / 1000;   -- 券種コード
-			gKMaisu[gKCnt+1]          := recKenshuA.MAISU;              -- 枚数
-			gKRishigakuFirst[gKCnt+1] := recKenshuA.RISHIGAKU_FIRST;    -- 利子額（初期）
-			gKRishigakuMid[gKCnt+1]   := recKenshuA.RISHIGAKU_MID;      -- 利子額（通常）
-			gKRishigakuLast[gKCnt+1]  := recKenshuA.RISHIGAKU_LAST;     -- 利子額（終期）
-			gKKbgShokanKindNm       := recKenshuA.KBG_SHOKAN_KIND_NM; -- 償還種類名称
+			p_k_kenshu_cd[p_k_cnt+1]       := recKenshuA.KENSHU_CD / 1000;   -- 券種コード
+			p_k_maisu[p_k_cnt+1]          := recKenshuA.MAISU;              -- 枚数
+			p_k_rishigaku_first[p_k_cnt+1] := recKenshuA.RISHIGAKU_FIRST;    -- 利子額（初期）
+			p_k_rishigaku_mid[p_k_cnt+1]   := recKenshuA.RISHIGAKU_MID;      -- 利子額（通常）
+			p_k_rishigaku_last[p_k_cnt+1]  := recKenshuA.RISHIGAKU_LAST;     -- 利子額（終期）
+			p_k_kbg_shokan_kind_nm       := recKenshuA.KBG_SHOKAN_KIND_NM; -- 償還種類名称
 			-- カウント（券種用）のカウントアップ
-			gKCnt := gKCnt + 1;
+			p_k_cnt := p_k_cnt + 1;
 		END LOOP;
 	END IF;
 	-- 券種コード編集
-	IF gKenshuCd = 0 THEN
-		gProKenshuCd := 0;
+	IF p_kenshu_cd = 0 THEN
+		v_pro_kenshu_cd := 0;
 	ELSE
-		gProKenshuCd := gKenshuCd / 1000;
+		v_pro_kenshu_cd := p_kenshu_cd / 1000;
 	END IF;
 	-- 銘柄名称(正式 OR 略称)編集
-	CALL setMgrNm();
-	-- 帳票ワーク登録
-	CALL pkPrint.SPIPP001K00R01_insertData(
-		l_inKeyCd      => l_inItakuKaishaCd,   -- 識別コード
-		l_inUserId     => l_inUserId,          -- ユーザＩＤ
-		l_inChohyoKbn  => l_inChohyoKbn,       -- 帳票区分
-		l_inSakuseiYmd => gGyomuYmd,           -- 作成日付
-		l_inChohyoId   => C_CHOHYO_ID,         -- 帳票ＩＤ
-		l_inSeqNo      => gSeqNo,              -- シーケンス
-		l_inHeaderFlg  => 1,                   -- ヘッダフラグ
-		l_inItem001    => gItakuKaishaRnm,     -- 委託会社略名
-		l_inItem002    => l_inUserId,          -- ユーザーＩＤ
-		l_inItem003    => gMgrCd,              -- 銘柄コード
-		l_inItem004    => gProMgrNm,           -- 銘柄名称(正式 OR 略称)
-		l_inItem005    => gIsinCd,             -- ＩＳＩＮコード
-		l_inItem006    => gHktCd,              -- 発行体コード
-		l_inItem007    => gHktRnm,             -- 発行体略称
-		l_inItem008    => gJtkKbnNm,           -- 受託区分名称
-		l_inItem009    => gHakkoYmd,           -- 発行年月日
-		l_inItem010    => gHakkoTsukaNm,       -- 発行通貨名称
-		l_inItem011    => gRiritsu,            -- 利率
-		l_inItem012    => gShokanTsukaNm,      -- 償還通貨名称
-		l_inItem013    => gKKbgShokanKindNm,   -- 償還種類名称
-		l_inItem014    => gFullshokanKjt,      -- 満期償還期日
-		l_inItem015    => gKbgShokanKbn,       -- 償還区分（実質記番号用）
-		l_inItem016    => gKbgShokanKbnNm,     -- 償還区分名称
-		l_inItem017    => gShasaiTotal,        -- 社債の総額
-		l_inItem018    => gFurikaesogaku,      -- 振替金額
-		l_inItem019    => gKakushasaiKngk,     -- 各社債の金額
-		l_inItem020    => gKKenshuCd[0+1],       -- 券種コード１
-		l_inItem021    => gKMaisu[0+1],          -- 枚数１
-		l_inItem022    => gKRishigakuFirst[0+1], -- 利子額（初期）１
-		l_inItem023    => gKRishigakuMid[0+1],   -- 利子額（通常）１
-		l_inItem024    => gKRishigakuLast[0+1],  -- 利子額（終期）１
-		l_inItem025    => gKKenshuCd[1+1],       -- 券種コード２
-		l_inItem026    => gKMaisu[1+1],          -- 枚数２
-		l_inItem027    => gKRishigakuFirst[1+1], -- 利子額（初期）２
-		l_inItem028    => gKRishigakuMid[1+1],   -- 利子額（通常）２
-		l_inItem029    => gKRishigakuLast[1+1],  -- 利子額（終期）２
-		l_inItem030    => gKKenshuCd[2+1],       -- 券種コード３
-		l_inItem031    => gKMaisu[2+1],          -- 枚数３
-		l_inItem032    => gKRishigakuFirst[2+1], -- 利子額（初期）３
-		l_inItem033    => gKRishigakuMid[2+1],   -- 利子額（通常）３
-		l_inItem034    => gKRishigakuLast[2+1],  -- 利子額（終期）３
-		l_inItem035    => gKKenshuCd[3+1],       -- 券種コード４
-		l_inItem036    => gKMaisu[3+1],          -- 枚数４
-		l_inItem037    => gKRishigakuFirst[3+1], -- 利子額（初期）４
-		l_inItem038    => gKRishigakuMid[3+1],   -- 利子額（通常）４
-		l_inItem039    => gKRishigakuLast[3+1],  -- 利子額（終期）４
-		l_inItem040    => gKKenshuCd[4+1],       -- 券種コード５
-		l_inItem041    => gKMaisu[4+1],          -- 枚数５
-		l_inItem042    => gKRishigakuFirst[4+1], -- 利子額（初期）５
-		l_inItem043    => gKRishigakuMid[4+1],   -- 利子額（通常）５
-		l_inItem044    => gKRishigakuLast[4+1],  -- 利子額（終期）５
-		-- 45はナンバー（後で更新）
-		l_inItem046    => gShokanKjt,          -- 償還期日
-		l_inItem047    => gShokanYmd,          -- 償還日
-		l_inItem048    => gKknChokyuKjt,       -- 基金徴求期日
-		l_inItem049    => gKknChokyuYmd,       -- 基金徴求日
-		l_inItem050    => gMunitGensaiKngk,    -- 銘柄単位元本減債金額
-		l_inItem051    => gProKenshuCd,        -- 券種コード
-		l_inItem052    => gKibangoFrom,        -- 記番号FROM
-		l_inItem053    => gKibangoTo,          -- 記番号TO
-		l_inItem054    => gSensatsuNo,         -- 籤札番号
-		l_inItem055    => C_CHOHYO_ID,         -- 帳票ＩＤ
-		-- 56は銘柄単位元本減債金額（合計）（後で更新）
-		l_inKousinId   => l_inUserId,          -- 更新者
-		l_inSakuseiId  => l_inUserId            -- 作成者
+	CALL spipp001k00r01_setmgrnm(
+		p_mgr_flg,
+		p_mgr_nm,
+		p_mgr_rnm,
+		v_pro_mgr_nm
 	);
+	-- 帳票ワーク登録
+			-- Clear composite type
+		v_item := ROW();
+		
+		v_item.l_inItem001 := p_itaku_kaisha_rnm;	-- 委託会社略名
+		v_item.l_inItem002 := p_user_id;	-- ユーザーＩＤ
+		v_item.l_inItem003 := p_mgr_cd;	-- 銘柄コード
+		v_item.l_inItem004 := v_pro_mgr_nm;	-- 銘柄名称(正式 OR 略称)
+		v_item.l_inItem005 := p_isin_cd;	-- ＩＳＩＮコード
+		v_item.l_inItem006 := p_hkt_cd;	-- 発行体コード
+		v_item.l_inItem007 := p_hkt_rnm;	-- 発行体略称
+		v_item.l_inItem008 := p_jtk_kbn_nm;	-- 受託区分名称
+		v_item.l_inItem009 := p_hakko_ymd;	-- 発行年月日
+		v_item.l_inItem010 := p_hakko_tsuka_nm;	-- 発行通貨名称
+		v_item.l_inItem011 := p_riritsu;	-- 利率
+		v_item.l_inItem012 := p_shokan_tsuka_nm;	-- 償還通貨名称
+		v_item.l_inItem013 := p_k_kbg_shokan_kind_nm;	-- 償還種類名称
+		v_item.l_inItem014 := p_fullshokan_kjt;	-- 満期償還期日
+		v_item.l_inItem015 := p_kbg_shokan_kbn;	-- 償還区分（実質記番号用）
+		v_item.l_inItem016 := p_kbg_shokan_kbn_nm;	-- 償還区分名称
+		v_item.l_inItem017 := p_shasai_total;	-- 社債の総額
+		v_item.l_inItem018 := p_furikaesogaku;	-- 振替金額
+		v_item.l_inItem019 := p_kakushasai_kngk;	-- 各社債の金額
+		v_item.l_inItem020 := p_k_kenshu_cd[1];	-- 券種コード１
+		v_item.l_inItem021 := p_k_maisu[1];	-- 枚数１
+		v_item.l_inItem022 := p_k_rishigaku_first[1];	-- 利子額（初期）１
+		v_item.l_inItem023 := p_k_rishigaku_mid[1];	-- 利子額（通常）１
+		v_item.l_inItem024 := p_k_rishigaku_last[1];	-- 利子額（終期）１
+		v_item.l_inItem025 := p_k_kenshu_cd[2];	-- 券種コード２
+		v_item.l_inItem026 := p_k_maisu[2];	-- 枚数２
+		v_item.l_inItem027 := p_k_rishigaku_first[2];	-- 利子額（初期）２
+		v_item.l_inItem028 := p_k_rishigaku_mid[2];	-- 利子額（通常）２
+		v_item.l_inItem029 := p_k_rishigaku_last[2];	-- 利子額（終期）２
+		v_item.l_inItem030 := p_k_kenshu_cd[3];	-- 券種コード３
+		v_item.l_inItem031 := p_k_maisu[3];	-- 枚数３
+		v_item.l_inItem032 := p_k_rishigaku_first[3];	-- 利子額（初期）３
+		v_item.l_inItem033 := p_k_rishigaku_mid[3];	-- 利子額（通常）３
+		v_item.l_inItem034 := p_k_rishigaku_last[3];	-- 利子額（終期）３
+		v_item.l_inItem035 := p_k_kenshu_cd[4];	-- 券種コード４
+		v_item.l_inItem036 := p_k_maisu[4];	-- 枚数４
+		v_item.l_inItem037 := p_k_rishigaku_first[4];	-- 利子額（初期）４
+		v_item.l_inItem038 := p_k_rishigaku_mid[4];	-- 利子額（通常）４
+		v_item.l_inItem039 := p_k_rishigaku_last[4];	-- 利子額（終期）４
+		v_item.l_inItem040 := p_k_kenshu_cd[5];	-- 券種コード５
+		v_item.l_inItem041 := p_k_maisu[5];	-- 枚数５
+		v_item.l_inItem042 := p_k_rishigaku_first[5];	-- 利子額（初期）５
+		v_item.l_inItem043 := p_k_rishigaku_mid[5];	-- 利子額（通常）５
+		v_item.l_inItem044 := p_k_rishigaku_last[5];	-- 利子額（終期）５
+		v_item.l_inItem046 := p_shokan_kjt;	-- 償還期日
+		v_item.l_inItem047 := p_shokan_ymd;	-- 償還日
+		v_item.l_inItem048 := p_kkn_chokyu_kjt;	-- 基金徴求期日
+		v_item.l_inItem049 := p_kkn_chokyu_ymd;	-- 基金徴求日
+		v_item.l_inItem050 := p_munit_gensai_kngk;	-- 銘柄単位元本減債金額
+		v_item.l_inItem051 := v_pro_kenshu_cd;	-- 券種コード
+		v_item.l_inItem052 := p_kibango_from;	-- 記番号FROM
+		v_item.l_inItem053 := p_kibango_to;	-- 記番号TO
+		v_item.l_inItem054 := p_sensatsu_no;	-- 籤札番号
+		v_item.l_inItem055 := p_chohyo_id;	-- 帳票ＩＤ
+		
+		-- Call pkPrint.insertData with composite type
+		CALL pkPrint.insertData(
+			l_inKeyCd		=> p_itaku_kaisha_cd,
+			l_inUserId		=> p_user_id,
+			l_inChohyoKbn	=> p_chohyo_kbn,
+			l_inSakuseiYmd	=> p_gyomu_ymd,
+			l_inChohyoId	=> p_chohyo_id,
+			l_inSeqNo		=> p_seq_no::integer,
+			l_inHeaderFlg	=> 1,
+			l_inItem		=> v_item,
+			l_inKousinId	=> p_user_id,
+			l_inSakuseiId	=> p_user_id
+		);
 	-- シーケンスのカウントアップ
-	gSeqNo := gSeqNo + 1;
+	p_seq_no := p_seq_no + 1;
 END;
 $body$
 LANGUAGE PLPGSQL
@@ -769,37 +905,46 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spipp001k00r01_setmgrnm (
-	INOUT gMgrFlg character(1),
-	IN gMgrNm character varying(100),
-	IN gMgrRnm character varying(50),
-	INOUT gProMgrNm character varying(100)
+CREATE OR REPLACE PROCEDURE spipp001k00r01_setmgrnm(
+	IN  p_mgr_flg MPROCESS_CTL.CTL_VALUE%TYPE,
+	IN  p_mgr_nm  MGR_KIHON.MGR_NM%TYPE,
+	IN  p_mgr_rnm MGR_KIHON.MGR_RNM%TYPE,
+	OUT p_pro_mgr_nm MGR_KIHON.MGR_NM%TYPE
 ) AS $body$
 BEGIN
-	IF gMgrFlg = '1' THEN
-		gProMgrNm := SUBSTR(gMgrNm, 1, 50);
+	IF p_mgr_flg = '1' THEN
+		p_pro_mgr_nm := SUBSTR(p_mgr_nm, 1, 50);
 	ELSE
-		gProMgrNm := gMgrRnm;
+		p_pro_mgr_nm := p_mgr_rnm;
 	END IF;
---		pkLog.debug(l_inUserId, C_PROGRAM_ID, C_PROGRAM_ID || '銘柄名称(正式 OR 略称):' || gProMgrNm);
 END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spipp001k00r01_setmgrnm (INOUT gMgrFlg character(1), IN gMgrNm character varying(100), IN gMgrRnm character varying(50), INOUT gProMgrNm character varying(100)) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spipp001k00r01_setmgrnm (IN p_mgr_flg, IN p_mgr_nm, IN p_mgr_rnm, OUT p_pro_mgr_nm) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE PROCEDURE spipp001k00r01_updateworka () AS $body$
+CREATE OR REPLACE PROCEDURE spipp001k00r01_updateworka(
+	IN  p_itaku_kaisha_cd SREPORT_WK.KEY_CD%TYPE,
+	IN  p_user_id         SREPORT_WK.USER_ID%TYPE,
+	IN  p_chohyo_kbn      SREPORT_WK.CHOHYO_KBN%TYPE,
+	IN  p_gyomu_ymd       SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE,
+	IN  p_chohyo_id       SREPORT_WK.CHOHYO_ID%TYPE,
+	INOUT p_seq_no        numeric,
+	INOUT p_seq_start_a   numeric,
+	INOUT p_seq_end_a     numeric,
+	IN p_no            numeric
+) AS $body$
 BEGIN
 	-- 更新シーケンス設定
-	gSeqStartA := gSeqEndA + 1; -- シーケンス開始（更新用Ａ）
-	gSeqEndA := gSeqNo - 1;     -- シーケンス終了（更新用Ａ）
+	p_seq_start_a := p_seq_end_a + 1; -- シーケンス開始（更新用Ａ）
+	p_seq_end_a := p_seq_no - 1;     -- シーケンス終了（更新用Ａ）
 	-- 更新処理
 	UPDATE SREPORT_WK SET
-		ITEM045 = gNo,                               -- ナンバー
+		ITEM045 = p_no,                               -- ナンバー
 		ITEM013 = coalesce(ITEM013, ' '),                 -- 償還種類名称
 		ITEM020 = coalesce(ITEM020, ' '),                 -- 券種コード１
 		ITEM021 = coalesce(ITEM021, ' '),                 -- 枚数１
@@ -831,39 +976,49 @@ BEGIN
 		ITEM053 = CASE WHEN ITEM051='0' THEN  ' '  ELSE ITEM053 END , -- 記番号TO   → 券種が0の時は空にする
 		ITEM054 = CASE WHEN ITEM051='0' THEN  ' '  ELSE ITEM054 END   -- 籤札番号   → 券種が0の時は空にする
 	WHERE
-		KEY_CD = l_inItakuKaishaCd
-		AND USER_ID = l_inUserId
-		AND CHOHYO_KBN = l_inChohyoKbn
-		AND SAKUSEI_YMD = gGyomuYmd
-		AND CHOHYO_ID = C_CHOHYO_ID
-		AND SEQ_NO BETWEEN gSeqStartA AND gSeqEndA;
+		KEY_CD = p_itaku_kaisha_cd
+		AND USER_ID = p_user_id
+		AND CHOHYO_KBN = p_chohyo_kbn
+		AND SAKUSEI_YMD = p_gyomu_ymd
+		AND CHOHYO_ID = p_chohyo_id
+		AND SEQ_NO BETWEEN p_seq_start_a AND p_seq_end_a;
 END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spipp001k00r01_updateworka () FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spipp001k00r01_updateworka (IN p_itaku_kaisha_cd, IN p_user_id, IN p_chohyo_kbn, IN p_gyomu_ymd, IN p_chohyo_id, INOUT p_seq_no, INOUT p_seq_start_a, INOUT p_seq_end_a, IN p_no) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE PROCEDURE spipp001k00r01_updateworkb () AS $body$
+CREATE OR REPLACE PROCEDURE spipp001k00r01_updateworkb(
+	IN  p_itaku_kaisha_cd SREPORT_WK.KEY_CD%TYPE,
+	IN  p_user_id         SREPORT_WK.USER_ID%TYPE,
+	IN  p_chohyo_kbn      SREPORT_WK.CHOHYO_KBN%TYPE,
+	IN  p_gyomu_ymd       SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE,
+	IN  p_chohyo_id       SREPORT_WK.CHOHYO_ID%TYPE,
+	INOUT p_seq_no        numeric,
+	INOUT p_seq_start_b   numeric,
+	INOUT p_seq_end_b     numeric,
+	IN p_munit_gensai_kngk_sum numeric
+) AS $body$
 BEGIN
 	-- 更新シーケンス設定
-	gSeqStartB := gSeqEndB + 1; -- シーケンス開始（更新用Ｂ）
-	gSeqEndB := gSeqNo - 1;     -- シーケンス終了（更新用Ｂ）
+	p_seq_start_b := p_seq_end_b + 1; -- シーケンス開始（更新用Ｂ）
+	p_seq_end_b := p_seq_no - 1;     -- シーケンス終了（更新用Ｂ）
 	-- 更新処理
 	UPDATE SREPORT_WK SET
-		ITEM056 = gMunitGensaiKngkSum::text  -- 銘柄単位元本減債金額（合計）
+		ITEM056 = p_munit_gensai_kngk_sum::text  -- 銘柄単位元本減債金額（合計）
 	WHERE
-		KEY_CD = l_inItakuKaishaCd
-		AND USER_ID = l_inUserId
-		AND CHOHYO_KBN = l_inChohyoKbn
-		AND SAKUSEI_YMD = gGyomuYmd
-		AND CHOHYO_ID = C_CHOHYO_ID
-		AND SEQ_NO BETWEEN gSeqStartB AND gSeqEndB;
+		KEY_CD = p_itaku_kaisha_cd
+		AND USER_ID = p_user_id
+		AND CHOHYO_KBN = p_chohyo_kbn
+		AND SAKUSEI_YMD = p_gyomu_ymd
+		AND CHOHYO_ID = p_chohyo_id
+		AND SEQ_NO BETWEEN p_seq_start_b AND p_seq_end_b;
 END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spipp001k00r01_updateworkb () FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spipp001k00r01_updateworkb (IN p_itaku_kaisha_cd, IN p_user_id, IN p_chohyo_kbn, IN p_gyomu_ymd, IN p_chohyo_id, INOUT p_seq_no, INOUT p_seq_start_b, INOUT p_seq_end_b, IN p_munit_gensai_kngk_sum) FROM PUBLIC;
