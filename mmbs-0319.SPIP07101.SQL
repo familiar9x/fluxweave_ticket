@@ -3,21 +3,21 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spip07101 ( l_inUserId CHAR,		-- ユーザーID
- l_inItakuKaishaCd CHAR,		-- 委託会社コード
- l_inGnrBaraiKjtF CHAR,		-- ⑫左 元利払期日(FROM)
- l_inGnrBaraiKjtT CHAR,		-- ⑫右 元利払期日(TO)
- l_inHktCd CHAR,		-- ①   発行体コード
- l_inKozaTenCd CHAR,		-- ②   口座店店番   
- l_inKozaTenCifCd CHAR,		-- ③   口座店ＣIＦコード
- l_inMgrCd CHAR,		-- ④   銘柄コード  
- l_inIsinCd CHAR,		-- ⑤   ＩＳＩＮコード
- l_inJtkKbn CHAR,		-- ⑥   受託区分
- l_inSaikenShurui CHAR,		-- ⑦   債券種類
- l_inKkKanyoFlg CHAR,		-- ⑧   機構関与方式採用フラグ
- l_inShokanMethodCd CHAR,		-- ⑨   償還方法
- l_inTeijiShokanTsutiKbn CHAR,		-- ⑩   定時償還通知区分
- l_inJiyuu CHAR,		-- ⑪   事由
+CREATE OR REPLACE PROCEDURE spip07101 ( l_inUserId TEXT,		-- ユーザーID
+ l_inItakuKaishaCd TEXT,		-- 委託会社コード
+ l_inGnrBaraiKjtF TEXT,		-- ⑫左 元利払期日(FROM)
+ l_inGnrBaraiKjtT TEXT,		-- ⑫右 元利払期日(TO)
+ l_inHktCd TEXT,		-- ①   発行体コード
+ l_inKozaTenCd TEXT,		-- ②   口座店店番   
+ l_inKozaTenCifCd TEXT,		-- ③   口座店ＣIＦコード
+ l_inMgrCd TEXT,		-- ④   銘柄コード  
+ l_inIsinCd TEXT,		-- ⑤   ＩＳＩＮコード
+ l_inJtkKbn TEXT,		-- ⑥   受託区分
+ l_inSaikenShurui TEXT,		-- ⑦   債券種類
+ l_inKkKanyoFlg TEXT,		-- ⑧   機構関与方式採用フラグ
+ l_inShokanMethodCd TEXT,		-- ⑨   償還方法
+ l_inTeijiShokanTsutiKbn TEXT,		-- ⑩   定時償還通知区分
+ l_inJiyuu TEXT,		-- ⑪   事由
  l_outSqlCode OUT numeric,		-- リターン値
  l_outSqlErrM OUT text	-- エラーコメント
  ) AS $body$
@@ -27,23 +27,23 @@ DECLARE
 -- * 著作権:Copyright(c)2004
 -- * 会社名:JIP
 -- * 概要　:業務帳票出力指示画面の入力条件により、償還予定銘柄一覧表を作成する。
--- * 引数　:  l_inUserId				IN	CHAR,		-- ユーザーID
--- *			l_inItakuKaishaCd		IN	CHAR,		-- 委託会社コード
--- *			l_inGnrBaraiKjtF		IN	CHAR,		-- ⑫ 元利払期日(FROM)
--- *			l_inGnrBaraiKjtT		IN	CHAR,		-- ⑫ 元利払期日(TO)
--- *			l_inHktCd				IN	CHAR,		-- ① 発行体コード
--- *			l_inKozaTenCd			IN	CHAR,		-- ② 口座店店番   
--- *			l_inKozaTenCifCd		IN	CHAR,		-- ③ 口座店ＣIＦコード
--- *			l_inMgrCd				IN	CHAR,		-- ④ 銘柄コード  
--- *			l_inIsinCd				IN	CHAR,		-- ⑤ ＩＳＩＮコード
--- *			l_inJtkKbn				IN	CHAR,		-- ⑥ 受託区分
--- *			l_inSaikenShurui		IN	CHAR,		-- ⑦ 債券種類
--- *			l_inKkKanyoFlg			IN	CHAR,		-- ⑧ 機構関与方式採用フラグ
--- *			l_inShokanMethodCd		IN	CHAR,		-- ⑨ 償還方法
--- *			l_inTeijiShokanTsutiKbn	IN	CHAR,		-- ⑩ 定時償還通知区分
--- *			l_inJiyuu				IN	CHAR,		-- ⑪ 事由
+-- * 引数　:  l_inUserId				IN	TEXT,		-- ユーザーID
+-- *			l_inItakuKaishaCd		IN	TEXT,		-- 委託会社コード
+-- *			l_inGnrBaraiKjtF		IN	TEXT,		-- ⑫ 元利払期日(FROM)
+-- *			l_inGnrBaraiKjtT		IN	TEXT,		-- ⑫ 元利払期日(TO)
+-- *			l_inHktCd				IN	TEXT,		-- ① 発行体コード
+-- *			l_inKozaTenCd			IN	TEXT,		-- ② 口座店店番   
+-- *			l_inKozaTenCifCd		IN	TEXT,		-- ③ 口座店ＣIＦコード
+-- *			l_inMgrCd				IN	TEXT,		-- ④ 銘柄コード  
+-- *			l_inIsinCd				IN	TEXT,		-- ⑤ ＩＳＩＮコード
+-- *			l_inJtkKbn				IN	TEXT,		-- ⑥ 受託区分
+-- *			l_inSaikenShurui		IN	TEXT,		-- ⑦ 債券種類
+-- *			l_inKkKanyoFlg			IN	TEXT,		-- ⑧ 機構関与方式採用フラグ
+-- *			l_inShokanMethodCd		IN	TEXT,		-- ⑨ 償還方法
+-- *			l_inTeijiShokanTsutiKbn	IN	TEXT,		-- ⑩ 定時償還通知区分
+-- *			l_inJiyuu				IN	TEXT,		-- ⑪ 事由
 -- *			l_outSqlCode				OUT	INTEGER		リターン値
--- *			l_outSqlErrM				OUT	VARCHAR2	エラーコメント
+-- *			l_outSqlErrM				OUT	VARCHAR	エラーコメント
 -- *			返り値:なし
 -- * @version $Revision: 1.7 $
 -- *
@@ -118,4 +118,4 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip07101 ( l_inUserId CHAR, l_inItakuKaishaCd CHAR, l_inGnrBaraiKjtF CHAR, l_inGnrBaraiKjtT CHAR, l_inHktCd CHAR, l_inKozaTenCd CHAR, l_inKozaTenCifCd CHAR, l_inMgrCd CHAR, l_inIsinCd CHAR, l_inJtkKbn CHAR, l_inSaikenShurui CHAR, l_inKkKanyoFlg CHAR, l_inShokanMethodCd CHAR, l_inTeijiShokanTsutiKbn CHAR, l_inJiyuu CHAR, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spip07101 ( l_inUserId TEXT, l_inItakuKaishaCd TEXT, l_inGnrBaraiKjtF TEXT, l_inGnrBaraiKjtT TEXT, l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inIsinCd TEXT, l_inJtkKbn TEXT, l_inSaikenShurui TEXT, l_inKkKanyoFlg TEXT, l_inShokanMethodCd TEXT, l_inTeijiShokanTsutiKbn TEXT, l_inJiyuu TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;

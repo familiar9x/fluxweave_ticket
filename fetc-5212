@@ -1,0 +1,34 @@
+SQL (PLSQL): plsql/ipa/print/SPIP06701.SQL
+
+IMPORTANT: PLEASE MAKE SURE TO EXECUTE EACH FUNCTION/PROCEDURES AND ENSURE IT FUNCTION CORRECTLY.
+
+Make sure that the function does not return 99, if it is, debug by using `raise notice` to identify and resolve the cause.
+For input, query MGR_KIHON table for data
+Nested function
+
+The generator should be already fixing this, but if it missed anything, please convert nested function so that it's prefixed with parent function name. Example: https://github.com/weaveio/jip-ipa/blob/main/db/plsql/ipa/issueAgent/newRecordReserve/ip00101/sfIpMgrKihonValidate.sql#L810
+Requirements
+
+Migrate the codes by starting with the generarted codes. Used the generated codes, fix any issues, and then compiled to make sure there are no error and that table or view is created.
+Review the legacy codes to make sure that no functions/procedures are missed. This is important for nested functions/procedures as the generator may failed to generate all the functions. Look at the top level function in the as-is (i.e. the function name where the PLSQL file is named after) to make sure the generator generated it. If it does not, use the legacy codes and removed all of the nested function (only leave the body) and then use ora2pg (https://ora2pg.darold.net/documentation.html) tool to generate it. Please use https://github.com/weaveio/jip-ipa/blob/main/db/ora2pg.conf as configuration file for ora2pg.
+If you needed to convert type (e.g. NUMBER to NUMERIC), please make sure to convert the type correctly. NUMBER should be converted to NUMERIC (not INT, BIGINT, etc).
+There will be a lot of mixed types usage which is fined in Oracle but will not work in Postgres. For this, cast the type so that the expected type in the function work correctly (e.g. someText = 0 works in Oracle, but failed in Postgres, so to fix this, do someText = '0'). DO NOT change the type of the function (you may change type CHAR to VARCHAR if needed, but not CHAR(3) to VARCHAR for example). The reason that you can't change the type of the function is because the functions can be called at multiple places so if you updated the function, other places will failed.
+To convert NUMERIC, INT, etc to VARCHAR, please use pkcharacter.numeric_to_char function. This function will converted NUMERIC, INT, etc to the format that match Oracle.
+For Oracle functions that does not exists in Postgres, please use the oracle package/schema (e.g. there is no next_day function in Postgresl so use oracle.next_day). We added orafce that supported Oracle's function so feel free to use oracle.whatever(...)
+Fix substring function with negative index
+substr(str, -2) => substring(str from '.{2}$')
+substr(str, -3) => substring(str from '.{3}$')
+Fix array appending
+Oracle: x = array.extend; x[x.count] := ....;
+Postgres: x = array_append(x, null); x[cardinality(x)] := ...
+Please compile the script and ensure it compiled successfully.
+Please make sure to test by directly executing the function/procedure and ensure it does not have return code 99. If it does, debug by adding RAISE NOTICE message to track the cause. Once the issue is resolved, remove RAISE NOTICEs that you added
+Please update db/make_plsql.sql to include this file (using path relative to db folder).
+Sources and output
+
+Generated: generated/db_output_sql/main/plsql/ipa/print/SPIP06701.SQL
+Legacy: legacy/db/plsql/ipa/print/SPIP06701.SQL
+Save to: db/plsql/ipa/print/SPIP06701.SQL
+Example
+
+See db/plsql/ipa/issueAgent/newRecordReserve/ip00101/sfIpMgrKihonValidate.sql (one of the most complicated scripts with multiple nested functions/procedures)

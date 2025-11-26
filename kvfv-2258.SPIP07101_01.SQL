@@ -619,7 +619,7 @@ BEGIN
 			,l_inItem001		=>	l_inUserId							-- ユーザＩＤ
 			,l_inItem002		=>	l_inGnrBaraiKjtF					-- 入力元利払期日(FROM)
 			,l_inItem003		=>	l_inGnrBaraiKjtT					-- 入力元利払期日(TO)
---			,l_inItem004		=>	gJtkKbnNm							-- 受託区分名称
+			,l_inItem004		=>	gJtkKbnNm							-- 受託区分名称
 			,l_inItem004		=>	recMeisai.gJtkKbnNm					-- 受託区分名称
 			,l_inItem005		=>	gSeqNo								-- ＮＯ（1からの通し番号）
 			,l_inItem006		=>	recMeisai.gIsinCd					-- ＩＳＩＮコード

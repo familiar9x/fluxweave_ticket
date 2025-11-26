@@ -1,17 +1,15 @@
-1. Copy file từ legacy/generated
-2. ✨ RUN: fix_invalid_comments.sh    ← FIX TRƯỚC
-3. Compile lần 1 để xem errors
+Process to migrate each file:
+1. Copy file từ generated về file có tên: ticket.ten_file.sql
+2. ✨ RUN: fix_invalid_comments.sh    ← FIX data type
+3. Run convert_pkprint_calls.py để convert pkprint calls sang PostgreSQL syntax
 4. Fix %TYPE, arrays, nested procedures... ( theo rule ở dưới)
-5. Compile lần 2
-6. Test với Oracle, để lấy sample out put
-- them du lieu ve ticket vao 1_test_migration.py va chay thu
-7. Test lại vs PostgreSQL vs cùng tham số 
-6. Viết result và copy file kết quả vào thư mục ticket_*
-- Bao nhiêu row
-- Số case đã test
-7. DONE
+5. Deploy script lên PostgreSQL (0_db_postgres)
+6. Check error and continue to fix
+7. Test lại vs PostgreSQL ra 0 (thành công) hoặc 2 (không có data)
+8. Thêm test case vào 1_test_migration.py
 
 
+Rule:
 array.exists(cnt) => array [cnt] IS NOT NULL
 oid => ctid
 array.COUNT => coalesce (cardinality (array), 0))
@@ -21,10 +19,10 @@ UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ 
 SQLERRM(SQLCODE) => SQLERRM
 SQLCODE → SQLSTATE
 dont use CASCADE drop, just drop thing in order of dependencies
-%type (CHAR types) -> thành text
+
+When call function with OUT parameter -> select * into xxx from function(...); 
 
 gInvoiceTourokuNo		varchar(14)
-
 
 ko bao h cast text sang kieu khac
 CREATE OR REPLACE PROCEDURE spipf001k00r01 (
