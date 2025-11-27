@@ -3,51 +3,30 @@
 
 DROP TYPE IF EXISTS spipi050k00r01_type_record;
 CREATE TYPE spipi050k00r01_type_record AS (
-	gHktCd         char(6) -- 発行体コード
-	,
-	gSfskPostNo    char(7) -- 送付先郵便番号
-	,
-	gAdd1          varchar(50) -- 送付先住所１
-	,
-	gAdd2          varchar(50) -- 送付先住所２
-	,
-	gAdd3          varchar(50) -- 送付先住所３
-	,
-	gHktNm         varchar(100) -- 発行体名称
-	,
-	gSfskBushoNm   varchar(50) -- 送付先担当部署名称
-	,
-	gBankNm        varchar(50)  -- 銀行名称
-	,
-	gBushoNm1      varchar(50)  -- 担当部署名称１
-	,
-	gTsukaNm       char(3) -- 通貨名称
-	,
-	gIsinCd        char(12) -- ISINコード
-	,
-	gKokyakuMgrRnm varchar(52) -- 対顧用銘柄略称
-	,
-	gPreMnthZndk   decimal(16,2) -- 前月末残高
-	,
-	gNknKknKngk    decimal(16,2) -- 当月入金高_基金受入高
-	,
-	gNknOtherKngk  decimal(16,2) -- 当月入金高_その他
-	,
-	gSknGnrKngk    decimal(16,2) -- 当月出金高_元利金支払高
-	,
-	gSknTsrKngk    decimal(16,2) -- 当月出金高_同手数料
-	,
-	gSknKzKngk     decimal(16,2) -- 当月出金高_国税
-	,
-	gSknKknKngk    decimal(16,2) -- 当月出金高_基金返戻金
-	,
-	gSknOtherKngk  decimal(16,2) -- 当月出金高_その他
-	,
-	gTsukaCd       char(3)        -- 通貨コード
-	,
-	gMgrCd         varchar(13)          -- 銘柄コード
-	,gKozaTenCd    char(4)     -- 口座店コード
-	,gKozaTenCifcd char(11)  -- 口座店ＣＩＦコード
+	gHktCd         char(6), -- 発行体コード
+	gSfskPostNo    char(7), -- 送付先郵便番号
+	gAdd1          varchar(50), -- 送付先住所１
+	gAdd2          varchar(50), -- 送付先住所２
+	gAdd3          varchar(50), -- 送付先住所３
+	gHktNm         varchar(100), -- 発行体名称
+	gSfskBushoNm   varchar(50), -- 送付先担当部署名称
+	gBankNm        varchar(50),  -- 銀行名称
+	gBushoNm1      varchar(50),  -- 担当部署名称１
+	gTsukaNm       char(3), -- 通貨名称
+	gIsinCd        char(12), -- ISINコード
+	gKokyakuMgrRnm varchar(52), -- 対顧用銘柄略称
+	gPreMnthZndk   decimal(16,2), -- 前月末残高	
+	gNknKknKngk    decimal(16,2), -- 当月入金高_基金受入高
+	gNknOtherKngk  decimal(16,2), -- 当月入金高_その他		
+	gSknGnrKngk    decimal(16,2), -- 当月出金高_元利金支払高
+	gSknTsrKngk    decimal(16,2), -- 当月出金高_同手数料
+	gSknKzKngk     decimal(16,2), -- 当月出金高_国税
+	gSknKknKngk    decimal(16,2), -- 当月出金高_基金返戻金
+	gSknOtherKngk  decimal(16,2), -- 当月出金高_その他
+	gTsukaCd       char(3),        -- 通貨コード
+	gMgrCd         varchar(13),          -- 銘柄コード
+	gKozaTenCd    char(4),     -- 口座店コード
+	gKozaTenCifcd char(11)  -- 口座店ＣＩＦコード
 	);
 
 
@@ -123,6 +102,7 @@ DECLARE
 	-- カーソル
 	curMeisai REFCURSOR;
 	gRedOptionFlg TEXT;
+	v_item TYPE_SREPORT_WK_ITEM;
 	--==============================================================================
 	--                メイン処理                                                       
 	--==============================================================================
@@ -218,7 +198,7 @@ BEGIN
 	-- レッドプロジェクトオプションフラグ取得
 	gRedOptionFlg := pkControl.getOPTION_FLG(l_inItakuKaishaCd, 'REDPROJECT', '0');
   -- SQL編集
-  gSQL := SPIPI050K00R01_createSQL(l_inItakuKaishaCd, l_inHktCd, l_inKozaTenCd, l_inKozaTenCifCd, l_inMgrCd, l_inIsinCd, l_inKijunYm, gChohyoSortFlg, gRedOptionFlg);
+  gSQL := SPIPI050K00R01_createSQL(l_inItakuKaishaCd, l_inHktCd, l_inKozaTenCd, l_inKozaTenCifCd, l_inMgrCd, l_inIsinCd, l_inKijunYm, gChohyoSortFlg, gRedOptionFlg, gGyomuYm, l_inChohyoKbn);
   -- ヘッダレコードを追加
   IF DEBUG = 1 THEN
     CALL pkLog.debug(l_inUserId, REPORT_ID, 'ヘッダを作成します');
@@ -282,74 +262,45 @@ BEGIN
 		CALL pkLog.debug(l_inUserId, REPORT_ID, '銘柄コード = ' || recMeisai.gMgrCd);
 	END IF;
 	-- 帳票ワークへデータを追加
-	CALL pkPrint.insertData(l_inKeyCd      => l_inItakuKaishaCd  -- 識別コード
-					,
-					l_inUserId     => l_inUserId  -- ユーザＩＤ
-					,
-					l_inChohyoKbn  => l_inChohyoKbn  -- 帳票区分
-					,
-					l_inSakuseiYmd => l_inGyomuYmd  -- 作成年月日
-					,
-					l_inChohyoId   => REPORT_ID  -- 帳票ＩＤ
-					,
-					l_inSeqNo      => gSeqNo  -- 連番
-					,
-					l_inHeaderFlg  => '1' -- ヘッダフラグ
-					,
-					l_inItem001    => gWrkTsuchiYmd  -- 通知日
-					,
-					l_inItem002    => recMeisai.gHktCd  -- 発行体コード
-					,
-					l_inItem003    => recMeisai.gSfskPostNo  -- 送付先郵便番号
-					,
-					l_inItem004    => recMeisai.gAdd1 -- 送付先住所１
-					,
-					l_inItem005    => recMeisai.gAdd2 -- 送付先住所２
-					,
-					l_inItem006    => recMeisai.gAdd3 -- 送付先住所３
-					,
-					l_inItem007    => gAtena  -- 発行体名称１(御中込)
-					,
-					l_inItem008    => recMeisai.gBankNm  -- 銀行名称
-					,
-					l_inItem009    => recMeisai.gBushoNm1 -- 担当部署名称１
-					,
-					l_inItem010    => gBunsho  -- 請求文章
-					,
-					l_inItem011    => gWrkToriYm  -- 取扱年月
-					,
-					l_inItem012    => recMeisai.gTsukaNm  -- 通貨名称
-					,
-					l_inItem013    => recMeisai.gIsinCd  -- ISINコード
-					,
-					l_inItem014    => recMeisai.gKokyakuMgrRnm  -- 対顧用銘柄略称
-					,
-					l_inItem015    => recMeisai.gPreMnthZndk  -- 前月末残高
-					,
-					l_inItem016    => gMnthZndk  -- 当月末残高
-					,
-					l_inItem017    => recMeisai.gNknKknKngk  -- 当月入金高_基金受入高
-					,
-					l_inItem018    => recMeisai.gNknOtherKngk  -- 当月入金高_その他
-					,
-					l_inItem019    => recMeisai.gSknGnrKngk  -- 当月出金高_元利金支払高
-					,
-					l_inItem020    => recMeisai.gSknTsrKngk  -- 当月出金高_同手数料
-					,
-					l_inItem021    => recMeisai.gSknKzKngk  -- 当月出金高_国税
-					,
-					l_inItem022    => recMeisai.gSknKknKngk  -- 当月出金高_基金返戻金
-					,
-					l_inItem023    => recMeisai.gSknOtherKngk  -- 当月出金高_その他
-					,
-					l_inItem024    => recMeisai.gTsukaCd  -- 通貨コード
-					,l_inItem026    => recMeisai.gKozaTenCd           -- 口座店コード
-					,l_inItem027    => trim(both recMeisai.gKozaTenCifcd) -- 口座店ＣＩＦコード
-					,l_inItem028    => gRedOptionFlg                  -- レッドプロジェクトオプションフラグ
-					,l_inKousinId   => l_inUserId  -- 更新者ID
-					,
-					l_inSakuseiId  => l_inUserId  -- 作成者ID
-					);
+	v_item.item001 := gWrkTsuchiYmd;  -- 通知日
+	v_item.item002 := recMeisai.gHktCd;  -- 発行体コード
+	v_item.item003 := recMeisai.gSfskPostNo;  -- 送付先郵便番号
+	v_item.item004 := recMeisai.gAdd1;  -- 送付先住所１
+	v_item.item005 := recMeisai.gAdd2;  -- 送付先住所２
+	v_item.item006 := recMeisai.gAdd3;  -- 送付先住所３
+	v_item.item007 := gAtena;  -- 発行体名称１(御中込)
+	v_item.item008 := recMeisai.gBankNm;  -- 銀行名称
+	v_item.item009 := recMeisai.gBushoNm1;  -- 担当部署名称１
+	v_item.item010 := gBunsho;  -- 請求文章
+	v_item.item011 := gWrkToriYm;  -- 取扱年月
+	v_item.item012 := recMeisai.gTsukaNm;  -- 通貨名称
+	v_item.item013 := recMeisai.gIsinCd;  -- ISINコード
+	v_item.item014 := recMeisai.gKokyakuMgrRnm;  -- 対顧用銘柄略称
+	v_item.item015 := recMeisai.gPreMnthZndk;  -- 前月末残高
+	v_item.item016 := gMnthZndk;  -- 当月末残高
+	v_item.item017 := recMeisai.gNknKknKngk;  -- 当月入金高_基金受入高
+	v_item.item018 := recMeisai.gNknOtherKngk;  -- 当月入金高_その他
+	v_item.item019 := recMeisai.gSknGnrKngk;  -- 当月出金高_元利金支払高
+	v_item.item020 := recMeisai.gSknTsrKngk;  -- 当月出金高_同手数料
+	v_item.item021 := recMeisai.gSknKzKngk;  -- 当月出金高_国税
+	v_item.item022 := recMeisai.gSknKknKngk;  -- 当月出金高_基金返戻金
+	v_item.item023 := recMeisai.gSknOtherKngk;  -- 当月出金高_その他
+	v_item.item024 := recMeisai.gTsukaCd;  -- 通貨コード
+	v_item.item026 := recMeisai.gKozaTenCd;  -- 口座店コード
+	v_item.item027 := trim(both recMeisai.gKozaTenCifcd);  -- 口座店ＣＩＦコード
+	v_item.item028 := gRedOptionFlg;  -- レッドプロジェクトオプションフラグ
+	CALL pkPrint.insertData(
+		l_inKeyCd      => l_inItakuKaishaCd,
+		l_inUserId     => l_inUserId,
+		l_inChohyoKbn  => l_inChohyoKbn,
+		l_inSakuseiYmd => l_inGyomuYmd,
+		l_inChohyoId   => REPORT_ID,
+		l_inSeqNo      => gSeqNo,
+		l_inHeaderFlg  => '1',
+		l_inItem       => v_item,
+		l_inKousinId   => l_inUserId,
+		l_inSakuseiId  => l_inUserId
+	);
   END LOOP;
   CLOSE curMeisai;
   IF DEBUG = 1 THEN
@@ -366,28 +317,21 @@ BEGIN
     -- 対象データなし
     gRtnCd := RTN_NODATA;
     -- 帳票ワークへデータを追加
-    CALL pkPrint.insertData(l_inKeyCd      => l_inItakuKaishaCd  -- 識別コード
-                      ,
-                       l_inUserId     => l_inUserId  -- ユーザＩＤ
-                      ,
-                       l_inChohyoKbn  => l_inChohyoKbn  -- 帳票区分
-                      ,
-                       l_inSakuseiYmd => l_inGyomuYmd  -- 作成年月日
-                      ,
-                       l_inChohyoId   => REPORT_ID  -- 帳票ＩＤ
-                      ,
-                       l_inSeqNo      => 1 -- 連番
-                      ,
-                       l_inHeaderFlg  => '1' -- ヘッダフラグ
-                      ,
-                       l_inItem001    => gWrkTsuchiYmd  -- 通知日
-                      ,
-                       l_inItem025    => '対象データなし' -- 対象データ
-                      ,
-                       l_inKousinId   => l_inUserId  -- 更新者ID
-                      ,
-                       l_inSakuseiId  => l_inUserId  -- 作成者ID
-                       );
+    v_item := ROW(NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL,NULL)::TYPE_SREPORT_WK_ITEM;
+    v_item.item001 := gWrkTsuchiYmd;  -- 通知日
+    v_item.item025 := '対象データなし';  -- 対象データ
+    CALL pkPrint.insertData(
+        l_inKeyCd      => l_inItakuKaishaCd,
+        l_inUserId     => l_inUserId,
+        l_inChohyoKbn  => l_inChohyoKbn,
+        l_inSakuseiYmd => l_inGyomuYmd,
+        l_inChohyoId   => REPORT_ID,
+        l_inSeqNo      => 1,
+        l_inHeaderFlg  => '1',
+        l_inItem       => v_item,
+        l_inKousinId   => l_inUserId,
+        l_inSakuseiId  => l_inUserId
+    );
   END IF;
   -- 終了処理
   l_outSqlCode := gRtnCd;
@@ -398,9 +342,11 @@ BEGIN
   -- エラー処理
 EXCEPTION
   WHEN OTHERS THEN
-    IF curMeisai%ISOPEN THEN
+    BEGIN
       CLOSE curMeisai;
-    END IF;
+    EXCEPTION
+      WHEN OTHERS THEN NULL;
+    END;
     CALL pkLog.fatal('ECM701', REPORT_ID, 'SQLCODE:' || SQLSTATE);
     CALL pkLog.fatal('ECM701', REPORT_ID, 'SQLERRM:' || SQLERRM);
     l_outSqlCode := RTN_FATAL;
@@ -453,7 +399,9 @@ CREATE OR REPLACE FUNCTION spipi050k00r01_createsql (
 	l_inIsinCd TEXT,
 	l_inKijunYm TEXT,
 	gChohyoSortFlg TEXT,
-	gRedOptionFlg TEXT
+	gRedOptionFlg TEXT,
+	gGyomuYm TEXT,
+	l_inChohyoKbn TEXT
 ) RETURNS varchar AS $body$
 DECLARE
 	gSql varchar(12800) := NULL;
@@ -572,7 +520,7 @@ gSql := 'SELECT '
 		 || '					AND PKIPACALCTESURYO.checkHeizonMgr(K029_1.ITAKU_KAISHA_CD, K029_1.MGR_CD, K029_1.ZNDK_KIJUN_YMD, ''1'') = 0 '
 		 || '					AND EXISTS '
 		 || '					( '
-		 || '						SELECT ROWID FROM KIKIN_SEIKYU K01 '
+		 || '						SELECT ctid FROM KIKIN_SEIKYU K01 '
 		 || '						WHERE (K01.KK_KANYO_UMU_FLG = ''1'' '
 		 || '							OR (K01.KK_KANYO_UMU_FLG <> ''1'' AND K01.SHORI_KBN = ''1'')) '
 		 || '							AND K029.ITAKU_KAISHA_CD = K01.ITAKU_KAISHA_CD '
@@ -674,8 +622,8 @@ gSql := 'SELECT '
 		 || '						AND K02_T1.IDO_YMD = K023.IDO_YMD '
 		 || '						AND K02_T1.TSUKA_CD = K023.TSUKA_CD '
 		 || '						AND EXISTS '
-		 || '						( '
-		 || '							SELECT ROWID FROM KIKIN_SEIKYU K01 '
+		 || '						( ' 
+		 || '							SELECT ctid FROM KIKIN_SEIKYU K01 ' 
 		 || '							WHERE (K01.KK_KANYO_UMU_FLG = ''1'' '
 		 || '								OR (K01.KK_KANYO_UMU_FLG <> ''1'' AND K01.SHORI_KBN = ''1'')) '
 		 || '								AND K023.ITAKU_KAISHA_CD = K01.ITAKU_KAISHA_CD '
@@ -697,7 +645,7 @@ gSql := 'SELECT '
 		 || '						AND K02_T1.TSUKA_CD = K024.TSUKA_CD '
 		 || '						AND EXISTS '
 		 || '						( '
-		 || '							SELECT ROWID FROM KIKIN_SEIKYU K01 '
+		 || '							SELECT ctid FROM KIKIN_SEIKYU K01 '
 		 || '							WHERE (K01.KK_KANYO_UMU_FLG = ''1'' '
 		 || '								OR (K01.KK_KANYO_UMU_FLG <> ''1'' AND K01.SHORI_KBN = ''1'')) '
 		 || '								AND SUBSTR(K01.SHR_YMD,1, 6) = SUBSTR(PKDATE.getMinusDate(''' || gGyomuYm || '01'', 1), 1, 6) '
@@ -720,7 +668,7 @@ gSql := 'SELECT '
 		 || '						AND K02_T1.TSUKA_CD = K025.TSUKA_CD '
 		 || '						AND EXISTS '
 		 || '						( '
-		 || '							SELECT ROWID FROM KIKIN_SEIKYU K01 '
+		 || '							SELECT ctid FROM KIKIN_SEIKYU K01 '
 		 || '							WHERE (K01.KK_KANYO_UMU_FLG = ''1'' '
 		 || '								OR (K01.KK_KANYO_UMU_FLG <> ''1'' AND K01.SHORI_KBN = ''1'')) '
 		 || '								AND SUBSTR(K01.SHR_YMD, 1, 6) = SUBSTR(PKDATE.getMinusDate(''' || gGyomuYm || '01'', 1), 1, 6) '
@@ -790,7 +738,7 @@ gSql := 'SELECT '
 		 || '				AND EXISTS '
 		 || '				( '
 		 || '					SELECT '
-		 || '						ROWID '
+		 || '						ctid '
 		 || '					FROM '
 		 || '						MGR_KIHON_VIEW VMG12 '
 		 || '					WHERE '
@@ -823,19 +771,15 @@ gSql := gSql || '			) '
 		 || '			K02_T2.MGR_CD, '
 		 || '			K02_T2.TSUKA_CD, '
 		 || '			SUBSTR(K02_T2.IDO_YMD, 1, 6)'
-		 || '	) 	K02, '
-		 || '		VJIKO_ITAKU VJ1, '
-		 || '		MHAKKOTAI M01, '
-		 || '		MTSUKA M64, '
-		 || '		MGR_KIHON_VIEW VMG1 '
-		 || '	WHERE '
-		 || '		VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD(+) '
-		 || '		AND VMG1.HKT_CD = M01.HKT_CD(+) '
-		 || '		AND K02.ITAKU_KAISHA_CD = VJ1.KAIIN_ID '
-		 || '		AND K02.TSUKA_CD = M64.TSUKA_CD(+) '
-		 || '		AND VMG1.ITAKU_KAISHA_CD = K02.ITAKU_KAISHA_CD '
+		 || '	) 	K02 '
+		 || '	INNER JOIN VJIKO_ITAKU VJ1 ON K02.ITAKU_KAISHA_CD = VJ1.KAIIN_ID '
+		 || '	INNER JOIN MGR_KIHON_VIEW VMG1 ON VMG1.ITAKU_KAISHA_CD = K02.ITAKU_KAISHA_CD '
 		 || '		AND VMG1.MGR_CD = K02.MGR_CD '
-		 || '		AND VMG1.KK_KANYO_FLG <> ''2'' ';	-- 実質記番号管理銘柄対応
+		 || '		AND VMG1.KK_KANYO_FLG <> ''2'' '
+		 || '	LEFT JOIN MHAKKOTAI M01 ON VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD '
+		 || '		AND VMG1.HKT_CD = M01.HKT_CD '
+		 || '	LEFT JOIN MTSUKA M64 ON K02.TSUKA_CD = M64.TSUKA_CD '
+		 || '	WHERE 1=1 ';	-- 実質記番号管理銘柄対応
 -- 入力パラメータ条件
 -- リアルの場合
 IF l_inChohyoKbn = '0' THEN
@@ -866,10 +810,10 @@ ELSE
 	-- ORDER BY句
 	gSql := gSql
 		||	'	K02.ITAKU_KAISHA_CD, ' 
-		||	'	DECODE( ''' || gChohyoSortFlg || ''' , ''1'' , M01.HKT_KANA_RNM , M01.HKT_CD), ' 
+		||	'	CASE WHEN ''' || gChohyoSortFlg || ''' = ''1'' THEN M01.HKT_KANA_RNM ELSE M01.HKT_CD END, ' 
 		||	'	M01.HKT_CD, '
 		||	'	K02.TSUKA_CD, ' 
-		||	'	DECODE( ''' || gChohyoSortFlg || ''' , ''1'' , VMG1.MGR_CD , VMG1.ISIN_CD)';
+		||	'	CASE WHEN ''' || gChohyoSortFlg || ''' = ''1'' THEN VMG1.MGR_CD ELSE VMG1.ISIN_CD END';
 END IF;
 	RETURN gSql;
 EXCEPTION

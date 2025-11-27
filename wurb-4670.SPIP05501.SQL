@@ -86,9 +86,7 @@ BEGIN
 
     -- データ取得
     -- 基金請求計算処理（請求書）※リアル・請求書出力・請求書
-    RAISE NOTICE 'Calling insKichuTesuryoSeikyuOut...';
-    SELECT l_outsqlcode, l_outsqlerrm, extra_param
-    INTO l_tempSqlCode, l_tempSqlErrM, l_extraParam
+    SELECT * INTO l_tempSqlCode, l_tempSqlErrM, l_extraParam
     FROM pkipakichutesuryo.insKichuTesuryoSeikyuOut(
         l_inuserid,
         l_GyomuYmd,
@@ -109,10 +107,8 @@ BEGIN
     );
     
     gRtnCd := l_tempSqlCode;
-    RAISE NOTICE 'Result: gRtnCd=%, l_tempSqlCode=%, l_tempSqlErrM=%', gRtnCd, l_tempSqlCode, COALESCE(l_tempSqlErrM, 'NULL');
 
     IF gRtnCd <> pkconstant.success() THEN
-        RAISE NOTICE 'Error detected: setting output and returning';
         l_outSqlCode := l_tempSqlCode;
         l_outSqlErrM := l_tempSqlErrM;
         RETURN;

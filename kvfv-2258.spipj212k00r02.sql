@@ -150,7 +150,6 @@ BEGIN
 	CALL pkLog.debug(l_inUserId, SP_ID, 'SPIPJ212K00R02 END  l_outSqlCode = ' || l_outSqlCode);
 EXCEPTION
 	WHEN OTHERS THEN
-		RAISE NOTICE 'DEBUG EXCEPTION: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 		CALL pkLog.fatal('ECM701', SP_ID, 'SQLCODE:' || SQLSTATE);
 		CALL pkLog.fatal('ECM701', SP_ID, 'SQLERRM:' || SQLERRM);
 		l_outSqlCode := pkconstant.FATAL();

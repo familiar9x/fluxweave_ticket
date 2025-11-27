@@ -18,7 +18,7 @@ CREATE OR REPLACE PROCEDURE spip07101 ( l_inUserId TEXT,		-- ユーザーID
  l_inShokanMethodCd TEXT,		-- ⑨   償還方法
  l_inTeijiShokanTsutiKbn TEXT,		-- ⑩   定時償還通知区分
  l_inJiyuu TEXT,		-- ⑪   事由
- l_outSqlCode OUT numeric,		-- リターン値
+ l_outSqlCode OUT integer,		-- リターン値
  l_outSqlErrM OUT text	-- エラーコメント
  ) AS $body$
 DECLARE

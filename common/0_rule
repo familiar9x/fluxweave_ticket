@@ -11,7 +11,7 @@ Process to migrate each file:
 
 Rule:
 array.exists(cnt) => array [cnt] IS NOT NULL
-oid => ctid
+oid => ctid, rowid -> ctid
 array.COUNT => coalesce (cardinality (array), 0))
 FUNCTION xxx có INOUT nhưng return khác type record => thêm "OUT extra_param Boolean" lên parameter list, đổi return type thành "record"
 typeArray nhưng khai báo init là varA: typeArray() => varA := ARRAY[]:: typeArray

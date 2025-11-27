@@ -282,7 +282,7 @@ BEGIN
 	IF (l_inKozaTenCifCd IS NOT NULL AND l_inKozaTenCifCd::text <> '') THEN
 		gSQL := gSQL || '		AND M01.KOZA_TEN_CIFCD = ''' || l_inKozaTenCifCd || '''';
 	END IF;
-	gSQL := gSQL || '		AND 	VMG1.PARTMGR_KBN = ''0''
+	gSQL := gSQL || '		AND 	VMG1.PARTMGR_KBN = ''0'''
 				 || '	UNION'
 				 || '		SELECT	VMG1.ITAKU_KAISHA_CD,'
 				 || '				VMG1.GENISIN_CD AS ISIN_CD,'
@@ -313,7 +313,7 @@ BEGIN
 	IF (l_inKozaTenCifCd IS NOT NULL AND l_inKozaTenCifCd::text <> '') THEN
 		gSQL := gSQL || '		AND M01.KOZA_TEN_CIFCD = ''' || l_inKozaTenCifCd || '''';
 	END IF;
-	gSQL := gSQL || '		AND 	VMG1.PARTMGR_KBN = ''2''
+	gSQL := gSQL || '		AND 	VMG1.PARTMGR_KBN = ''2'''
 				 || '		GROUP BY VMG1.ITAKU_KAISHA_CD, VMG1.GENISIN_CD) UTBL1,'
 				 || '		MGR_KIHON MG1,'
 				 || '		MHAKKOTAI M01'
