@@ -101,24 +101,24 @@ BEGIN
     -- 基金請求計算処理（請求書）※リアル・請求書出力・請求書
     SELECT result.l_outsqlcode, result.l_outsqlerrm, result.extra_param
     INTO l_tempSqlCode, l_tempSqlErrM, l_extraParam
-    FROM pkipakknido.insKikinIdoSeikyuOut(l_inuserid,
-                                           l_GyomuYmd,
-                                           l_KjnYmdFrom,
-                                           l_KjnYmdTo,
-                                           l_initakukaishacd,
-                                           l_inKknZndkKjnYmdKbn,
-                                           l_inhktcd,
-                                           l_inkozatencd,
-                                           l_inKozaTenCifCd,
-                                           l_inMgrCd,
-                                           l_inIsinCd,
-                                           l_inTsuchiYmd,
-                                           l_ReportId,
-                                           PKIPACALCTESURYO.C_REAL(),
-                                           PKIPACALCTESURYO.C_DATA_KBN_SEIKYU(),
-                                           PKIPACALCTESURYO.C_SI_KBN_SEIKYU(),
-                                           SPIP04604_getChikoFlg(l_initakukaishacd),
-                                           '0' --フロント照会画面判別フラグ '0'(フロント照会画面以外)
+    FROM pkipakknido.insKikinIdoSeikyuOut(l_inuserid::text,
+                                           l_GyomuYmd::text,
+                                           l_KjnYmdFrom::text,
+                                           l_KjnYmdTo::text,
+                                           l_initakukaishacd::text,
+                                           l_inKknZndkKjnYmdKbn::text,
+                                           l_inhktcd::text,
+                                           l_inkozatencd::text,
+                                           l_inKozaTenCifCd::text,
+                                           l_inMgrCd::text,
+                                           l_inIsinCd::text,
+                                           l_inTsuchiYmd::text,
+                                           l_ReportId::text,
+                                           PKIPACALCTESURYO.C_REAL()::text,
+                                           PKIPACALCTESURYO.C_DATA_KBN_SEIKYU()::text,
+                                           PKIPACALCTESURYO.C_SI_KBN_SEIKYU()::text,
+                                           SPIP04604_getChikoFlg(l_initakukaishacd)::text,
+                                           '0'::text --フロント照会画面判別フラグ '0'(フロント照会画面以外)
                                            ) AS result;
     
     gReturnCode := l_tempSqlCode;

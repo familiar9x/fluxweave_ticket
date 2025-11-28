@@ -28,7 +28,8 @@ check_oracle_incompat() {
     echo "  - Gọi pkprint.insertdata(...) nhưng vẫn truyền từng item lẻ thay vì composite TYPE_SREPORT_WK_ITEM"
     echo "  - l_outSqlCode OUT nên là integer, l_outSqlErrM OUT nên là text"
     echo "  - Cú pháp Oracle array-style: aryXxx(0) → PostgreSQL: aryXxx[1]"
-    echo "  - Kiểm tra sử dụng cursor%ISOPEN (Oracle) và ROWID (Oracle)"
+    echo "  - %ISOPEN trên cursor (cần rewrite sang logic IF cursor_var IS OPEN THEN ... hoặc tương đương)"
+    echo "  - ROWID / UROWID (cần xem lại, không mapping 1-1 với PostgreSQL)"
     echo
 
     # Mỗi entry dạng: "LABEL|REGEX"
@@ -46,6 +47,12 @@ check_oracle_incompat() {
         "TRUNC|\\bTRUNC\\s*\\("
         "ROWNUM|\\bROWNUM\\b"
         "DBMS_PACKAGE|\\bDBMS_[A-Z0-9_]+"
+
+        # %ISOPEN trên cursor
+        "%ISOPEN_ATTR|%ISOPEN"
+
+        # ROWID / UROWID
+        "ROWID_USAGE|\\bROWID\\b|\\bUROWID\\b"
 
         # Oracle collection kiểu TABLE OF ... INDEX BY ...
         "TABLE_OF_INDEX_BY|TYPE[[:space:]]+[A-Za-z0-9_]+[[:space:]]+IS[[:space:]]+TABLE[[:space:]]+OF"
@@ -74,12 +81,6 @@ check_oracle_incompat() {
 
         # OID usage
         "OID_USAGE|\\boid\\b"
-
-        # New: cursor%ISOPEN usage (Oracle-specific)
-        "PERCENT_ISOPEN|%ISOPEN"
-
-        # New: ROWID usage
-        "ROWID_USAGE|\\bROWID\\b"
     )
 
     local has_any=0
@@ -100,24 +101,6 @@ check_oracle_incompat() {
             has_any=1
             echo ">>> [$label] tìm thấy các dòng sau (cần xem lại/convert tay):"
             echo "$matches"
-
-            # Nếu là %ISOPEN hoặc ROWID, thêm gợi ý cụ thể
-            if [[ "$label" == "PERCENT_ISOPEN" ]]; then
-                echo
-                echo "    → Phát hiện sử dụng cursor%ISOPEN (Oracle). PostgreSQL không hỗ trợ %ISOPEN." 
-                echo "      Gợi ý: xóa check này hoặc thay bằng logic dùng FETCH + FOUND hoặc dùng biến flag для cursor." 
-                echo "      Ví dụ: thay IF cur%ISOPEN THEN CLOSE cur; END IF; -> có thể chỉ dùng CLOSE cur; (an toàn trong PG) hoặc comment và xử lý thủ công."
-                echo
-            fi
-
-            if [[ "$label" == "ROWID_USAGE" ]]; then
-                echo
-                echo "    → Phát hiện ROWID. PostgreSQL không có ROWID cố định." 
-                echo "      Gợi ý: sử dụng PK/unique key nếu cần tham chiếu bền, hoặc dùng ctid cho xử lý tạm thời: SELECT ctid FROM ..." 
-                echo "      Lưu ý: ctid có thể thay đổi khi VACUUM/UPDATE; không dùng làm PK." 
-                echo
-            fi
-
             echo
         fi
     done
@@ -169,13 +152,13 @@ check_oracle_incompat() {
     # - Loại bỏ các dòng định nghĩa/gọi function phổ biến
     ########################################################
     local array_calls
-    array_calls=$(grep -niE '\\b(ary|arr|tab|list|tbl|vec)[A-Za-z0-9_]*[[:space:]]*\\(' "$file" 2>/dev/null \
-        | grep -viE 'CREATE[[:space:]]+FUNCTION|FUNCTION[[:space:]]+[A-Za-z_]|CALL[[:space:]]|PERFORM[[:space:]]|SELECT[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\\(' \
+    array_calls=$(grep -niE '\b(ary|arr|tab|list|tbl|vec)[A-Za-z0-9_]*[[:space:]]*\(' "$file" 2>/dev/null \
+        | grep -viE 'CREATE[[:space:]]+FUNCTION|FUNCTION[[:space:]]+[A-Za-z_]|CALL[[:space:]]|PERFORM[[:space:]]|SELECT[[:space:]]+[A-Za-z0-9_]+[[:space:]]*\(' \
         || true)
 
     if [[ -n "$array_calls" ]]; then
         has_any=1
-        echo ">>> [ORACLE_ARRAY_ACCESS] Phát hiện cú pháp Oracle array-style (ví dụ: aryBun(0)):" 
+        echo ">>> [ORACLE_ARRAY_ACCESS] Phát hiện cú pháp Oracle array-style (ví dụ: aryBun(0)):"
         echo "    PostgreSQL dùng cú pháp mảng: aryBun[1] thay vì aryBun(0)"
         echo "    (mảng trong PostgreSQL bắt đầu từ 1, không phải 0)"
         echo "$array_calls"
@@ -189,6 +172,7 @@ check_oracle_incompat() {
     echo "----------------------------------------"
     echo
 }
+
 
 convert_complex_file() {
     local file=$1
@@ -265,7 +249,7 @@ convert_complex_file() {
     #   UPDATE my_table t SET ... -> UPDATE my_table SET ...
     # (DELETE giữ nguyên)
     #################################################################
-    sed -i -E 's/^(UPDATE[[:space:]]+(ONLY[[:space:]]+)?)([A-Za-z0-9_".]+)[[:space:]]+[A-Za-z0-9_\"]+/\1\3/' "$file"
+    sed -i -E 's/^(UPDATE[[:space:]]+(ONLY[[:space:]]+)?)([A-Za-z0-9_".]+)[[:space:]]+[A-Za-z0-9_"]+/\1\3/' "$file"
 
     #################################################################
     # Step 7: SQLERRM(SQLCODE) -> SQLERRM (safe auto-convert)
@@ -276,13 +260,6 @@ convert_complex_file() {
     # Step 8: Oracle block terminator "/" -> $body$;
     #################################################################
     sed -i 's/^\/$/$body$;/' "$file"
-
-    #################################################################
-    # Step 10: Replace ROWID occurrences with ctid + comment (heuristic)
-    # - Đề nghị dùng PK thay vì ROWID
-    # - Đây là thay thế tạm thời; người dev phải review.
-    #################################################################
-    sed -i -E "s/\bROWID\b/ctid  /g" "$file"
 
     echo "Basic conversion complete for: $file"
 

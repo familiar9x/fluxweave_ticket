@@ -24,17 +24,17 @@ create or replace function pkipakknido.success() returns integer as $$ select in
 /*==============================================================================*/
 create or replace function pkipakknido.c_SHONIN() returns char as $$ select char '1' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--				CONSTANT MGR_STS.MGR_STAT_KBN%TYPE := '1';	-- 処理区分（承認）
 create or replace function pkipakknido.c_NOT_MASSHO() returns char as $$ select char '0' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT MGR_STS.MASSHO_FLG%TYPE   := '0';	-- 抹消フラグ（未抹消）
-create or replace function pkipakknido.c_SEIKYU() returns varchar(11) as $$ select varchar(11) 'IP030004631' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--				CONSTANT VARCHAR2(11)	:= 'IP030004631';	-- 請求書
-create or replace function pkipakknido.c_RYOSHU() returns varchar(11) as $$ select varchar(11) 'IP030004641' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--				CONSTANT VARCHAR2(11)	:= 'IP030004641';	-- 領収書
+create or replace function pkipakknido.c_SEIKYU() returns varchar(11) as $$ select varchar(11) 'IP030004631' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--				CONSTANT VARCHAR(11)	:= 'IP030004631';	-- 請求書
+create or replace function pkipakknido.c_RYOSHU() returns varchar(11) as $$ select varchar(11) 'IP030004641' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--				CONSTANT VARCHAR(11)	:= 'IP030004641';	-- 領収書
 create or replace function pkipakknido.c_SEIKYU_ICHIRAN() returns char(11) as $$ select char(11) 'IP030004511' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--		CONSTANT CHAR(11)		:= 'IP030004511';	-- 請求書一覧表
 create or replace function pkipakknido.c_SEIKYU_KAIKEIKUBUN() returns char(11) as $$ select char(11) 'IPH30000511' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--	CONSTANT CHAR(11)		:= 'IPH30000511';	-- 元利基金・手数料請求書(会計区分別)
 create or replace function pkipakknido.c_GANRI_MEISAI() returns char(11) as $$ select char(11) 'IPH30000611' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT CHAR(11)		:= 'IPH30000611';	-- 公債会計区分別元利金明細票(会計区分毎改ページ)
 create or replace function pkipakknido.c_GANRI_MEISAI_M() returns char(11) as $$ select char(11) 'IPH30000911' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--		CONSTANT CHAR(11)		:= 'IPH30000911';	-- 公債会計区分別元利金明細票(銘柄毎改ページ)
-create or replace function pkipakknido.c_SEIKYU_MEISAI() returns varchar(11) as $$ select varchar(11) 'IP030010211' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR2(11)	:= 'IP030010211';	-- 請求明細書
-create or replace function pkipakknido.c_UKEIRE_KANRI() returns varchar(11) as $$ select varchar(11) 'IP030004811' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR2(11)	:= 'IP030004811';	-- 元利払基金受入管理表
+create or replace function pkipakknido.c_SEIKYU_MEISAI() returns varchar(11) as $$ select varchar(11) 'IP030010211' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR(11)	:= 'IP030010211';	-- 請求明細書
+create or replace function pkipakknido.c_UKEIRE_KANRI() returns varchar(11) as $$ select varchar(11) 'IP030004811' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR(11)	:= 'IP030004811';	-- 元利払基金受入管理表
 
-create or replace function pkipakknido.c_HAKKO_ICHIRAN() returns varchar(11) as $$ select varchar(11) 'IPS30200121' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR2(11)	:= 'IPS30200121';	-- 口座店・発行体（CIF）順
-create or replace function pkipakknido.c_KOZA_ICHIRAN() returns varchar(11) as $$ select varchar(11) 'IPS30200131' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR2(11)	:= 'IPS30200131';	-- 口座店別
+create or replace function pkipakknido.c_HAKKO_ICHIRAN() returns varchar(11) as $$ select varchar(11) 'IPS30200121' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR(11)	:= 'IPS30200121';	-- 口座店・発行体（CIF）順
+create or replace function pkipakknido.c_KOZA_ICHIRAN() returns varchar(11) as $$ select varchar(11) 'IPS30200131' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT VARCHAR(11)	:= 'IPS30200131';	-- 口座店別
 
 create or replace function pkipakknido.C_RTN_NODATA() returns integer as $$ select integer '2' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--			CONSTANT INTEGER		:= 2;				-- データなし
 
@@ -55,7 +55,7 @@ create or replace function pkipakknido.KAIJI_LAST() returns char(1) as $$ select
 create or replace function pkipakknido.KAIJI_NOT_LAST() returns char(1) as $$ select char(1) '0' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--      CONSTANT CHAR(1) := '0';                        -- 最終ではない
 
 -- 償還区分 （コード種別:714） */
-create or replace function pkipakknido.CODE_SHOKAN_KBN() returns varchar(3) as $$ select varchar(3) '714' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;-- 	CONSTANT VARCHAR2(3) := '714';
+create or replace function pkipakknido.CODE_SHOKAN_KBN() returns varchar(3) as $$ select varchar(3) '714' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;-- 	CONSTANT VARCHAR(3) := '714';
 
 -- 償還区分（コード種別：714）
 create or replace function pkipakknido.MANKI_IKKATU() returns char(2) as $$ select char(2) '10' $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;--        CONSTANT CHAR(2) := '10';                       -- 満期一括
@@ -100,7 +100,7 @@ CREATE TYPE pkipakknido.type_record AS (
 		gRbrYmd				char(8), -- KIKIN_IDO.RBR_YMD%TYPE
 		gIdoYmd				char(8), -- KIKIN_IDO.IDO_YMD%TYPE
 		gKozaFuriKbn			char(2), -- MGR_KIHON.KOZA_FURI_KBN%TYPE
-		gNyukinMethod			varchar(8),
+		gNyukinMethod			text,
 		gKozaTenCd				char(4), -- MHAKKOTAI.KOZA_TEN_CD%TYPE
 		gKknbillShuruiNm		varchar(20), -- SCODE.CODE_RNM%TYPE
 		gKknNyukinKngk			numeric(16,2), -- KIKIN_IDO.KKN_NYUKIN_KNGK%TYPE
@@ -141,18 +141,18 @@ CREATE TYPE pkipakknido.type_table AS (type_table pkIpaKknIdo.TYPE_RECORD[]);
 	* @param
 	* @return	l_ret				正常終了/異常終了
 	*********************************************************************************/
-CREATE OR REPLACE FUNCTION pkipakknido.createsql ( l_ingyomuymd CHAR ,             -- 業務日付
- l_inkjnfrom CHAR ,              -- 基準日From
- l_inkjnto CHAR ,                -- 基準日To
+CREATE OR REPLACE FUNCTION pkipakknido.createsql ( l_ingyomuymd TEXT ,             -- 業務日付
+ l_inkjnfrom TEXT ,              -- 基準日From
+ l_inkjnto TEXT ,                -- 基準日To
  l_initakukaishacd text ,    -- 委託会社CD
- l_inhktcd CHAR ,                -- 発行体CD
+ l_inhktcd TEXT ,                -- 発行体CD
  l_inkozatencd text ,        -- 口座店CD
  l_inkozatencifcd text ,     -- 口座店CIFCD
- l_inmgrcd CHAR ,                -- 銘柄CD
- l_inisincd CHAR ,               -- ISINCD
- l_inrealbatchkbn CHAR ,         -- リアルバッチ区分 0:リアル 1:バッチ 2:バッチ（地公体）
- l_inseikyuichirankbn CHAR,      -- 請求書一覧区分
- l_insyoriflg CHAR                -- 処理フラグ 0:請求書出力処理 1:元利払基金受入管理表出力処理
+ l_inmgrcd TEXT ,                -- 銘柄CD
+ l_inisincd TEXT ,               -- ISINCD
+ l_inrealbatchkbn TEXT ,         -- リアルバッチ区分 0:リアル 1:バッチ 2:バッチ（地公体）
+ l_inseikyuichirankbn TEXT,      -- 請求書一覧区分
+ l_insyoriflg TEXT                -- 処理フラグ 0:請求書出力処理 1:元利払基金受入管理表出力処理
  ) RETURNS varchar AS $body$
 DECLARE
 
@@ -200,19 +200,19 @@ BEGIN
 			・元利払基金受入管理表		（リアルのみ）	*/
 		-- 利金
 		l_sql := '	SELECT /*+ INDEX(MG1 MGR_KIHON_PK) INDEX(MG0 MGR_STS_PK)*/'; -- ヒント文付加
-		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD,';
-		l_sql := l_sql || '		MG1.MGR_CD,';
-		l_sql := l_sql || '		MG2.RBR_KJT,';
+		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD, ';
+		l_sql := l_sql || '		MG1.MGR_CD, ';
+		l_sql := l_sql || '		MG2.RBR_KJT, ';
 		l_sql := l_sql || '		CASE MG1.JTK_KBN WHEN ''5'' THEN MG2.RBR_YMD ELSE MG2.KKN_CHOKYU_YMD END AS CHOKYU_YMD';	-- 自社発行の場合は利払日をセット
-		l_sql := l_sql || '	FROM';
-		l_sql := l_sql || '		MGR_KIHON       MG1,';
-		l_sql := l_sql || '		MGR_STS         MG0,';
-		l_sql := l_sql || '		MGR_RBRKIJ      MG2,';
+		l_sql := l_sql || '	FROM ';
+		l_sql := l_sql || '		MGR_KIHON       MG1, ';
+		l_sql := l_sql || '		MGR_STS         MG0, ';
+		l_sql := l_sql || '		MGR_RBRKIJ      MG2, ';
 		l_sql := l_sql || '		MHAKKOTAI       M01 ';
-		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD';
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG2.MGR_CD';
+		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD ';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG2.MGR_CD ';
 		l_sql := l_sql || '	AND   MG0.MASSHO_FLG = ''0''';
 		l_sql := l_sql || '	AND   MG1.PARTMGR_KBN IN (''0'',''2'')'; --親銘柄を対象外
 		l_sql := l_sql || '	AND   (MG1.PARTMGR_KBN IN (''0'',''1'') OR SUBSTR(MG1.YOBI3, 14, 1) = ''0'')'; --子銘柄（残高なし）を対象外
@@ -220,9 +220,9 @@ BEGIN
 		l_sql := l_sql || '	AND   MG0.MGR_STAT_KBN    = ''' || pkipakknido.c_SHONIN() || ''' ';
 		l_sql := l_sql || '	AND   MG1.JTK_KBN		  <> ''2'' ';
 		l_sql := l_sql || '	AND   MG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD';
-		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD ';
+		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL ';
 		IF l_inrealbatchkbn = '1' OR l_inrealbatchkbn = '2' THEN	-- リアルの場合は徴求日の個別設定をしている銘柄も出力するため、この条件を入れない
 			l_sql := l_sql || '	AND   MG2.KKNBILL_OUT_YMD =  '' ''';
 			l_sql := l_sql || '	AND   MG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
@@ -264,27 +264,27 @@ BEGIN
 			l_sql := l_sql || '	AND   MG1.ISIN_CD         = ''' || l_inisincd || ''' ';
 		END IF;
 
-		l_sql := l_sql || '	UNION';
+		l_sql := l_sql || '	UNION ';
 		-- 利金手数料
 		l_sql := l_sql || '	SELECT /*+ INDEX(MG1 MGR_KIHON_PK) INDEX(MG0 MGR_STS_PK)*/'; -- ヒント文付加
-		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD,';
-		l_sql := l_sql || '		MG1.MGR_CD,';
-		l_sql := l_sql || '		MG2.RBR_KJT,';
-		l_sql := l_sql || '		MG2.TESU_CHOKYU_YMD AS CHOKYU_YMD';
-		l_sql := l_sql || '	FROM';
-		l_sql := l_sql || '		MGR_KIHON       MG1,';
-		l_sql := l_sql || '		MGR_STS         MG0,';
-		l_sql := l_sql || '		MGR_RBRKIJ      MG2,';
-		l_sql := l_sql || '		MGR_KIHON2      BT3,';
+		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD, ';
+		l_sql := l_sql || '		MG1.MGR_CD, ';
+		l_sql := l_sql || '		MG2.RBR_KJT, ';
+		l_sql := l_sql || '		MG2.TESU_CHOKYU_YMD AS CHOKYU_YMD ';
+		l_sql := l_sql || '	FROM ';
+		l_sql := l_sql || '		MGR_KIHON       MG1, ';
+		l_sql := l_sql || '		MGR_STS         MG0, ';
+		l_sql := l_sql || '		MGR_RBRKIJ      MG2, ';
+		l_sql := l_sql || '		MGR_KIHON2      BT3, ';
 		l_sql := l_sql || '		MHAKKOTAI       M01, ';
 		l_sql := l_sql || '		MGR_TESURYO_CTL MG7, ';
 		l_sql := l_sql || '		MGR_TESURYO_PRM MG8 ';
-		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD';
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG2.MGR_CD';
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = BT3.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD          = BT3.MGR_CD';
+		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD ';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG2.MGR_CD ';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = BT3.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD          = BT3.MGR_CD ';
 		l_sql := l_sql || '	AND   MG0.MASSHO_FLG = ''0''';
 		l_sql := l_sql || '	AND   MG1.PARTMGR_KBN IN (''0'',''2'')'; --親銘柄を対象外
 		l_sql := l_sql || '	AND   (MG1.PARTMGR_KBN IN (''0'',''1'') OR SUBSTR(MG1.YOBI3, 14, 1) = ''0'')'; --子銘柄（残高なし）を対象外
@@ -292,9 +292,9 @@ BEGIN
 		l_sql := l_sql || '	AND   MG0.MGR_STAT_KBN    = ''' || pkipakknido.c_SHONIN() || ''' ';
 		l_sql := l_sql || '	AND   MG1.JTK_KBN		   NOT IN (''2'',''5'') ';
 		l_sql := l_sql || '	AND   MG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD';
-		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD ';
+		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL ';
 		IF l_inrealbatchkbn = '1' OR l_inrealbatchkbn = '2' THEN	-- リアルの場合は徴求日の個別設定をしている銘柄も出力するため、この条件を入れない
 			l_sql := l_sql || '	AND   MG2.TESUBILL_OUT_YMD = '' ''';
 			l_sql := l_sql || '	AND   MG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
@@ -304,13 +304,13 @@ BEGIN
 		END IF;
 		l_sql := l_sql || '	AND   MG2.TESU_CHOKYU_YMD  <> '' ''';
 		-- 銘柄_手数料（制御情報）tblより、手数料種類-利金支払手数料が選択されている銘柄のみ対象とする
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD = MG7.MGR_CD';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD = MG7.MGR_CD ';
 		l_sql := l_sql || '	AND   MG7.TESU_SHURUI_CD IN (''61'',''82'') ';
 		l_sql := l_sql || '	AND   MG7.CHOOSE_FLG = ''1'' ';
 		-- 銘柄_手数料（計算情報）tblより、利金支払手数料率（分母）>0の銘柄のみ対象とする（0除算エラー回避のため）
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD = MG8.MGR_CD';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD = MG8.MGR_CD ';
 		l_sql := l_sql || '	AND   MG8.RKN_SHR_TESU_BUNBO > 0 ';
 
 		  -- 基準日From〜Toの検索対象
@@ -344,22 +344,22 @@ BEGIN
 			l_sql := l_sql || '	AND   MG1.ISIN_CD         = ''' || l_inisincd || ''' ';
 		END IF;
 
-		l_sql := l_sql || '	UNION';
+		l_sql := l_sql || '	UNION ';
 		-- 元金
 		l_sql := l_sql || '	SELECT /*+ INDEX(MG1 MGR_KIHON_PK) INDEX(MG0 MGR_STS_PK)*/'; -- ヒント文付加
-		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD,';
-		l_sql := l_sql || '		MG1.MGR_CD,';
-		l_sql := l_sql || '		MG3.SHOKAN_KJT     AS RBR_KJT,';
+		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD, ';
+		l_sql := l_sql || '		MG1.MGR_CD, ';
+		l_sql := l_sql || '		MG3.SHOKAN_KJT     AS RBR_KJT, ';
 		l_sql := l_sql || '		CASE MG1.JTK_KBN WHEN ''5'' THEN MG3.SHOKAN_YMD ELSE MG3.KKN_CHOKYU_YMD END AS CHOKYU_YMD';	-- 自社発行の場合は償還日をセット
-		l_sql := l_sql || '	FROM';
-		l_sql := l_sql || '		MGR_KIHON       MG1,';
-		l_sql := l_sql || '		MGR_STS         MG0,';
-		l_sql := l_sql || '		MGR_SHOKIJ      MG3,';
+		l_sql := l_sql || '	FROM ';
+		l_sql := l_sql || '		MGR_KIHON       MG1, ';
+		l_sql := l_sql || '		MGR_STS         MG0, ';
+		l_sql := l_sql || '		MGR_SHOKIJ      MG3, ';
 		l_sql := l_sql || '		MHAKKOTAI       M01 ';
-		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD';
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG3.MGR_CD';
+		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD ';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG3.MGR_CD ';
 		l_sql := l_sql || '	AND   MG0.MASSHO_FLG = ''0''';
 		l_sql := l_sql || '	AND   MG1.PARTMGR_KBN IN (''0'',''2'')'; --親銘柄を対象外
 		l_sql := l_sql || '	AND   (MG1.PARTMGR_KBN IN (''0'',''1'') OR SUBSTR(MG1.YOBI3, 14, 1) = ''0'')'; --子銘柄（残高なし）を対象外
@@ -367,9 +367,9 @@ BEGIN
 		l_sql := l_sql || '	AND   MG0.MGR_STAT_KBN    =''' || pkipakknido.c_SHONIN() || ''' ';
 		l_sql := l_sql || '	AND   MG1.JTK_KBN		  <> ''2'' ';
 		l_sql := l_sql || '	AND   MG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD';
-		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD ';
+		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL ';
 		IF l_inrealbatchkbn = '1' OR l_inrealbatchkbn = '2' THEN	-- リアルの場合は徴求日の個別設定をしている銘柄も出力するため、この条件を入れない
 			l_sql := l_sql || '	AND   MG3.KKNBILL_OUT_YMD =  '' ''';
 			l_sql := l_sql || '	AND   MG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
@@ -414,27 +414,27 @@ BEGIN
 			l_sql := l_sql || '	AND   MG1.ISIN_CD         = ''' || l_inisincd || ''' ';
 		END IF;
 
-		l_sql := l_sql || '	UNION';
+		l_sql := l_sql || '	UNION ';
 		-- 元金手数料
 		l_sql := l_sql || '	SELECT /*+ INDEX(MG1 MGR_KIHON_PK) INDEX(MG0 MGR_STS_PK)*/'; -- ヒント文付加
-		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD,';
-		l_sql := l_sql || '		MG1.MGR_CD,';
-		l_sql := l_sql || '		MG3.SHOKAN_KJT      AS RBR_KJT,';
-		l_sql := l_sql || '		MG3.TESU_CHOKYU_YMD AS CHOKYU_YMD';
-		l_sql := l_sql || '	FROM';
-		l_sql := l_sql || '		MGR_KIHON       MG1,';
-		l_sql := l_sql || '		MGR_STS         MG0,';
-		l_sql := l_sql || '		MGR_SHOKIJ      MG3,';
-		l_sql := l_sql || '		MGR_KIHON2      BT3,';
+		l_sql := l_sql || '		MG1.ITAKU_KAISHA_CD, ';
+		l_sql := l_sql || '		MG1.MGR_CD, ';
+		l_sql := l_sql || '		MG3.SHOKAN_KJT      AS RBR_KJT, ';
+		l_sql := l_sql || '		MG3.TESU_CHOKYU_YMD AS CHOKYU_YMD ';
+		l_sql := l_sql || '	FROM ';
+		l_sql := l_sql || '		MGR_KIHON       MG1, ';
+		l_sql := l_sql || '		MGR_STS         MG0, ';
+		l_sql := l_sql || '		MGR_SHOKIJ      MG3, ';
+		l_sql := l_sql || '		MGR_KIHON2      BT3, ';
 		l_sql := l_sql || '		MHAKKOTAI       M01, ';
 		l_sql := l_sql || '		MGR_TESURYO_CTL MG7, ';
 		l_sql := l_sql || '		MGR_TESURYO_PRM MG8 ';
-		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD';
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG3.MGR_CD';
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = BT3.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD          = BT3.MGR_CD';
+		l_sql := l_sql || '	WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG0.MGR_CD = MG1.MGR_CD ';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD          = MG3.MGR_CD ';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = BT3.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD          = BT3.MGR_CD ';
 		l_sql := l_sql || '	AND   MG0.MASSHO_FLG = ''0''';
 		l_sql := l_sql || '	AND   MG1.PARTMGR_KBN IN (''0'',''2'')'; --親銘柄を対象外
 		l_sql := l_sql || '	AND   (MG1.PARTMGR_KBN IN (''0'',''1'') OR SUBSTR(MG1.YOBI3, 14, 1) = ''0'')'; --子銘柄（残高なし）を対象外
@@ -442,9 +442,9 @@ BEGIN
 		l_sql := l_sql || '	AND   MG0.MGR_STAT_KBN    =''' || pkipakknido.c_SHONIN() || ''' ';
 		l_sql := l_sql || '	AND   MG1.JTK_KBN		   NOT IN (''2'',''5'') ';
 		l_sql := l_sql || '	AND   MG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD';
-		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.HKT_CD          = M01.HKT_CD ';
+		l_sql := l_sql || '	AND   TRIM(MG1.ISIN_CD)   IS NOT NULL ';
 		IF l_inrealbatchkbn = '1' OR l_inrealbatchkbn = '2' THEN	-- リアルの場合は徴求日の個別設定をしている銘柄も出力するため、この条件を入れない
 			l_sql := l_sql || '	AND   MG3.TESUBILL_OUT_YMD = '' ''';
 			l_sql := l_sql || '	AND   MG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
@@ -455,13 +455,13 @@ BEGIN
 		l_sql := l_sql || '	AND   MG3.TESU_CHOKYU_YMD  <> '' ''';
 		l_sql := l_sql || '	AND   MG3.SHOKAN_KBN  <> ''30''';
 		-- 銘柄_手数料（制御情報）tblより、手数料種類-元金支払手数料が選択されている銘柄のみ対象とする
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD = MG7.MGR_CD';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD = MG7.MGR_CD ';
 		l_sql := l_sql || '	AND   MG7.TESU_SHURUI_CD = ''81'' ';
 		l_sql := l_sql || '	AND   MG7.CHOOSE_FLG = ''1'' ';
 		-- 銘柄_手数料（計算情報）tblより、元金支払手数料率（分母）>0の銘柄のみ対象とする（0除算エラー回避のため）
-		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD';
-		l_sql := l_sql || '	AND   MG1.MGR_CD = MG8.MGR_CD';
+		l_sql := l_sql || '	AND   MG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD ';
+		l_sql := l_sql || '	AND   MG1.MGR_CD = MG8.MGR_CD ';
 		l_sql := l_sql || '	AND   MG8.GNKN_SHR_TESU_BUNBO > 0 ';
 
 		  -- 基準日From〜Toの検索対象
@@ -500,28 +500,28 @@ BEGIN
 		-- （リアルの場合にはここは通さない）
 		IF l_inrealbatchkbn = '1' OR l_inrealbatchkbn = '2' THEN
 
-			l_sql := l_sql || '	UNION';
+			l_sql := l_sql || '	UNION ';
 			-- 利金
-			l_sql := l_sql || '	SELECT';
-			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD,';
-			l_sql := l_sql || '		VMG1.MGR_CD,';
-			l_sql := l_sql || '		MG2.RBR_KJT,';
-			l_sql := l_sql || '		MG2.KKN_CHOKYU_YMD AS CHOKYU_YMD';
-			l_sql := l_sql || '	FROM';
-			l_sql := l_sql || '		MGR_KIHON_VIEW  VMG1,';
-			l_sql := l_sql || '		MGR_RBRKIJ      MG2,';
+			l_sql := l_sql || '	SELECT ';
+			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD, ';
+			l_sql := l_sql || '		VMG1.MGR_CD, ';
+			l_sql := l_sql || '		MG2.RBR_KJT, ';
+			l_sql := l_sql || '		MG2.KKN_CHOKYU_YMD AS CHOKYU_YMD ';
+			l_sql := l_sql || '	FROM ';
+			l_sql := l_sql || '		MGR_KIHON_VIEW  VMG1, ';
+			l_sql := l_sql || '		MGR_RBRKIJ      MG2, ';
 			l_sql := l_sql || '		MHAKKOTAI       M01 ';
-			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG2.MGR_CD';
+			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG2.MGR_CD ';
 			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = ''' || l_initakuKaishaCd || ''' ';
 			l_sql := l_sql || '	AND   VMG1.MGR_STAT_KBN    =''' || pkipakknido.c_SHONIN() || ''' ';
 			l_sql := l_sql || '	AND   VMG1.JTK_KBN		   NOT IN (''2'',''5'') ';
 			l_sql := l_sql || '	AND   VMG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD ';
 			l_sql := l_sql || '	AND   MG2.KKNBILL_OUT_YMD ' || rSqlWhere;
 			l_sql := l_sql || '	AND   VMG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
-			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL';
+			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL ';
 
 			IF nullif(trim(both l_inhktcd), '')        IS NOT NULL THEN -- 発行体CD
 				l_sql := l_sql || '	AND   VMG1.HKT_CD          = ''' || l_inhktcd || ''' ';
@@ -539,42 +539,42 @@ BEGIN
 				l_sql := l_sql || '	AND   VMG1.ISIN_CD         = ''' || l_inisincd || ''' ';
 			END IF;
 
-			l_sql := l_sql || '	UNION';
+			l_sql := l_sql || '	UNION ';
 			-- 利金手数料
-			l_sql := l_sql || '	SELECT';
-			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD,';
-			l_sql := l_sql || '		VMG1.MGR_CD,';
-			l_sql := l_sql || '		MG2.RBR_KJT,';
-			l_sql := l_sql || '		MG2.TESU_CHOKYU_YMD AS CHOKYU_YMD';
-			l_sql := l_sql || '	FROM';
-			l_sql := l_sql || '		MGR_KIHON_VIEW2  VMG1,';
-			l_sql := l_sql || '		MGR_RBRKIJ      MG2,';
+			l_sql := l_sql || '	SELECT ';
+			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD, ';
+			l_sql := l_sql || '		VMG1.MGR_CD, ';
+			l_sql := l_sql || '		MG2.RBR_KJT, ';
+			l_sql := l_sql || '		MG2.TESU_CHOKYU_YMD AS CHOKYU_YMD ';
+			l_sql := l_sql || '	FROM ';
+			l_sql := l_sql || '		MGR_KIHON_VIEW2  VMG1, ';
+			l_sql := l_sql || '		MGR_RBRKIJ      MG2, ';
 			l_sql := l_sql || '		MHAKKOTAI       M01, ';
 			l_sql := l_sql || '		MGR_TESURYO_CTL MG7, ';
 			l_sql := l_sql || '		MGR_TESURYO_PRM MG8 ';
-			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG2.MGR_CD';
+			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG2.MGR_CD ';
 			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = ''' || l_initakuKaishaCd || ''' ';
 			l_sql := l_sql || '	AND   VMG1.MGR_STAT_KBN    =''' || pkipakknido.c_SHONIN() || ''' ';
 			l_sql := l_sql || '	AND   VMG1.JTK_KBN		   NOT IN (''2'',''5'') ';
 			l_sql := l_sql || '	AND   VMG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD ';
 			l_sql := l_sql || '	AND   MG2.TESUBILL_OUT_YMD ' || rSqlWhere;
     		IF l_inrealbatchkbn = '1' OR l_inrealbatchkbn = '2' THEN	-- バッチの場合、アップフロント銘柄を対象外とする。
     			l_sql := l_sql || '	AND   VMG1.UPFRONT_FLG = ''0'' ';
     		END IF;
 			-- 銘柄_手数料（制御情報）tblより、手数料種類-利金支払手数料が選択されている銘柄のみ対象とする
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG7.MGR_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG7.MGR_CD ';
 			l_sql := l_sql || '	AND   MG7.TESU_SHURUI_CD IN (''61'',''82'') ';
 			l_sql := l_sql || '	AND   MG7.CHOOSE_FLG = ''1'' ';
 			-- 銘柄_手数料（計算情報）tblより、利金支払手数料率（分母）>0の銘柄のみ対象とする（0除算エラー回避のため）
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG8.MGR_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG8.MGR_CD ';
 			l_sql := l_sql || '	AND   MG8.RKN_SHR_TESU_BUNBO > 0 ';
 			l_sql := l_sql || '	AND   VMG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
-			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL';
+			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL ';
 
 			IF nullif(trim(both l_inhktcd), '')        IS NOT NULL THEN -- 発行体CD
 				l_sql := l_sql || '	AND   VMG1.HKT_CD          = ''' || l_inhktcd || ''' ';
@@ -592,29 +592,29 @@ BEGIN
 				l_sql := l_sql || '	AND   VMG1.ISIN_CD         = ''' || l_inisincd || ''' ';
 			END IF;
 
-			l_sql := l_sql || '	UNION';
+			l_sql := l_sql || '	UNION ';
 			-- 元金
-			l_sql := l_sql || '	SELECT';
-			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD,';
-			l_sql := l_sql || '		VMG1.MGR_CD,';
-			l_sql := l_sql || '		MG3.SHOKAN_KJT     AS RBR_KJT,';
-			l_sql := l_sql || '		MG3.KKN_CHOKYU_YMD AS CHOKYU_YMD';
-			l_sql := l_sql || '	FROM';
-			l_sql := l_sql || '		MGR_KIHON_VIEW  VMG1,';
-			l_sql := l_sql || '		MGR_SHOKIJ      MG3,';
+			l_sql := l_sql || '	SELECT ';
+			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD, ';
+			l_sql := l_sql || '		VMG1.MGR_CD, ';
+			l_sql := l_sql || '		MG3.SHOKAN_KJT     AS RBR_KJT, ';
+			l_sql := l_sql || '		MG3.KKN_CHOKYU_YMD AS CHOKYU_YMD ';
+			l_sql := l_sql || '	FROM ';
+			l_sql := l_sql || '		MGR_KIHON_VIEW  VMG1, ';
+			l_sql := l_sql || '		MGR_SHOKIJ      MG3, ';
 			l_sql := l_sql || '		MHAKKOTAI       M01 ';
-			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG3.MGR_CD';
+			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG3.MGR_CD ';
 			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = ''' || l_initakuKaishaCd || ''' ';
 			l_sql := l_sql || '	AND   VMG1.MGR_STAT_KBN    =''' || pkipakknido.c_SHONIN() || ''' ';
 			l_sql := l_sql || '	AND   VMG1.JTK_KBN		   NOT IN (''2'',''5'') ';
 			l_sql := l_sql || '	AND   VMG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD ';
 			l_sql := l_sql || '	AND   MG3.KKNBILL_OUT_YMD ' || rSqlWhere;
 			l_sql := l_sql || '	AND   MG3.SHOKAN_KBN  <> ''30''';
 			l_sql := l_sql || '	AND   VMG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
-			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL';
+			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL ';
 
 			IF nullif(trim(both l_inhktcd), '')        IS NOT NULL THEN -- 発行体CD
 				l_sql := l_sql || '	AND   VMG1.HKT_CD          = ''' || l_inhktcd || ''' ';
@@ -632,43 +632,43 @@ BEGIN
 				l_sql := l_sql || '	AND   VMG1.ISIN_CD         = ''' || l_inisincd || ''' ';
 			END IF;
 
-			l_sql := l_sql || '	UNION';
+			l_sql := l_sql || '	UNION ';
 			-- 元金手数料
-			l_sql := l_sql || '	SELECT';
-			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD,';
-			l_sql := l_sql || '		VMG1.MGR_CD,';
-			l_sql := l_sql || '		MG3.SHOKAN_KJT      AS RBR_KJT,';
-			l_sql := l_sql || '		MG3.TESU_CHOKYU_YMD AS CHOKYU_YMD';
-			l_sql := l_sql || '	FROM';
-			l_sql := l_sql || '		MGR_KIHON_VIEW2  VMG1,';
-			l_sql := l_sql || '		MGR_SHOKIJ      MG3,';
+			l_sql := l_sql || '	SELECT ';
+			l_sql := l_sql || '		VMG1.ITAKU_KAISHA_CD, ';
+			l_sql := l_sql || '		VMG1.MGR_CD, ';
+			l_sql := l_sql || '		MG3.SHOKAN_KJT      AS RBR_KJT, ';
+			l_sql := l_sql || '		MG3.TESU_CHOKYU_YMD AS CHOKYU_YMD ';
+			l_sql := l_sql || '	FROM ';
+			l_sql := l_sql || '		MGR_KIHON_VIEW2  VMG1, ';
+			l_sql := l_sql || '		MGR_SHOKIJ      MG3, ';
 			l_sql := l_sql || '		MHAKKOTAI       M01, ';
 			l_sql := l_sql || '		MGR_TESURYO_CTL MG7, ';
 			l_sql := l_sql || '		MGR_TESURYO_PRM MG8 ';
-			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG3.MGR_CD';
+			l_sql := l_sql || '	WHERE VMG1.ITAKU_KAISHA_CD = MG3.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD          = MG3.MGR_CD ';
 			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = ''' || l_initakuKaishaCd || ''' ';
 			l_sql := l_sql || '	AND   VMG1.MGR_STAT_KBN    =''' || pkipakknido.c_SHONIN() || ''' ';
 			l_sql := l_sql || '	AND   VMG1.JTK_KBN		   NOT IN (''2'',''5'') ';
 			l_sql := l_sql || '	AND   VMG1.KK_KANYO_FLG	  <> ''2'' ';	--実質記番号管理方式は対象外
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.HKT_CD          = M01.HKT_CD ';
 			l_sql := l_sql || '	AND   MG3.TESUBILL_OUT_YMD ' || rSqlWhere;
 			l_sql := l_sql || '	AND   MG3.SHOKAN_KBN  <> ''30''';
     		IF l_inrealbatchkbn = '1' OR l_inrealbatchkbn = '2' THEN	-- バッチの場合、アップフロント銘柄を対象外とする。
     			l_sql := l_sql || '	AND   VMG1.UPFRONT_FLG = ''0'' ';
     		END IF;
 			-- 銘柄_手数料（制御情報）tblより、手数料種類-元金支払手数料が選択されている銘柄のみ対象とする
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG7.MGR_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG7.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG7.MGR_CD ';
 			l_sql := l_sql || '	AND   MG7.TESU_SHURUI_CD = ''81'' ';
 			l_sql := l_sql || '	AND   MG7.CHOOSE_FLG = ''1'' ';
 			-- 銘柄_手数料（計算情報）tblより、元金支払手数料率（分母）>0の銘柄のみ対象とする（0除算エラー回避のため）
-			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD';
-			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG8.MGR_CD';
+			l_sql := l_sql || '	AND   VMG1.ITAKU_KAISHA_CD = MG8.ITAKU_KAISHA_CD ';
+			l_sql := l_sql || '	AND   VMG1.MGR_CD = MG8.MGR_CD ';
 			l_sql := l_sql || '	AND   MG8.GNKN_SHR_TESU_BUNBO > 0 ';
 			l_sql := l_sql || '	AND   VMG1.KKNBILL_OUT_TMG1    <> ''' || pkipakknido.c_NOT_SEIKYU_OUT()|| ''' ';
-			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL';
+			l_sql := l_sql || '	AND   TRIM(VMG1.ISIN_CD)   IS NOT NULL ';
 
 			IF nullif(trim(both l_inhktcd), '')        IS NOT NULL THEN -- 発行体CD
 				l_sql := l_sql || '	AND   VMG1.HKT_CD          = ''' || l_inhktcd || ''' ';
@@ -701,7 +701,7 @@ SECURITY DEFINER
 	 *
 	 * @param l_initakukaishacd 委託会社コード
 	 * @param l_inmgrcd         銘柄コード
-	 * @return NUMBER           レコード件数
+	 * @return NUMERIC           レコード件数
 	*********************************************************************************/
 /*
 CREATE OR REPLACE FUNCTION pkipakknido.getkaikeianbuncount ( l_initakukaishacd char(4) /*MGR_KIHON.ITAKU_KAISHA_CD%TYPE*/, l_inmgrcd varchar(13)/*MGR_KIHON.MGR_CD%TYPE*/ ) RETURNS bigint AS $body$
@@ -736,7 +736,7 @@ SECURITY DEFINER
 	 * ユーザーIDからグループIDを返す。
 	 *
 	 * @param l_inUserId ユーザーID
-	 * @return CHAR      グループID
+	 * @return TEXT      グループID
 	*********************************************************************************/
 CREATE OR REPLACE FUNCTION pkipakknido.getgroupid ( l_inUserId SUSER.USER_ID%TYPE ) RETURNS char AS $body$
 DECLARE
@@ -786,7 +786,7 @@ CREATE OR REPLACE FUNCTION pkipakknido.updategnrseikyusho (
 	l_inSakuseiYmd SREPORT_WK.SAKUSEI_YMD%TYPE,
 	l_inChohyoId1 SREPORT_WK.CHOHYO_ID%TYPE,
 	l_inChohyoId2 SREPORT_WK.CHOHYO_ID%TYPE DEFAULT ' ',
-	l_outSqlCode OUT bigint,		-- リターン値
+	l_outSqlCode OUT integer,		-- リターン値
     l_outSqlErrM OUT text,	-- エラーコメント
 	OUT extra_param int
 ) RETURNS record AS $body$
@@ -1056,7 +1056,7 @@ CREATE OR REPLACE FUNCTION pkipakknido.inskikinidoseikyuout (
  l_inTsuchiYmd text ,            -- 通知日
  l_inSeikyushoId text,       -- 請求書ID
  l_inRealBatchKbn text,          -- リアルバッチ区分
- l_inDataSakuseiKbn KIKIN_IDO.DATA_SAKUSEI_KBN%TYPE,--データ作成区分
+ l_inDataSakuseiKbn text,--データ作成区分
  l_inSeikyuIchiranKbn text,      -- 請求書一覧区分
  l_inChikoFlg text,				-- 地公体利用フラグ
  l_inFrontFlg text,			-- フロント照会画面判別フラグ
@@ -1075,12 +1075,12 @@ DECLARE
 		intMax      integer := 0;
 
 		WK_GNR_TESU_ID char(11) := NULL;    -- バッチの時、作票対象データのキーを帳票WKへ退避しておくための帳票ID
-		--gWrkTsuchiYmd		VARCHAR2(16) DEFAULT NULL;					-- 通知日(和暦)
+		--gWrkTsuchiYmd		VARCHAR(16) DEFAULT NULL;					-- 通知日(和暦)
 		pRbrYmdFrom char(8) := '99999999';     -- 徴求日 From
 		pRbrYmdTo   char(8) := '00000000';     -- 徴求日 To
 		pHeizonSeikyuKbn	char(1) := '';		-- 自行委託ビュー.併存銘柄請求区分
 		optionFlg   MOPTION_KANRI.OPTION_FLG%TYPE := '0';  -- オプションフラグ
-		DEBUG smallint := 0;
+		DEBUG smallint := 1;
 
 		temp_rItakuKaishaCd char(4);
 		temp_rMgrCd varchar(13);
@@ -1130,9 +1130,8 @@ BEGIN
 	 -- RAISE NOTICE '引数 l_inChikoFlg : %' ,l_inChikoFlg;
 	 -- RAISE NOTICE '引数 l_inFrontFlg : %', l_inFrontFlg;
 
-		--カーソルの作成    抽出条件に該当するレコードを基金移動テーブルに更新する
-		pCurSql := pkipakknido.createsql(l_ingyomuymd,l_inkjnfrom,l_inkjnto,l_initakukaishacd,l_inhktcd,l_inkozatencd,l_inkozatencifcd,l_inmgrcd,l_inisincd,l_inrealbatchkbn,l_inseikyuichirankbn,'0');
-
+	--カーソルの作成    抽出条件に該当するレコードを基金移動テーブルに更新する
+	pCurSql := pkipakknido.createsql(l_ingyomuymd,l_inkjnfrom,l_inkjnto,l_initakukaishacd,l_inhktcd,l_inkozatencd,l_inkozatencifcd,l_inmgrcd,l_inisincd,l_inrealbatchkbn,l_inseikyuichirankbn,'0');
 		-- 併存銘柄請求区分取得
 		SELECT HEIZON_SEIKYU_KBN INTO STRICT pHeizonSeikyuKbn FROM VJIKO_ITAKU WHERE KAIIN_ID = l_inItakuKaishaCd;
 
@@ -1188,23 +1187,18 @@ BEGIN
 												rec[pRowCnt].rMgrCd,
 												rec[pRowCnt].rRbrKjt,
 												rec[pRowCnt].rChokyuYmd,
-												l_indatasakuseikbn,
-												l_inrealbatchkbn,
-												l_inKknZndkKjnYmdKbn);
-						 -- RAISE NOTICE 'sfInsKikinIdo return code: %', pReturnCode;
-					END IF;
+													l_indatasakuseikbn,
+													l_inrealbatchkbn,
+													l_inKknZndkKjnYmdKbn);
+					END IF;			END IF;
 
-				END IF;
-
-				IF pReturnCode <> 0 THEN
-					l_OutSqlCode := pReturnCode;
-					l_OutSqlErrM := '基金請求計算処理（データ作成区分'||l_indatasakuseikbn||'）が失敗しました。';
-					CALL pkLog.error('ECM701', 'PKIPAKNIDO', 'エラーメッセージ：'||l_OutSqlErrM);
-					extra_param := pReturnCode;
-					RETURN;
-				END IF;
-
-				-- 自行情報マスタ.地公体フラグがONかつ会計按分テーブルにデータがある場合
+			IF pReturnCode <> 0 THEN
+				l_OutSqlCode := pReturnCode;
+				l_OutSqlErrM := '基金請求計算処理（データ作成区分'||l_indatasakuseikbn||'）が失敗しました。';
+				CALL pkLog.error('ECM701', 'PKIPAKNIDO', 'エラーメッセージ：'||l_OutSqlErrM);
+				extra_param := pReturnCode;
+				RETURN;
+			END IF;				-- 自行情報マスタ.地公体フラグがONかつ会計按分テーブルにデータがある場合
 				-- 会計区分別基金請求計算SPを呼び出す。
 				IF l_inChikoFlg = '1' THEN
 					IF pkipakknido.getkaikeianbuncount(rec[pRowCnt].rItakuKaishaCd, rec[pRowCnt].rMgrCd) > 0 THEN
@@ -1226,13 +1220,11 @@ BEGIN
 			END IF;
 
 
-			pRowCnt := pRowCnt + 1;
+		pRowCnt := pRowCnt + 1;
 
-		END LOOP;
-		 -- RAISE NOTICE 'end loop pCur:=, l_inRealBatchKbn: %', l_inRealBatchKbn;
-
-		-- バッチの場合、作票SPに渡す条件の加工を行う
-		-- （ここで抽出したデータを、キーとして帳票WKに退避）
+	END LOOP;
+	-- バッチの場合、作票SPに渡す条件の加工を行う
+	-- （ここで抽出したデータを、キーとして帳票WKに退避）
 		IF l_inRealBatchKbn = '1' then
 			 -- RAISE NOTICE 'IF l_inRealBatchKbn = 1 then';
 
@@ -1619,12 +1611,12 @@ SECURITY DEFINER
 	 * @param inDataSakuseiKbn データ作成区分
 	 * @return INTEGER 0:正常、99:異常、それ以外：エラー
     *********************************************************************************/
-CREATE OR REPLACE FUNCTION pkipakknido.inskikinidoukeirekanriout (l_inuserid CHAR , -- ユーザID
- l_ingyomuymd CHAR ,             -- 業務日付
- l_inkjnfrom CHAR ,              -- 基準日From
- l_inkjnto CHAR ,                -- 基準日To
+CREATE OR REPLACE FUNCTION pkipakknido.inskikinidoukeirekanriout (l_inuserid TEXT , -- ユーザID
+ l_ingyomuymd TEXT ,             -- 業務日付
+ l_inkjnfrom TEXT ,              -- 基準日From
+ l_inkjnto TEXT ,                -- 基準日To
  l_initakukaishacd text ,    -- 委託会社CD
- l_OutSqlCode OUT INT,         -- SQLエラーコード
+ l_OutSqlCode OUT integer,         -- SQLエラーコード
  l_OutSqlErrM OUT text          -- SQLエラーメッセージ
  , OUT extra_param integer) RETURNS record AS $body$
 DECLARE
@@ -1966,7 +1958,7 @@ SECURITY DEFINER
 	 *
 	 */
 CREATE OR REPLACE FUNCTION pkipakknido.getmunitsknpremium (
-	l_inLastKaiji CHAR,
+	l_inLastKaiji TEXT,
 	l_inKakushasaiKngk MGR_KIHON.KAKUSHASAI_KNGK%TYPE,  -- bigint
 	l_inShokanKbn MGR_SHOKIJ.SHOKAN_KBN%TYPE,  -- char
 	l_inFactor MGR_SHOKIJ.FACTOR%TYPE, --numeric
@@ -2026,7 +2018,7 @@ SECURITY DEFINER
 * @param l_inFunitGensaiKngk
 * @param l_inMunitSknPremium
 *
-* @retrun NUMBER 銘柄単位償還支払金額
+* @retrun NUMERIC 銘柄単位償還支払金額
 */
 CREATE OR REPLACE FUNCTION pkipakknido.getmunitsknshrkngk (
 	l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE,
@@ -2097,7 +2089,7 @@ SECURITY DEFINER
 *
 */
 CREATE OR REPLACE FUNCTION pkipakknido.getmunitsknshrkngk (
-	l_inLastKaiji CHAR,
+	l_inLastKaiji TEXT,
 	l_inKakushasaiKngk MGR_KIHON.KAKUSHASAI_KNGK%TYPE,
 	l_inHakkoTsukaCd MGR_KIHON.HAKKO_TSUKA_CD%TYPE,
 	l_inShokanTsukaCd MGR_KIHON.SHOKAN_TSUKA_CD%TYPE,
@@ -2176,7 +2168,7 @@ SECURITY DEFINER
 	 * @param l_inMeimokuKngk
 	 * @param l_inMunitSknPremium
 	 *
-	 * @return NUMBER プットオプションの銘柄単位償還支払金額
+	 * @return NUMERIC プットオプションの銘柄単位償還支払金額
 	 */
 CREATE OR REPLACE FUNCTION pkipakknido.getputmunitsknshrkngk (
 	l_inKakushasaiKngk numeric,
@@ -2276,7 +2268,7 @@ CREATE OR REPLACE FUNCTION pkipakknido.sfdeleteremainsofkaiji (
 	l_inMgrCd MGR_KIHON.MGR_CD%TYPE,
 	l_inShrYmd MGR_SHOKIJ.SHOKAN_YMD%TYPE,
 	l_inShokanKbn MGR_SHOKIJ.SHOKAN_KBN%TYPE,
-	l_inFlg CHAR DEFAULT '1'
+	l_inFlg TEXT DEFAULT '1'
 ) RETURNS bigint AS $body$
 BEGIN
     	/* 銘柄_償還回次の削除 */
@@ -2342,7 +2334,7 @@ SECURITY DEFINER
 * @param l_inShrKjt         支払期日
 * @param l_inKKnbillOutYmd  基金請求書出力日(個別設定)
 *
-* @return CHAR 請求書出力日(エラー発生時はNULLを返却)
+* @return TEXT 請求書出力日(エラー発生時はNULLを返却)
 */
 CREATE OR REPLACE FUNCTION pkipakknido.getseikyushobilloutymd ( l_inItakuKaishaCd text, l_inShrKjt MGR_RBRKIJ.RBR_KJT%TYPE, l_inKknbillOutYmd MGR_RBRKIJ.KKNBILL_OUT_YMD%TYPE ) RETURNS char AS $body$
 DECLARE
@@ -2437,7 +2429,7 @@ SECURITY DEFINER
 --	 *
 --	 * @param l_initakukaishacd 委託会社コード
 --	 * @param l_inmgrcd         銘柄コード
---	 * @return NUMBER           レコード件数
+--	 * @return NUMERIC           レコード件数
 --	********************************************************************************
 CREATE OR REPLACE FUNCTION pkipakknido.getkaikeianbuncount (
 	l_initakukaishacd MGR_KIHON.ITAKU_KAISHA_CD%TYPE,
@@ -2576,7 +2568,7 @@ LANGUAGE PLPGSQL
 --	 *
 --	 * @param l_initakukaishacd 委託会社コード
 --	 * @param l_inmgrcd         銘柄コード
---	 * @return NUMBER           レコード件数
+--	 * @return NUMERIC           レコード件数
 --	********************************************************************************
 CREATE OR REPLACE FUNCTION pkipakknido.getkaikeianbuncount ( l_initakukaishacd MGR_KIHON.ITAKU_KAISHA_CD%TYPE, l_inmgrcd MGR_KIHON.MGR_CD%TYPE ) RETURNS numeric AS $body$
 DECLARE

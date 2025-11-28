@@ -1,9 +1,9 @@
 
 
 
-DROP TYPE IF EXISTS spip06701_02_type_record;
-CREATE TYPE spip06701_02_type_record AS (
-		gHktCd					char(4)					-- 発行体コード
+DROP TYPE IF EXISTS spip06701_01_type_record;
+CREATE TYPE spip06701_01_type_record AS (
+		gHktCd					text					-- 発行体コード
 		,gSfskPostNo			char(7)					-- 送付先郵便番号
 		,gAdd1					varchar(50)				-- 送付先住所１
 		,gAdd2					varchar(50)				-- 送付先住所２
@@ -21,44 +21,44 @@ CREATE TYPE spip06701_02_type_record AS (
 		,gShokanMethodNm		varchar(20)				-- 償還方法名称
 		,gFullshokanKjt			char(8)					-- 満期償還期日
 		,gZndk 					numeric(14)				-- 残高
-        ,gMgrCd                 varchar(13)				-- 銘柄コード
-        ,gKkKnyoFlg				char(1)					-- 機構関与フラグ
-		,gMgrBunkatu			char(1)					-- 銘柄分割区分
+		,gMgrCd                 varchar(13)				-- 銘柄コード
+		,gKkKnyoFlg				char(1)					-- 機構関与フラグ
 		,gTshokanTsutiKbn       char(1)					-- 定時償還通知区分
+		,gKozaTenCd             text					-- 口座店コード
+		,gKozaTenCifcd          char(11)				-- 口座店ＣＩＦコード
 	);
-DROP TYPE IF EXISTS spip06701_02_type_key;
-CREATE TYPE spip06701_02_type_key AS (
-		gHktCd					char(4)					-- 発行体コード
+DROP TYPE IF EXISTS spip06701_01_type_key;
+CREATE TYPE spip06701_01_type_key AS (
+		gHktCd					text					-- 発行体コード
 		,gHakkoTsukaCd			char(3)					-- 発行通貨コード
 	);
-DROP TYPE IF EXISTS spip06701_02_type_gokei;
-CREATE TYPE spip06701_02_type_gokei AS (
-		gShasaiTotal			numeric(16)							-- 社債の総額
-		,gZndk 					numeric(16)							-- 残高
+DROP TYPE IF EXISTS spip06701_01_type_gokei;
+CREATE TYPE spip06701_01_type_gokei AS (
+		gShasaiTotal			numeric(16)				-- 社債の総額
+		,gZndk 					numeric(16)				-- 残高
 	);
 
 
-CREATE OR REPLACE PROCEDURE spip06701_02 ( 
-    l_inUserId TEXT,		-- ユーザーID
-    l_inItakuKaishaCd TEXT,		-- 委託会社コード
-    l_inKijunYmdF TEXT,		-- 基準日(FROM)
-    l_inHktCd TEXT,		-- 発行体コード
-    l_inKozaTenCd TEXT,		-- 口座店コード
-    l_inKozaTenCifCd TEXT,		-- 口座店CIFコード
-    l_inTsuchiYmd TEXT,		-- 通知日
-    l_outSqlCode OUT integer,		-- リターン値
-    l_outSqlErrM OUT TEXT	-- エラーコメント
+CREATE OR REPLACE PROCEDURE spip06701_01 ( 
+	l_inUserId TEXT,		-- ユーザーID
+ l_inItakuKaishaCd TEXT,		-- 委託会社コード
+ l_inKijunYmdF TEXT,		-- 基準日(FROM)
+ l_inHktCd TEXT,		-- 発行体コード
+ l_inKozaTenCd TEXT,		-- 口座店コード
+ l_inKozaTenCifCd TEXT,		-- 口座店CIFコード
+ l_inTsuchiYmd TEXT,		-- 通知日
+ l_outSqlCode OUT integer,		-- リターン値
+ l_outSqlErrM OUT text	-- エラーコメント
  ) AS $body$
 DECLARE
 
 --
---/* 著作権:Copyright(c)2007
+--/* 著作権:Copyright(c)2004
 --/* 会社名:JIP
 --/* 概要　:顧客宛帳票出力指示画面の入力条件により、債券残高証明書を作成する。
---/* 			（子銘柄合算対応）
 --/*
---/* @author ASK
---/* @version $Id: SPIP06701_02.SQL,v 1.13 2021/02/05 04:52:15 hirayama Exp $
+--/* @author	yoshisue
+--/* @version $Id: SPIP06701_01.SQL,v 1.5 2008/12/16 09:37:37 watanabe_t Exp $
 --/*
 --/* @parama  l_inUserId			IN	TEXT,		-- ユーザーID
 --/* @parama  l_inItakuKaishaCd	IN	TEXT,		-- 委託会社コード
@@ -75,8 +75,12 @@ DECLARE
 --/* ログ　:
 --/* 　　　日付	開発者名		目的
 --/* -------------------------------------------------------------------
---/*	2007.10.10	Nakayama(ASK)	新規作成
---/*	2019.11.28	 趙(USI)			押切印の印影登録・表示対応
+--/*　2005.03.03	JIP				新規作成
+--/*  2005.08.27  yoshisue		1.2次リリースにむけて引数等修正
+--/*	2005.09.21  yoshisue		IP-02216 帳票ワークテーブルにINSERTする際、
+--/*										 発行体コードをセットするように修正
+--/*	2005.09.22  fujie			IP-02218 承認済の銘柄のみ出力されるように修正
+--/*
 --/*
 --***************************************************************************
 --
@@ -92,8 +96,8 @@ DECLARE
 	RTN_NODATA			CONSTANT integer		:= 2;				-- データなし
 	RTN_FATAL			CONSTANT integer		:= 99;				-- 予期せぬエラー
 	REPORT_ID			CONSTANT char(11)		:= 'IP030006711';	-- 帳票ID
-    REAL_KBN			CONSTANT char(1)		:= '0';				-- 帳票区分（「0：リアル」固定）
-	JOPTION_CD			CONSTANT varchar(15)   := 'IPP1003302010';  -- 実質記番号管理オプションコード
+	REAL_KBN			CONSTANT char(1)		:= '0';				-- 帳票区分（「0：リアル」固定）
+	JOPTION_CD			CONSTANT varchar(15)   := 'IPP1003302010';-- 実質記番号管理オプションコード
 	JISSITU_MGR			CONSTANT char(1)		:= '2';				-- 実質記番号銘柄
 	TEIJI_SHO_CD		CONSTANT char(1)		:= '2';				-- 定時償還
 	
@@ -106,8 +110,8 @@ DECLARE
 	FMT_SHOKAN_KNGK_J_TOTAL	CONSTANT char(21)	:= 'Z,ZZZ,ZZZ,ZZZ,ZZZ,ZZ9';	-- 償還金額合計フォーマット
 	SHONIN              CONSTANT char(1) := '1';  -- 処理区分（承認）
 	NOT_MASSHO          CONSTANT char(1) := '0';  -- 抹消フラグ（未抹消）
-                                              --平成10年10月10日
-    TSUCHI_YMD_DEF      CONSTANT char(16)   := '　　  年  月  日';	-- 通知日（デフォルト）
+												--平成10年10月10日
+	TSUCHI_YMD_DEF      CONSTANT char(16)   := '　　  年  月  日';	-- 通知日（デフォルト）
 --==============================================================================
 --					変数定義													
 --==============================================================================
@@ -115,34 +119,34 @@ DECLARE
 	gRtnCd				integer :=	RTN_OK;					-- リターンコード
 	gSeqNo				integer := 0;							-- シーケンス
 	gSeqNoIni			integer := 0;							-- シーケンス
-    gGyomuYmd			char(8);									-- 業務日付
-	gHktCd				char(4);						-- 合計行をINSERTする時の改ページ条件となる発行体コード
+	gGyomuYmd			char(8);									-- 業務日付
+	gHktCd				text;						-- 合計行をINSERTする時の改ページ条件となる発行体コード
 	gOptionFlg			char(1);				-- オプションフラグ
 	gTeijiShoNm			varchar(20);			-- 定時償還名称
 	
 	-- DB取得項目
-	recMeisai spip06701_02_type_record;						-- レコード
-	gWrkTsuchiYmd			varchar(16);							-- 通知日(西暦)
-	gWrkKijunYmd			varchar(16);							-- 基準日(西暦)
+	recMeisai spip06701_01_type_record;							-- レコード
+	gWrkTsuchiYmd			varchar(16);								-- 通知日(西暦)
+	gWrkKijunYmd			varchar(16);								-- 基準日(西暦)
 	jikoBankNm              varchar(100);
 	jikoBushoNm1            varchar(50);
 	-- 宛名編集
-	gAtena					varchar(200) := NULL;				-- 宛名1行目
-	gOutflg					numeric := 0;						-- 正常処理フラグ
-	gChohyoSortFlg		    varchar(1);		    -- 発行体宛帳票ソート順変更フラグ
-	gChohyoHankoFileNm		varchar(400);							-- 帳票印影の画像ファイルの絶対パス
+	gAtena					varchar(200) := NULL;					-- 宛名1行目
+	gOutflg					integer := 0;							-- 正常処理フラグ
+	gChohyoSortFlg		varchar(1);					-- 発行体宛帳票ソート順変更フラグ
+	gRedOptionFlg           char(1);              -- レッドプロジェクトオプションフラグ
 	gSQL					varchar(10000);						-- SQL for dynamic cursor
 	-- キー
-	key spip06701_02_type_key;									-- キー
-	gokei spip06701_02_type_gokei;									-- 合計
-	recPrevMeisai spip06701_02_type_record;								-- 前レコード
+	key spip06701_01_type_key;									-- キー
+	gokei spip06701_01_type_gokei;									-- 合計
+	recPrevMeisai spip06701_01_type_record;								-- 前レコード
 	-- カーソル
 	curMeisai REFCURSOR;
 --==============================================================================
 --	メイン処理	
 --==============================================================================
 BEGIN
---	IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, 'spIp06701_02 START');	END IF;
+	IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, 'SPIP06701_01 START');	END IF;
 	-- 変数の初期化
 	key.gHktCd := ' ';
 	key.gHakkoTsukaCd := ' ';
@@ -154,15 +158,14 @@ BEGIN
 	OR coalesce(trim(both l_inUserId)::text, '') = ''
 	THEN
 		-- パラメータエラー
---		IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, 'param error');	END IF;
+		IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, 'param error');	END IF;
 		l_outSqlCode := RTN_NG;
-		l_outSqlErrM := 'パラメータエラー';
+		l_outSqlErrM := '';
 		CALL pkLog.error('ECM501', REPORT_ID, 'SQLERRM:'||'');
 		RETURN;
 	END IF;
     -- 業務日付を取得する
-    gGyomuYmd := PKDATE.getGyomuYmd;
---		IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, '業務日付：' || gGyomuYmd);	END IF;
+    gGyomuYmd := PKDATE.getGyomuYmd();
 	-- 帳票ワークの削除
 	DELETE FROM SREPORT_WK
 	WHERE	KEY_CD = l_inItakuKaishaCd
@@ -170,43 +173,18 @@ BEGIN
 	AND		CHOHYO_KBN = REAL_KBN
 	AND		SAKUSEI_YMD = gGyomuYmd
 	AND		CHOHYO_ID = REPORT_ID;
---
---  	IF DEBUG = 1 THEN	
---         pkLog.debug(l_inUserId, REPORT_ID, '帳票ワークの削除条件');	
---         pkLog.debug(l_inUserId, REPORT_ID, 'KEY_CD= ' || l_inItakuKaishaCd);	
---         pkLog.debug(l_inUserId, REPORT_ID, 'USER_ID= ' || l_inUserId);	
---         pkLog.debug(l_inUserId, REPORT_ID, 'CHOHYO_KBN= ' || REAL_KBN);	
---         pkLog.debug(l_inUserId, REPORT_ID, 'SAKUSEI_YMD= ' || gGyomuYmd);	
---         pkLog.debug(l_inUserId, REPORT_ID, 'CHOHYO_ID= ' || REPORT_ID);	
---    END IF;
---
 	-- 通知日の西暦変換
 	IF (trim(both l_inTsuchiYmd) IS NOT NULL AND (trim(both l_inTsuchiYmd))::text <> '') THEN
 		gWrkTsuchiYmd := pkDate.seirekiChangeSuppressNenGappi(l_inTsuchiYmd);
 	ELSE
 		gWrkTsuchiYmd := TSUCHI_YMD_DEF;
 	END IF;
---		IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, '通知日の西暦変換：' || gWrkTsuchiYmd);	END IF;
 	-- 基準日の西暦変換
 	gWrkKijunYmd := pkDate.seirekiChangeSuppressNenGappi(l_inKijunYmdF);
---		IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, '基準日の西暦変換：' || gWrkKijunYmd);	END IF;
 	-- 自行情報の取得
 	SELECT BANK_NM, BUSHO_NM1 INTO STRICT jikoBankNm, jikoBushoNm1 FROM VJIKO_ITAKU WHERE KAIIN_ID = l_inItakuKaishaCd;
---
---	IF DEBUG = 1 THEN	
---         pkLog.debug(l_inUserId, REPORT_ID, '自行情報の取得');
---         pkLog.debug(l_inUserId, REPORT_ID, 'jikoBankNm= ' || jikoBankNm);	
---         pkLog.debug(l_inUserId, REPORT_ID, 'jikoBushoNm1= ' || jikoBushoNm1);	
---    END IF;
---
 	-- ヘッダレコードを追加
 	CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, REAL_KBN, gGyomuYmd, REPORT_ID);
---
---	IF DEBUG = 1 THEN	
---         pkLog.debug(l_inUserId, REPORT_ID, 'ヘッダレコード追加条件');
---         pkLog.debug(l_inUserId, REPORT_ID, 'pkPrint.insertHeader(' || l_inItakuKaishaCd || ',' || l_inUserId || ',' || REAL_KBN || ',' || gGyomuYmd || ',' || REPORT_ID || ')');	
---    END IF;
---
 	-- 連番取得
 	SELECT	coalesce(MAX(SEQ_NO), 0)
 	INTO STRICT	gSeqNoIni
@@ -216,115 +194,72 @@ BEGIN
 	AND		CHOHYO_KBN = REAL_KBN
 	AND		SAKUSEI_YMD = gGyomuYmd
 	AND		CHOHYO_ID = REPORT_ID;
-			IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, '連番取得：' || gSeqNoIni);	END IF;
 	-- 実質記番号オプションフラグ取得
-	gOptionFlg := pkControl.getOPTION_FLG( l_inItakuKaishaCd, JOPTION_CD, '0');
-			IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, '実質記番号オプションフラグ取得：' || gOptionFlg);	END IF;
+	gOptionFlg := pkControl.getOPTION_FLG(l_inItakuKaishaCd, JOPTION_CD, '0');
 	-- 定時償還コードの名称を取得
 	SELECT CODE_NM INTO STRICT gTeijiShoNm
 	  FROM SCODE
 	 WHERE CODE_VALUE = TEIJI_SHO_CD AND 
 	       CODE_SHUBETSU = '116';
---		IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, '定時償還コードの名称を取得：' || gTeijiShoNm);	END IF;
-    --発行体宛帳票ソート順変更フラグ取得
+	--発行体宛帳票ソート順変更フラグ取得
 	gChohyoSortFlg := pkControl.getCtlValue(l_inItakuKaishaCd, 'SeikyusyoSort', '0');
-	-- 帳票印影の画像ファイルの絶対パスを取得する
-	gChohyoHankoFileNm := pkIpaChohyoHanko.getChohyoHankoFileName(l_inItakuKaishaCd);
+	-- レッドプロジェクトオプションフラグ取得
+	gRedOptionFlg := pkControl.getOPTION_FLG(l_inItakuKaishaCd, 'REDPROJECT', '0');
 	-- SQL構築
-	gSQL := 'SELECT	MG1.HKT_CD,'													-- 発行体コード
+	gSQL := 'SELECT	VMG1.HKT_CD,'												-- 発行体コード
 				 || '		M01.SFSK_POST_NO,'											-- 送付先郵便番号
 				 || '		M01.ADD1,'													-- 送付先住所１
 				 || '		M01.ADD2,'													-- 送付先住所２
 				 || '		M01.ADD3,'													-- 送付先住所３
 				 || '		M01.HKT_NM,'													-- 発行体名称
 				 || '		M01.SFSK_BUSHO_NM,'											-- 送付先担当部署名称
-				 || '		(SELECT TSUKA_NM FROM MTSUKA WHERE MG1.HAKKO_TSUKA_CD = TSUKA_CD) AS HAKKO_TSUKA_NM,'	-- 発行通貨名称
-				 || '		MG1.HAKKO_TSUKA_CD,'										-- 発行通貨コード
-				 || '		UTBL1.ISIN_CD,'											-- ＩＳＩＮコード
-				 || '		MG1.KOKYAKU_MGR_RNM,'									-- 対顧用銘柄略称
-				 || '		MG1.SHASAI_TOTAL,'										-- 社債の総額
-				 || '		MG1.RITSUKE_WARIBIKI_KBN,'								-- 利付割引区分
-				 || '		MG1.RIRITSU,'											-- 利率
-				 || '		MG1.SHOKAN_METHOD_CD,'									-- 償還方法コード
-				 || '		(SELECT CODE_NM FROM SCODE WHERE MG1.SHOKAN_METHOD_CD = CODE_VALUE AND CODE_SHUBETSU = ''116'') AS SHOKAN_METHOD_NM,'
-				 || '		MG1.FULLSHOKAN_KJT,'										-- 満期償還期日
-				 || '		UTBL1.ZNDK,'												-- 未償還残高
-				 || '		MG1.MGR_CD AS MGR_CD,'									-- 銘柄コード
-				 || '		MG1.KK_KANYO_FLG,'										-- 機構関与フラグ
-				 || '		UTBL1.MGR_BUNKATU,'										-- 銘柄分割区分
-				 || '		MG1.TEIJI_SHOKAN_TSUTI_KBN '                               -- 定時償還通知区分
-				 || 'FROM 	(SELECT	VMG1.ITAKU_KAISHA_CD,'
-				 || '				VMG1.ISIN_CD,'
-				 || '				(PKIPAZNDK.getKjnZndk(VMG1.ITAKU_KAISHA_CD, VMG1.MGR_CD, ''' || l_inKijunYmdF || ''', 3))::numeric AS ZNDK,'
-				 || '				'' '' AS MGR_BUNKATU'
-				 || '		FROM	MGR_KIHON_VIEW VMG1,'
-				 || '				MHAKKOTAI M01'
-				 || '		WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''''
-				 || '		AND 	VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD'
-				 || '		AND 	VMG1.HKT_CD = M01.HKT_CD'
-				 || '		AND 	VMG1.JTK_KBN != ''2'''
-				 || '		AND 	(trim(both VMG1.ISIN_CD) IS NOT NULL AND (trim(both VMG1.ISIN_CD))::text <> '''')'
-				 || '		AND 	VMG1.MGR_STAT_KBN = ''' || SHONIN || ''''
-				 || '		AND 	VMG1.MASSHO_FLG = ''' || NOT_MASSHO || ''''
-				 || '		AND     VMG1.HAKKO_YMD <= ''' || gGyomuYmd || ''''
-				 || '		AND     ((VMG1.TOKUREI_SHASAI_FLG = ''Y'' AND (SELECT COUNT(Z01.MGR_CD) FROM GENSAI_RIREKI Z01'
-				 || '														WHERE Z01.SHOKAN_KBN = ''01'''
-				 || '														AND Z01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''''
-				 || '														AND Z01.MGR_CD = VMG1.MGR_CD'
-				 || '														GROUP BY Z01.MGR_CD ) >= 1)'
-				 || '				OR VMG1.TOKUREI_SHASAI_FLG = ''N'')';
+				 || '		(SELECT TSUKA_NM FROM MTSUKA WHERE VMG1.HAKKO_TSUKA_CD = TSUKA_CD) AS HAKKO_TSUKA_NM,'		-- 発行通貨名称
+				 || '		VMG1.HAKKO_TSUKA_CD,'										-- 発行通貨コード
+				 || '		VMG1.ISIN_CD,'												-- ＩＳＩＮコード
+				 || '		VMG1.KOKYAKU_MGR_RNM,'										-- 対顧用銘柄略称
+				 || '		VMG1.SHASAI_TOTAL,'											-- 社債の総額
+				 || '		VMG1.RITSUKE_WARIBIKI_KBN,'									-- 利付割引区分
+				 || '		VMG1.RIRITSU,'												-- 利率
+				 || '		VMG1.SHOKAN_METHOD_CD,'										-- 償還方法コード
+				 || '		(SELECT CODE_NM FROM SCODE WHERE VMG1.SHOKAN_METHOD_CD = CODE_VALUE AND CODE_SHUBETSU = ''116'') AS SHOKAN_METHOD_NM,'
+				 || '		VMG1.FULLSHOKAN_KJT,'										-- 満期償還期日
+				 || '		PKIPAZNDK.getKjnZndk(VMG1.ITAKU_KAISHA_CD, VMG1.MGR_CD, ''' || l_inKijunYmdF || ''', 3) AS ZNDK,'	--未償還残高
+				 || '		VMG1.MGR_CD AS MGR_CD,'                                      --銘柄コード
+				 || '		VMG1.KK_KANYO_FLG,'											-- 機構関与フラグ
+				 || '		VMG1.TEIJI_SHOKAN_TSUTI_KBN,'                                  -- 定時償還通知区分
+				 || '		M01.KOZA_TEN_CD,'                                             -- 口座店コード
+				 || '		M01.KOZA_TEN_CIFCD'                                          -- 口座店ＣＩＦコード
+				 || '	FROM  	MGR_KIHON_VIEW VMG1,'
+				 || '			MHAKKOTAI M01'
+				 || '	WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''''
+				 || '	AND 	VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD'
+				 || '	AND		VMG1.HKT_CD = M01.HKT_CD'
+				 || '	AND 	VMG1.JTK_KBN != ''2'''
+				 || '	AND 	(trim(both VMG1.ISIN_CD) IS NOT NULL AND (trim(both VMG1.ISIN_CD))::text <> '''')'
+				 || '	AND 	VMG1.MGR_STAT_KBN = ''' || SHONIN || ''''
+				 || '	AND 	VMG1.MASSHO_FLG = ''' || NOT_MASSHO || ''''
+				 || '	AND     VMG1.HAKKO_YMD <= ''' || gGyomuYmd || ''''
+				 || '	AND     ((VMG1.TOKUREI_SHASAI_FLG = ''Y'' AND (SELECT COUNT(Z01.MGR_CD) FROM GENSAI_RIREKI Z01'
+				 || '													WHERE Z01.SHOKAN_KBN = ''01'''
+				 || '													AND Z01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''''
+				 || '													AND Z01.MGR_CD = VMG1.MGR_CD'
+				 || '													GROUP BY Z01.MGR_CD ) >= 1)'
+				 || '			OR VMG1.TOKUREI_SHASAI_FLG = ''N'')';
 	IF (l_inHktCd IS NOT NULL AND l_inHktCd::text <> '') THEN
-		gSQL := gSQL || '		AND VMG1.HKT_CD = ''' || l_inHktCd || '''';
+		gSQL := gSQL || '	AND VMG1.HKT_CD = ''' || l_inHktCd || '''';
 	END IF;
 	IF (l_inKozaTenCd IS NOT NULL AND l_inKozaTenCd::text <> '') THEN
-		gSQL := gSQL || '		AND M01.KOZA_TEN_CD = ''' || l_inKozaTenCd || '''';
+		gSQL := gSQL || '	AND M01.KOZA_TEN_CD = ''' || l_inKozaTenCd || '''';
 	END IF;
 	IF (l_inKozaTenCifCd IS NOT NULL AND l_inKozaTenCifCd::text <> '') THEN
-		gSQL := gSQL || '		AND M01.KOZA_TEN_CIFCD = ''' || l_inKozaTenCifCd || '''';
+		gSQL := gSQL || '	AND M01.KOZA_TEN_CIFCD = ''' || l_inKozaTenCifCd || '''';
 	END IF;
-	gSQL := gSQL || '		AND 	VMG1.PARTMGR_KBN = ''0'''
-				 || '	UNION'
-				 || '		SELECT	VMG1.ITAKU_KAISHA_CD,'
-				 || '				VMG1.GENISIN_CD AS ISIN_CD,'
-				 || '				SUM(PKIPAZNDK.getKjnZndk(VMG1.ITAKU_KAISHA_CD, VMG1.MGR_CD, ''' || l_inKijunYmdF || ''', 3)) AS ZNDK,'
-				 || '				''*'' AS MGR_BUNKATU'
-				 || '		FROM	MGR_KIHON_VIEW VMG1,'
-				 || '				MHAKKOTAI M01'
-				 || '		WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''''
-				 || '		AND 	VMG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD'
-				 || '		AND 	VMG1.HKT_CD = M01.HKT_CD'
-				 || '		AND 	VMG1.JTK_KBN != ''2'''
-				 || '		AND 	(trim(both VMG1.ISIN_CD) IS NOT NULL AND (trim(both VMG1.ISIN_CD))::text <> '''')'
-				 || '		AND 	VMG1.MGR_STAT_KBN = ''' || SHONIN || ''''
-				 || '		AND 	VMG1.MASSHO_FLG = ''' || NOT_MASSHO || ''''
-				 || '		AND     VMG1.HAKKO_YMD <= ''' || gGyomuYmd || ''''
-				 || '		AND     ((VMG1.TOKUREI_SHASAI_FLG = ''Y'' AND (SELECT COUNT(Z01.MGR_CD) FROM GENSAI_RIREKI Z01'
-				 || '														WHERE Z01.SHOKAN_KBN = ''01'''
-				 || '														AND Z01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''''
-				 || '														AND Z01.MGR_CD = VMG1.MGR_CD'
-				 || '														GROUP BY Z01.MGR_CD ) >= 1)'
-				 || '				OR VMG1.TOKUREI_SHASAI_FLG = ''N'')';
-	IF (l_inHktCd IS NOT NULL AND l_inHktCd::text <> '') THEN
-		gSQL := gSQL || '		AND VMG1.HKT_CD = ''' || l_inHktCd || '''';
-	END IF;
-	IF (l_inKozaTenCd IS NOT NULL AND l_inKozaTenCd::text <> '') THEN
-		gSQL := gSQL || '		AND M01.KOZA_TEN_CD = ''' || l_inKozaTenCd || '''';
-	END IF;
-	IF (l_inKozaTenCifCd IS NOT NULL AND l_inKozaTenCifCd::text <> '') THEN
-		gSQL := gSQL || '		AND M01.KOZA_TEN_CIFCD = ''' || l_inKozaTenCifCd || '''';
-	END IF;
-	gSQL := gSQL || '		AND 	VMG1.PARTMGR_KBN = ''2'''
-				 || '		GROUP BY VMG1.ITAKU_KAISHA_CD, VMG1.GENISIN_CD) UTBL1,'
-				 || '		MGR_KIHON MG1,'
-				 || '		MHAKKOTAI M01'
-				 || '	WHERE 	UTBL1.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD'
-				 || '	AND 	UTBL1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD'
-				 || '	AND		UTBL1.ISIN_CD = MG1.ISIN_CD'
-				 || '	AND		MG1.HKT_CD = M01.HKT_CD'
-				 || '	ORDER BY 	CASE WHEN ''' || gChohyoSortFlg || ''' = ''1'' THEN  M01.HKT_KANA_RNM   ELSE M01.HKT_CD END,'
-				 || '				M01.HKT_CD,'
-				 || '				MG1.HAKKO_TSUKA_CD,'
-				 || '				CASE WHEN ''' || gChohyoSortFlg || ''' = ''1'' THEN  MG1.MGR_CD   ELSE MG1.ISIN_CD END';
+	gSQL := gSQL || '	ORDER BY'
+				 || '		M01.KOZA_TEN_CD,'      --口座店コード
+				 || '		M01.KOZA_TEN_CIFCD,'   -- 口座店CIFコード
+				 || '		VMG1.HAKKO_TSUKA_CD,'  -- 通貨コード
+				 || '		VMG1.HAKKO_YMD,'       -- 発行日
+				 || '		VMG1.ISIN_CD';         -- ISINコード
 	-- カーソルオープン
 	OPEN curMeisai FOR EXECUTE gSQL;
 	-- データ取得
@@ -347,17 +282,13 @@ BEGIN
 								,recMeisai.gShokanMethodNm 		-- 償還方法名称
 								,recMeisai.gFullshokanKjt 		-- 満期償還期日
 								,recMeisai.gZndk  				-- 残高
-                                ,recMeisai.gMgrCd                -- 銘柄コード
-                                ,recMeisai.gKkKnyoFlg 			-- 機構関与フラグ
-								,recMeisai.gMgrBunkatu 			-- 銘柄分割区分
-								,recMeisai.gTshokanTsutiKbn      -- 定時償還通知区分
+								,recMeisai.gMgrCd 				-- 銘柄コード
+								,recMeisai.gKkKnyoFlg 			-- 機構関与フラグ
+								,recMeisai.gTshokanTsutiKbn 		-- 定時償還通知区分
+								,recMeisai.gKozaTenCd            -- 口座店コード
+								,recMeisai.gKozaTenCifcd         -- 口座店ＣＩＦコード
 								;
 		EXIT WHEN NOT FOUND;
-        -- 定時償還永久債の償還方法の表示を「永久債」とする
-        IF recMeisai.gFullshokanKjt = '99999999' AND recMeisai.gShokanMethodCd = '2'
-        AND recMeisai.gTshokanTsutiKbn = 'V' THEN 
-            recMeisai.gShokanMethodNm := '永久債';
-        END IF;
 		-- 実質記番号オプションフラグがONの場合
 		IF gOptionFlg = '1' THEN
 			-- 機構関与フラグが「2：実質記番号銘柄」の場合
@@ -367,25 +298,18 @@ BEGIN
 				recMeisai.gShokanMethodNm := gTeijiShoNm;
 			END IF;
 		END IF;
-		IF recMeisai.gMgrBunkatu = '*'
-		OR (recMeisai.gMgrBunkatu = ' '
-			AND pkIPACalcTesuryo.checkHeizonMgr(l_inItakuKaishaCd, recMeisai.gMgrCd, l_inKijunYmdF, '1') = 0) THEN
+		-- 定時償還永久債の償還方法の表示を「永久債」とする
+		IF recMeisai.gFullshokanKjt = '99999999' AND recMeisai.gShokanMethodCd = '2'
+		AND recMeisai.gTshokanTsutiKbn = 'V' THEN
+			recMeisai.gShokanMethodNm := '永久債';
+		END IF;
+	-- IP-04876
+		-- 併存銘柄での請求出力チェック
+		IF pkIPACalcTesuryo.checkHeizonMgr(l_inItakuKaishaCd, recMeisai.gMgrCd, l_inKijunYmdF, '1') = 0 THEN
 		IF (key.gHktCd IS DISTINCT FROM recMeisai.gHktCd OR key.gHakkoTsukaCd IS DISTINCT FROM recMeisai.gHakkoTsukaCd)
 		THEN
---
---      		IF DEBUG = 1 THEN
---               pkLog.debug(l_inUserId, REPORT_ID, '合計キーブレイク');
---               pkLog.debug(l_inUserId, REPORT_ID, 'key.gHktCd != recMeisai.gHktCd: ' || key.gHktCd || '!=' || recMeisai.gHktCd);
---               pkLog.debug(l_inUserId, REPORT_ID, 'key.gHakkoTsukaCd != recMeisai.gHakkoTsukaCd: ' || key.gHakkoTsukaCd || '!=' || recMeisai.gHakkoTsukaCd);
---            END IF;
--- 
 		-- キーブレイク、合計行出力
 			IF gokei.gZndk > 0  AND gSeqNo > gSeqNoIni THEN
-      			IF DEBUG = 1 THEN
-               CALL pkLog.debug(l_inUserId, REPORT_ID, '合計出力');
-               CALL pkLog.debug(l_inUserId, REPORT_ID, 'gokei.gZndk: ' || gokei.gZndk || '>0');
-               CALL pkLog.debug(l_inUserId, REPORT_ID, 'gSeqNo: ' || gSeqNo || '>' || gSeqNoIni);
-            END IF;
 				gSeqNo := gSeqNo + 1;
 				-- 帳票ワークへデータを追加
 						-- Clear composite type
@@ -408,7 +332,9 @@ BEGIN
 		v_item.l_inItem023 := gokei.gZndk;	-- 残高＿合計
 		v_item.l_inItem025 := key.gHktCd;	-- 発行体コード
 		v_item.l_inItem026 := recMeisai.gRitsukeWaribikiKbn;	-- 利付割引区分
-		v_item.l_inItem029 := gChohyoHankoFileNm;	-- 帳票印影の画像ファイルの絶対パス
+		v_item.l_inItem029 := recPrevMeisai.gKozaTenCd;	-- 口座店コード
+		v_item.l_inItem030 := recPrevMeisai.gKozaTenCifcd;	-- 口座店ＣＩＦコード
+		v_item.l_inItem031 := gRedOptionFlg;	-- レッドプロジェクトオプションフラグ
 		
 		-- Call pkPrint.insertData with composite type
 		CALL pkPrint.insertData(
@@ -433,14 +359,14 @@ BEGIN
 			gokei.gZndk			:= 0;
 		END IF;
 		-- 残高が「0」以外の場合帳票ワークへデータを追加
-        IF recMeisai.gZndk != 0 AND (recMeisai.gZndk IS NOT NULL AND recMeisai.gZndk::text <> '') THEN
+		IF recMeisai.gZndk != 0 AND (recMeisai.gZndk IS NOT NULL AND recMeisai.gZndk::text <> '') THEN
 			-- 合計計算
 			gokei.gShasaiTotal := gokei.gShasaiTotal + recMeisai.gShasaiTotal;
 			gokei.gZndk := gokei.gZndk + recMeisai.gZndk;
 			-- 宛名編集
 			CALL pkIpaName.getMadoFutoAtena(recMeisai.gHktNm, recMeisai.gSfskBushoNm, gOutflg, gAtena);
-        	gSeqNo := gSeqNo + 1;
-    				-- Clear composite type
+			gSeqNo := gSeqNo + 1;
+					-- Clear composite type
 		v_item := ROW();
 		
 		v_item.l_inItem001 := gWrkTsuchiYmd;	-- 通知日
@@ -466,8 +392,9 @@ BEGIN
 		v_item.l_inItem025 := recMeisai.gHktCd;	-- 発行体コード
 		v_item.l_inItem026 := recMeisai.gRitsukeWaribikiKbn;	-- 利付割引区分
 		v_item.l_inItem027 := recMeisai.gShokanMethodCd;	-- 償還方法コード
-		v_item.l_inItem028 := recMeisai.gMgrBunkatu;	-- 銘柄分割区分
-		v_item.l_inItem029 := gChohyoHankoFileNm;	-- 帳票印影の画像ファイルの絶対パス
+		v_item.l_inItem029 := recMeisai.gKozaTenCd;	-- 口座店コード
+		v_item.l_inItem030 := recMeisai.gKozaTenCifcd;	-- 口座店ＣＩＦコード
+		v_item.l_inItem031 := gRedOptionFlg;	-- レッドプロジェクトオプションフラグ
 		
 		-- Call pkPrint.insertData with composite type
 		CALL pkPrint.insertData(
@@ -513,23 +440,22 @@ BEGIN
 			l_inSakuseiId	=> l_inUserId
 		);
 	ELSE
-        IF gokei.gZndk > 0 THEN
-            -- 合計行をINSERTする直前に振られたシーケンスNoに該当する帳票データの発行体コードを取得する
-            SELECT 	ITEM025
-        	INTO STRICT	gHktCd
-            FROM 	SREPORT_WK s
-            WHERE 	s.KEY_CD = l_inItakuKaishaCd
-            AND		s.USER_ID = l_inUserId
-            AND		s.CHOHYO_KBN = REAL_KBN
-            AND		s.SAKUSEI_YMD = gGyomuYmd
-            AND		s.CHOHYO_ID = REPORT_ID
-            AND		s.SEQ_NO = gSeqNo
-            AND		s.HEADER_FLG = '1';
---			IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, '最終合計前、発行体コード取得：' || gHktCd);	END IF;
-        	    -- 合計行を出力する
-        		gSeqNo := gSeqNo + 1;
-        		-- 帳票ワークへデータを追加
-        				-- Clear composite type
+		IF gokei.gZndk > 0 THEN
+			-- 合計行をINSERTする直前に振られたシーケンスNoに該当する帳票データの発行体コードを取得する
+			SELECT 	ITEM025
+			INTO STRICT	gHktCd
+			FROM 	SREPORT_WK s
+			WHERE 	s.KEY_CD = l_inItakuKaishaCd
+			AND		s.USER_ID = l_inUserId
+			AND		s.CHOHYO_KBN = REAL_KBN
+			AND		s.SAKUSEI_YMD = gGyomuYmd
+			AND		s.CHOHYO_ID = REPORT_ID
+			AND		s.SEQ_NO = gSeqNo
+			AND		s.HEADER_FLG = '1';
+			-- 合計行を出力する
+			gSeqNo := gSeqNo + 1;
+			-- 帳票ワークへデータを追加
+					-- Clear composite type
 		v_item := ROW();
 		
 		v_item.l_inItem001 := gWrkTsuchiYmd;	-- 通知日
@@ -548,7 +474,9 @@ BEGIN
 		v_item.l_inItem022 := gokei.gShasaiTotal;	-- 社債の総額＿合計
 		v_item.l_inItem023 := gokei.gZndk;	-- 残高＿合計
 		v_item.l_inItem025 := gHktCd;	-- 発行体コード
-		v_item.l_inItem029 := gChohyoHankoFileNm;	-- 帳票印影の画像ファイルの絶対パス
+		v_item.l_inItem029 := recPrevMeisai.gKozaTenCd;	-- 口座店コード
+		v_item.l_inItem030 := recPrevMeisai.gKozaTenCifcd;	-- 口座店ＣＩＦコード
+		v_item.l_inItem031 := gRedOptionFlg;	-- レッドプロジェクトオプションフラグ
 		
 		-- Call pkPrint.insertData with composite type
 		CALL pkPrint.insertData(
@@ -563,13 +491,13 @@ BEGIN
 			l_inKousinId	=> l_inUserId,
 			l_inSakuseiId	=> l_inUserId
 		);
-        END IF;
+		END IF;
 	END IF;
 	-- 終了処理
 	l_outSqlCode := gRtnCd;
 	l_outSqlErrM := '';
---	IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, 'ROWCOUNT:'||gSeqNo);	END IF;
---	IF DEBUG = 1 THEN	pkLog.debug(l_inUserId, REPORT_ID, 'spIp06701_02 END');	END IF;
+	IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, 'ROWCOUNT:'||gSeqNo);	END IF;
+	IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, 'SPIP06701_01 END');	END IF;
 -- エラー処理
 EXCEPTION
 	WHEN	OTHERS	THEN
@@ -588,4 +516,4 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip06701_02 ( l_inUserId TEXT, l_inItakuKaishaCd TEXT, l_inKijunYmdF TEXT, l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inTsuchiYmd TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE spip06701_01 ( l_inUserId TEXT, l_inItakuKaishaCd TEXT, l_inKijunYmdF TEXT, l_inHktCd TEXT, l_inKozaTenCd TEXT, l_inKozaTenCifCd TEXT, l_inTsuchiYmd TEXT, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;

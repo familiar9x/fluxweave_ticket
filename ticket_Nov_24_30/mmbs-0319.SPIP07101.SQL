@@ -73,7 +73,7 @@ BEGIN
 		RETURN;
 	END IF;
     -- 業務日付取得
-    l_GyomuYmd := PKDATE.getGyomuYmd;
+    l_GyomuYmd := PKDATE.getGyomuYmd();
     -- パラメータの基準日From-Toをセット
     l_KjnYmdFrom := l_inGnrBaraiKjtF;
     l_KjnYmdTo   := l_inGnrBaraiKjtT;
