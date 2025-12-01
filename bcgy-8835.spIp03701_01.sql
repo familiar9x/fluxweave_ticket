@@ -3,8 +3,7 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spip03701_01 ( 
-	l_inUserId TEXT,		-- ユーザーID
+CREATE OR REPLACE PROCEDURE spip03701_01 ( l_inUserId TEXT,		-- ユーザーID
  l_inItakuKaishaCd TEXT,		-- 委託会社コード
  l_inMgrCd text,	-- 銘柄コード
  l_inIsinCd TEXT,		-- ISINコード
@@ -68,7 +67,6 @@ DECLARE
 	gRtnCd					integer :=	RTN_OK;		-- リターンコード
 	gSeqNo					integer := 0;			-- シーケンス
 	gGyomuYmd				char(8);					-- 業務日付
-	gRtnFlg					numeric	:= 0;			-- リターンフラグ
 	gTsuchiYmdWrk			varchar(18) := NULL;	-- 通知日西暦
 	-- 書式フォーマット
 	gFmtHakkoKngk			varchar(21) := NULL;	-- 発行金額
@@ -98,7 +96,8 @@ DECLARE
 	gAllShrGk				numeric := 0;			-- 支払額合計
 	gAllShrZeiGk			numeric := 0;			-- 支払額内消費税合計
 	gAtena				varchar(200) := NULL;		-- 宛名
-	gOutflg				numeric := 0;				-- 正常処理フラグ
+	gOutflg				integer := 0;				-- 正常処理フラグ
+	gRtnFlg				integer := 0;				-- リターンフラグ
 	gRbrKjtMoji			varchar(20) := NULL;		-- 利払期日
 	gRknTesTsukaCd		KIKIN_IDO.TSUKA_CD%TYPE := ' ';	-- 利金手数料用通貨コード
 	gShokanKbn			MGR_SHOKIJ.SHOKAN_KBN%TYPE;		        -- 償還区分
@@ -500,7 +499,7 @@ BEGIN
 		RETURN;
 	END IF;
 	-- 業務日付を取得する
-	gGyomuYmd := pkdate.getgyomuymd();
+	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 帳票ワークの削除
 	DELETE FROM SREPORT_WK
 	WHERE	KEY_CD = l_inItakuKaishaCd
@@ -532,7 +531,7 @@ BEGIN
 	-- 通知日の西暦変換
 	gTsuchiYmdWrk := TSUCHI_YMD_DEF;
 	IF (trim(both l_inTsuchiYmd) IS NOT NULL AND (trim(both l_inTsuchiYmd))::text <> '') THEN
-		gTsuchiYmdWrk := pkdate.seirekichangesuppressnengappi(l_inTsuchiYmd);
+		gTsuchiYmdWrk := pkDate.seirekiChangeSuppressNenGappi(l_inTsuchiYmd);
 	END IF;
 	-- コードマスタより、償還区分のソート順位がもっとも低いものを取得する。
 	-- SQLの期中手数料でpkIpaZndkで償還後残高を取得しているため、同一期日のすべての償還額を反映させたもので取得する。
@@ -594,7 +593,8 @@ BEGIN
 			gRbrKjtMoji := ' ';
 		ELSE
 			-- 利払期日名称の編集
-			gRbrKjtMoji :=	pkRibaraiKijitsu.getRibaraiKijitsu(chohyoRec.NENRBR_CNT, chohyoRec.ST_RBR_KJT, chohyoRec.RBR_DD,gRtnFlg);
+			SELECT l_outflg, l_outresult INTO gRtnFlg, gRbrKjtMoji 
+			FROM pkRibaraiKijitsu.getRibaraiKijitsu(chohyoRec.NENRBR_CNT::integer, substring(chohyoRec.ST_RBR_KJT, 1, 1)::char, substring(chohyoRec.RBR_DD, 1, 1)::char, gRtnFlg);
 		END IF;
 		-- ループの先頭、または銘柄コードが変わったら行う。
 		IF gNo = 1 THEN

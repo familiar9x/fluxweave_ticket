@@ -1,18 +1,21 @@
 Process to migrate each file:
 1. Copy file từ generated về file có tên: ticket.ten_file.sql
-2. ✨ RUN: fix_invalid_comments.sh    ← FIX data type
+2. RUN: script_convert_simple.sh    ← FIX data type
 3. Run convert_pkprint_calls.py để convert pkprint calls sang PostgreSQL syntax
 4. Fix %TYPE, arrays, nested procedures... ( theo rule ở dưới)
 5. Deploy script lên PostgreSQL (0_db_postgres)
 6. Check error and continue to fix
-7. Test lại vs PostgreSQL ra 0 (thành công) hoặc 2 (không có data) và thêm test case vào 1_test_migration.py
-- Data example:
+7. Tìm data example để test
+- Ra 0: ok -> và thêm test case vào 1_test_migration.py
+- Ra 2: tìm tham số khác để ra 0 
+
+Data example:
 'TESTUSER'::text,       -- l_inUserId
 '0005'::text,           -- l_inItakuKaishaCd
 '609970'::text,        -- l_inHktCd
 'S620060331876'::text, -- l_inMgrCd
 'JP90B0006TP8'::text   -- l_inIsinCd
-
+'1201801050031756'::text, -- l_inKessaiNo 
 
 
 Rule:
