@@ -76,7 +76,7 @@ BEGIN
         NULL::text,             -- l_inKozaTenCd
         NULL::text,             -- l_inKozaTenCifCd
         'S620060331876'::text, -- l_inMgrCd
-        NULL::text,             -- l_inIsinCd
+        'JP90B0006TP8'::text,   -- l_inIsinCd
         NULL::text,             -- l_inJtkKbn
         NULL::text,             -- l_inSaikenKbn
         NULL::text,             -- l_inKkKanyoFlg
@@ -85,7 +85,7 @@ BEGIN
         '0005'::text,           -- l_inItakuKaishaCd
         'TESTUSER'::text,      -- l_inUserId
         '1'::text,              -- l_inChohyoKbn
-        '20250125'::text,       -- l_inGyomuYmd
+        '20180131'::text,       -- l_inGyomuYmd
         v_code,
         v_msg
     );
@@ -573,19 +573,19 @@ DECLARE
 BEGIN 
     SELECT MAX(KK_SAKUSEI_DT) INTO v_kk_dt FROM KK_RENKEI;
     CALL spip00503(
-        '0005'::text,           -- l_inItakuKaishaCd
-        ''::text,               -- l_inKessaiNo
-        'TESTUSER'::text,       -- l_inUserId
-        '0'::text,              -- l_inChohyoKbn
-        '20250101'::text,       -- l_inGyomuYmd
-        v_kk_dt,                -- l_inKkSakuseiDt
+        '0005'::text,                -- l_inItakuKaishaCd
+        '1201803070049689'::text,    -- l_inKessaiNo (actual data)
+        'TESTUSER'::text,            -- l_inUserId
+        '0'::text,                   -- l_inChohyoKbn
+        '20250101'::text,            -- l_inGyomuYmd
+        v_kk_dt,                     -- l_inKkSakuseiDt
         v_code,
         v_msg
     );
     RAISE NOTICE 'Return Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': [0, 2, 99],  # 0=SUCCESS, 2=NODATA, 99=ERROR
+                'expected': [0, 2],  # 0=SUCCESS, 2=NODATA
                 'allow_timeout': True
             }
         ]
@@ -638,7 +638,7 @@ DECLARE
 BEGIN 
     CALL spip02901(
         '20180101'::text,       -- l_inKessaiYmdF
-        '20181231'::text,       -- l_inKessaiYmdT
+        '20180105'::text,       -- l_inKessaiYmdT
         '0005'::text,           -- l_inItakuKaishaCd
         'TESTUSER'::text,       -- l_inUserId
         '0'::text,              -- l_inChohyoKbn
@@ -660,7 +660,7 @@ END $$;
         'timeout': 60,
         'tests': [
             {
-                'description': 'Principal and interest payment notice - with test data',
+                'description': 'Principal and interest payment notice - with actual payment data',
                 'postgres_sql': """
 DO $$ 
 DECLARE 
@@ -668,12 +668,12 @@ DECLARE
     v_msg text; 
 BEGIN 
     CALL spip01801(
-        '609970'::text,         -- l_inHktCd
+        '700018'::text,         -- l_inHktCd (issuer with data)
         NULL::text,             -- l_inKozaTenCd
         NULL::text,             -- l_inKozaTenCifCd
-        'S620060331876'::text,  -- l_inMgrCd
-        'JP90B0006TP8'::text,   -- l_inIsinCd
-        '20180101'::text,       -- l_inGanriBaraiYmdF
+        'S720150213001'::text,  -- l_inMgrCd (bond with payment records)
+        'JP90B00346H9'::text,   -- l_inIsinCd
+        '20170101'::text,       -- l_inGanriBaraiYmdF
         '20181231'::text,       -- l_inGanriBaraiYmdT
         '0005'::text,           -- l_inItakuKaishaCd
         'TESTUSER'::text,       -- l_inUserId
@@ -685,7 +685,7 @@ BEGIN
     RAISE NOTICE 'Return Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
 END $$;
 """,
-                'expected': [0, 2],  # 0=SUCCESS, 2=NODATA
+                'expected': [0, 2],  # 0=SUCCESS with data, 2=NODATA both acceptable
                 'allow_timeout': True
             }
         ]
@@ -736,7 +736,7 @@ DECLARE
 BEGIN 
     CALL spip02902(
         '20180101'::text,       -- l_inKessaiYmdF
-        '20181231'::text,       -- l_inKessaiYmdT
+        '20180131'::text,       -- l_inKessaiYmdT
         '0005'::text,           -- l_inItakuKaishaCd
         'TESTUSER'::text,       -- l_inUserId
         '0'::text,              -- l_inChohyoKbn

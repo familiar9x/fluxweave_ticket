@@ -152,19 +152,16 @@ DECLARE
     		VMG1.MGR_RNM,									-- 銘柄略称
     		B04W.URI_BANKID_CD,								-- 売り手金融機関識別コード
     		B04W.URI_BANKID_CDW,							-- 売り手  金融証券区分＋金融機関コード
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.URI_BANKID_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.URI_BANKID_CDW,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.URI_BANKID_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.URI_BANKID_CDW,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS URI_BANKID_RNM,				        -- 売り手略称
     		B04W.KAI_BANKID_CD,								-- 買い手金融機関識別コード
     		B04W.KAI_BANKID_CDW,							-- 買い手  金融証券区分＋金融機関コード
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.KAI_BANKID_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.KAI_BANKID_CDW,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.KAI_BANKID_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.KAI_BANKID_CDW,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS KAI_BANKID_RNM,      				-- 買い手略称
     		B04W.FUND_CD,									-- ファンドコード
     		B04W.WTS_KESSAIDAIRI_CD,						-- 渡方決済代理人コード
     		B04W.WTS_KESSAIDAIRI_CDW,						-- 渡方決済代理人  金融証券区分＋金融機関コード
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.WTS_KESSAIDAIRI_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.WTS_KESSAIDAIRI_CDW,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.WTS_KESSAIDAIRI_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.WTS_KESSAIDAIRI_CDW,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS WTS_KESSAIDAIRI_RNM,     			-- 渡方決済代理人略称
     		B04W.TANKATYPE_CD,								-- 単価タイプコード
 			(SELECT CODE_NM
@@ -180,28 +177,23 @@ LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.WTS_KESSAIDAIRI_CDW,1,1) = M02.FINANCI
 				AND CODE_SHUBETSU = '593') AS OWN_ITAKU_NM, -- 自己委託コード名称
     		B04W.UKE_KESSAIDAIRI_CD,						-- 受方決済代理人コード
     		B04W.UKE_KESSAIDAIRI_CDW,						-- 受方決済代理人  金融証券区分＋金融機関コード
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.UKE_KESSAIDAIRI_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.UKE_KESSAIDAIRI_CDW,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.UKE_KESSAIDAIRI_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.UKE_KESSAIDAIRI_CDW,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS UKE_KESSAIDAIRI_RNM,     			-- 受方決済代理人略称
     		B04W.MSG_TS_BANKID_CD,							-- メッセージ当初送信者金融機関識別コード
     		B04W.MSG_TS_BANKID_CDW,							-- メッセージ当初送信者  金融証券区分＋金融機関コード
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.MSG_TS_BANKID_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.MSG_TS_BANKID_CDW,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.MSG_TS_BANKID_CDW,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.MSG_TS_BANKID_CDW,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS MSG_TS_BANKID_RNM,	    			-- メッセージ当初送信者略称
     		B04W.COPYSEND_BANKID_CD1,						-- コピー送信先金融機関コード１
     		B04W.COPYSEND_BANKID_CD1W,						-- コピー送信先 金融証券区分＋金融機関コード１
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.COPYSEND_BANKID_CD1W,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.COPYSEND_BANKID_CD1W,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.COPYSEND_BANKID_CD1W,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.COPYSEND_BANKID_CD1W,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS COPYSEND_BANKID_RNM1,    			-- コピー送信先金融機関略称１
     		B04W.COPYSEND_BANKID_CD2,						-- コピー送信先金融機関コード２
     		B04W.COPYSEND_BANKID_CD2W,						-- コピー送信先 金融証券区分＋金融機関コード２
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.COPYSEND_BANKID_CD2W,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.COPYSEND_BANKID_CD2W,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.COPYSEND_BANKID_CD2W,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.COPYSEND_BANKID_CD2W,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS COPYSEND_BANKID_RNM2,    			-- コピー送信先金融機関略称２
     		B04W.COPYSEND_BANKID_CD3,						-- コピー送信先金融機関コード３
     		B04W.COPYSEND_BANKID_CD3W,						-- コピー送信先 金融証券区分＋金融機関コード３
-    		coalesce((SELECT BANK_RNM FROM substrb04w
-LEFT OUTER JOIN mbank m02 ON (SUBSTR(B04W.COPYSEND_BANKID_CD3W,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.COPYSEND_BANKID_CD3W,2,4) = M02.BANK_CD)  ),' ')
+    		coalesce((SELECT BANK_RNM FROM mbank m02 WHERE SUBSTR(B04W.COPYSEND_BANKID_CD3W,1,1) = M02.FINANCIAL_SECURITIES_KBN AND SUBSTR(B04W.COPYSEND_BANKID_CD3W,2,4) = M02.BANK_CD LIMIT 1),' ')
                     AS COPYSEND_BANKID_RNM3,     			-- コピー送信先金融機関略称３
             VJ1.JIKO_DAIKO_KBN
     FROM vjiko_itaku vj1, (
@@ -297,7 +289,7 @@ BEGIN
 --
 --IP-05753 2007/12/11 START
 	-- ヘッダーレコード存在チェック
-	gHeaderSeqNo := spip00503_chkheaderseqno();
+	gHeaderSeqNo := spip00503_chkheaderseqno(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, REPORT_ID);
     -- 該当キーのデータが存在しないとき、ヘッダレコード登録
     IF gHeaderSeqNo = 1 THEN
     	-- ヘッダレコードを追加
@@ -313,7 +305,7 @@ BEGIN
 	FOR recMeisai IN curMeisai LOOP
 		-- 帳票ワークに、同一決済番号のレコードが存在するかチェックする。
 		-- 存在しない場合は0, 存在する場合は該当レコードのSEQ_NOが返却される。
-		gExistSeqNo := spIp00503_chkExistSreportWk;
+		gExistSeqNo := spIp00503_chkExistSreportWk(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, l_inKessaiNo, REPORT_ID);
 		IF gExistSeqNo = 0 THEN 		-- 存在しない場合
 --IP-05753 2007/12/11 START			
 			SELECT nextval('shinkikiroku_totsugo_seq') INTO STRICT gSeqNo;
@@ -322,7 +314,7 @@ BEGIN
 			gInsSeqNo := gSeqNo;
 		ELSE 						-- 存在する場合
 			-- 帳票ワークの既存レコードを削除する。
-			CALL spIp00503_delSreportWk();
+			CALL spIp00503_delSreportWk(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, REPORT_ID, gExistSeqNo);
 			-- 帳票ワーク登録用のシーケンスに、削除したレコードのシーケンスをセット
 			gInsSeqNo := gExistSeqNo;
 		END IF;
@@ -431,7 +423,7 @@ BEGIN
 			l_inUserId,
 			l_inItakuKaishaCd,
 			l_inGyomuYmd,
-			pkPrtOk.LIST_SAKUSEI_KBN_ZUIJI(1),
+			pkPrtOk.LIST_SAKUSEI_KBN_ZUIJI(),
 			REPORT_ID);
 	END IF;
 	-- 終了処理
@@ -458,7 +450,14 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE FUNCTION spip00503_chkexistsreportwk () RETURNS integer AS $body$
+CREATE OR REPLACE FUNCTION spip00503_chkexistsreportwk (
+	p_inItakuKaishaCd TEXT,
+	p_inUserId TEXT,
+	p_inChohyoKbn TEXT,
+	p_inGyomuYmd TEXT,
+	p_inKessaiNo TEXT,
+	p_reportId TEXT
+) RETURNS integer AS $body$
 DECLARE
 
 	l_seqNo		integer;
@@ -471,12 +470,12 @@ BEGIN
 	FROM
 		SREPORT_WK
 	WHERE
-		KEY_CD = l_inItakuKaishaCd
-		AND USER_ID = l_inUserId 	-- 実際は'BATCH'固定
-		AND CHOHYO_KBN = l_inChohyoKbn
-		AND SAKUSEI_YMD = l_inGyomuYmd
-		AND CHOHYO_ID = REPORT_ID
-		AND ITEM002 = l_inKessaiNo;
+		KEY_CD = p_inItakuKaishaCd
+		AND USER_ID = p_inUserId 	-- 実際は'BATCH'固定
+		AND CHOHYO_KBN = p_inChohyoKbn
+		AND SAKUSEI_YMD = p_inGyomuYmd
+		AND CHOHYO_ID = p_reportId
+		AND ITEM002 = p_inKessaiNo;
 	RETURN l_seqNo;
 EXCEPTION
 	WHEN no_data_found THEN
@@ -495,7 +494,13 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE FUNCTION spip00503_chkheaderseqno () RETURNS integer AS $body$
+CREATE OR REPLACE FUNCTION spip00503_chkheaderseqno (
+	p_inItakuKaishaCd TEXT,
+	p_inUserId TEXT,
+	p_inChohyoKbn TEXT,
+	p_inGyomuYmd TEXT,
+	p_reportId TEXT
+) RETURNS integer AS $body$
 DECLARE
 
 	l_headerSeqNo	integer;
@@ -508,11 +513,11 @@ BEGIN
 	FROM
 		SREPORT_WK
 	WHERE
-		KEY_CD = l_inItakuKaishaCd
-		AND	USER_ID = l_inUserId
-		AND	CHOHYO_KBN = l_inChohyoKbn
-		AND	SAKUSEI_YMD = l_inGyomuYmd
-		AND	CHOHYO_ID = REPORT_ID
+		KEY_CD = p_inItakuKaishaCd
+		AND	USER_ID = p_inUserId
+		AND	CHOHYO_KBN = p_inChohyoKbn
+		AND	SAKUSEI_YMD = p_inGyomuYmd
+		AND	CHOHYO_ID = p_reportId
 		AND	SEQ_NO = 0
 		AND	HEADER_FLG = 0;
 	RETURN l_headerSeqNo;
@@ -531,17 +536,24 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spip00503_delsreportwk () AS $body$
+CREATE OR REPLACE PROCEDURE spip00503_delsreportwk (
+	p_inItakuKaishaCd TEXT,
+	p_inUserId TEXT,
+	p_inChohyoKbn TEXT,
+	p_inGyomuYmd TEXT,
+	p_reportId TEXT,
+	p_existSeqNo INTEGER
+) AS $body$
 BEGIN
 	DELETE
 		FROM SREPORT_WK
 	WHERE
-		KEY_CD = l_inItakuKaishaCd
-		AND USER_ID = l_inUserId 	-- 実際は'BATCH'固定
-		AND CHOHYO_KBN = l_inChohyoKbn
-		AND SAKUSEI_YMD = l_inGyomuYmd
-		AND CHOHYO_ID = REPORT_ID
-		AND SEQ_NO = gExistSeqNo;
+		KEY_CD = p_inItakuKaishaCd
+		AND USER_ID = p_inUserId 	-- 実際は'BATCH'固定
+		AND CHOHYO_KBN = p_inChohyoKbn
+		AND SAKUSEI_YMD = p_inGyomuYmd
+		AND CHOHYO_ID = p_reportId
+		AND SEQ_NO = p_existSeqNo;
 EXCEPTION
 	WHEN OTHERS THEN
 		RAISE;
@@ -556,6 +568,9 @@ LANGUAGE PLPGSQL
 
 
 CREATE OR REPLACE FUNCTION spip00503_gettsukafmt (l_inTsukaCd text) RETURNS varchar AS $body$
+DECLARE
+    FMT_J CONSTANT varchar(18) := 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9';
+    FMT_F CONSTANT varchar(21) := 'ZZ,ZZZ,ZZZ,ZZZ,ZZ9.99';
 BEGIN
         -- 日本円と外貨でフォーマットが異なる 
 	IF l_inTsukaCd = 'JPY' THEN

@@ -11,7 +11,8 @@ CREATE TYPE spip02902_type_key AS (
 		);
 
 
-CREATE OR REPLACE PROCEDURE spip02902 ( l_inKessaiYmdF TEXT,     -- 決済日(FROM)
+CREATE OR REPLACE PROCEDURE spip02902 ( 
+	l_inKessaiYmdF TEXT,     -- 決済日(FROM)
  l_inKessaiYmdT TEXT,     -- 決済日(TO)
  l_inItakuKaishaCd TEXT,     -- 委託会社コード
  l_inUserId TEXT,     -- ユーザーID

@@ -1,7 +1,7 @@
 
 
 
-DROP TYPE IF EXISTS spip01901_type_record;
+DROP TYPE IF EXISTS spip01901_type_record CASCADE;
 CREATE TYPE spip01901_type_record AS (
 		gKijunKinriCd1            char(3)                            -- 基準金利コード１
 		,gKinriMax                 char(3)                            -- 基準金利（上限）
@@ -24,6 +24,14 @@ CREATE TYPE spip01901_type_record AS (
 		,gShoriKbn                 varchar(1)                        -- 処理区分
 		,gMgrHenkoKbn              varchar(2)                        -- 銘柄情報変更区分
 		,gMgrCd                     varchar(13)                      -- 銘柄コード
+	);
+
+DROP TYPE IF EXISTS spip01901_coupon_result CASCADE;
+CREATE TYPE spip01901_coupon_result AS (
+		gCoupon1 varchar(100),
+		gCoupon2 varchar(100),
+		gCoupon3 varchar(200),
+		gCapFloorTekiyoNm varchar(50)
 	);
 
 
@@ -232,7 +240,8 @@ BEGIN
 	-- - 利率決定日出力有無フラグ
 	gKetteibiOutUmuFlg := pkControl.getCtlValue(l_inItakuKaishaCd, 'KetteibiOutUmu', '0');
 	-- SQL編集
-	CALL spIp01901_createSQL();
+	gSQL := spIp01901_createSQL(l_inItakuKaishaCd, l_inHendoRiritsuShoninDtFlg, l_inKijunYmdF, l_inKijunYmdT, 
+		l_inHktCd, l_inKozaTenCd, l_inKozaTenCifCd, l_inMgrCd, l_inIsinCd, l_inGyomuYmd);
 	-- 通知日の西暦変換
 	IF (trim(both l_inTsuchiYmd) IS NOT NULL AND (trim(both l_inTsuchiYmd))::text <> '') THEN
 		gWrkTsuchiYmd := pkDate.seirekiChangeSuppressNenGappi(l_inTsuchiYmd);
@@ -328,7 +337,7 @@ BEGIN
 			gRiwatariNo := gKaiji::text;
 		END IF;
 		-- 次回利率決定日の取得
-		CALL spIp01901_getNextRiritsuKetteiYmd(l_inItakuKaishaCd, gMgrCd, gShrKjt);
+		gNextRiritsuKetteiYmd := spIp01901_getNextRiritsuKetteiYmd(l_inItakuKaishaCd, gMgrCd, gShrKjt);
 		-- 西暦変換
 		-- 支払日(利払日)
 		gWrkShrYmd := NULL;
@@ -565,7 +574,7 @@ BEGIN
 			END IF;
 		ELSIF gTsukaRishiKngk_S <> gTsukaRishiKngkChk THEN
 			-- 「１通貨当たりの利子額(算出値)」と計算式の「１通貨当たりの利子額」が一致しない場合にはログも書き出す。
-			CALL CALL PKLOG.DEBUG(l_inUserId,REPORT_ID,'銘柄_基本.１通貨当たりの利子額(算出値)と、計算式の結果が一致しません。');
+			CALL PKLOG.DEBUG(l_inUserId,REPORT_ID,'銘柄_基本.１通貨当たりの利子額(算出値)と、計算式の結果が一致しません。');
 		END IF;
 		--*********** 利息金額編集式 ************
 		gRisokuKngkCalc := '('	|| trim(both TO_CHAR((gRbrTaishoZndk)::numeric , '999,999,999,999,999')) || ' × '
@@ -586,14 +595,30 @@ BEGIN
 			--期中銘柄変更（償還）の取得
 			CALL spIp01901_getUpdMgrShn2(l_inItakuKaishaCd,gMgrCd,gShrKjt);
 			IF (recUpdMgrShn2.gMgrCd IS NOT NULL AND recUpdMgrShn2.gMgrCd::text <> '') THEN
-				CALL spIp01901_getCoupon(recUpdMgrShn2);
+				DECLARE
+					coupon_result spip01901_coupon_result;
+				BEGIN
+					coupon_result := spIp01901_getCoupon(recUpdMgrShn2);
+					gCoupon1 := coupon_result.gCoupon1;
+					gCoupon2 := coupon_result.gCoupon2;
+					gCoupon3 := coupon_result.gCoupon3;
+					gCapFloorTekiyoNm := coupon_result.gCapFloorTekiyoNm;
+				END;
 			END IF;
 		-- 【応答日の場合】
 		ELSE
 			--期中銘柄変更（利払）の取得
 			CALL spIp01901_getUpdMgrRbr2(l_inItakuKaishaCd,gMgrCd,gShrKjt);
 			IF (recUpdMgrRbr2.gMgrCd IS NOT NULL AND recUpdMgrRbr2.gMgrCd::text <> '') THEN
-				CALL spIp01901_getCoupon(recUpdMgrRbr2);
+				DECLARE
+					coupon_result spip01901_coupon_result;
+				BEGIN
+					coupon_result := spIp01901_getCoupon(recUpdMgrRbr2);
+					gCoupon1 := coupon_result.gCoupon1;
+					gCoupon2 := coupon_result.gCoupon2;
+					gCoupon3 := coupon_result.gCoupon3;
+					gCapFloorTekiyoNm := coupon_result.gCapFloorTekiyoNm;
+				END;
 			END IF;
 		END IF;
 		-- 帳票ワークへデータを追加
@@ -709,7 +734,20 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spip01901_createsql () AS $body$
+CREATE OR REPLACE FUNCTION spip01901_createsql (
+	l_inItakuKaishaCd TEXT,
+	l_inHendoRiritsuShoninDtFlg TEXT,
+	l_inKijunYmdF TEXT,
+	l_inKijunYmdT TEXT,
+	l_inHktCd TEXT,
+	l_inKozaTenCd TEXT,
+	l_inKozaTenCifCd TEXT,
+	l_inMgrCd TEXT,
+	l_inIsinCd TEXT,
+	l_inGyomuYmd TEXT
+) RETURNS TEXT AS $body$
+DECLARE
+	gSQL varchar(10000);
 BEGIN
 	gSQL := '';
 	gSQL := gSQL || 'SELECT	M01.HKT_CD,';										-- 発行体コード
@@ -877,6 +915,8 @@ BEGIN
 	gSQL := gSQL || '	VMG1.HAKKO_YMD, ';       -- 発行日
 	gSQL := gSQL || '	VMG1.ISIN_CD, ';         -- ISINコード
 	gSQL := gSQL || '	MG2.RBR_YMD ';          -- 利払日
+	
+	RETURN gSQL;
 EXCEPTION
 	WHEN	OTHERS	THEN
 		RAISE;
@@ -884,21 +924,23 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip01901_createsql () FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spip01901_createsql () FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE PROCEDURE spip01901_getcoupon (recUpdMgr TYPE_RECORD) AS $body$
+CREATE OR REPLACE FUNCTION spip01901_getcoupon (recUpdMgr spip01901_type_record) RETURNS spip01901_coupon_result AS $body$
+DECLARE
+	result spip01901_coupon_result;
 BEGIN
 	-- 指標金利が未設定の場合
 	IF coalesce(trim(both recUpdMgr.gKijunKinriCd1)::text, '') = '' THEN
-		gCoupon1          := '';  -- クーポン条件１
-		gCoupon2          := '';  -- クーポン条件２
-		gCoupon3          := '';  -- クーポン条件３
-		gCapFloorTekiyoNm := '';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
-		RETURN;
+		result.gCoupon1          := '';  -- クーポン条件１
+		result.gCoupon2          := '';  -- クーポン条件２
+		result.gCoupon3          := '';  -- クーポン条件３
+		result.gCapFloorTekiyoNm := '';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
+		RETURN result;
 	END IF;
 	-- ＣＡＰ適用の場合(上限下限適用有無フラグ＝”１”上限適用有り、”２”上限固定　の場合)　→　（上限金利　 Z9.9999999%を適用）
 	IF recUpdMgr.gTekiyoUmu IN ('1','2') THEN
@@ -1027,15 +1069,17 @@ BEGIN
 			gCoupon2          := '';  -- クーポン条件２
 			gCoupon3          := '';  -- クーポン条件３
 		ELSE
-			gCoupon1          := '';  -- クーポン条件１
-			gCoupon2          := '';  -- クーポン条件２
-			gCoupon3          := '';  -- クーポン条件３
+			result.gCoupon1 := '';  -- クーポン条件１
+			result.gCoupon2 := '';  -- クーポン条件２
+			result.gCoupon3 := '';  -- クーポン条件３
 	END CASE;
+	
+	RETURN result;
 END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip01901_getcoupon (recUpdMgr TYPE_RECORD) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spip01901_getcoupon (recUpdMgr spip01901_type_record) FROM PUBLIC;
 
 
 
@@ -1061,7 +1105,10 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spip01901_getnextriritsuketteiymd (l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE ,l_inMgrCd MGR_KIHON.MGR_CD%TYPE ,l_inRbrKjt MGR_RBRKIJ.RBR_KJT%TYPE) AS $body$
+CREATE OR REPLACE FUNCTION spip01901_getnextriritsuketteiymd (l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE ,l_inMgrCd MGR_KIHON.MGR_CD%TYPE ,l_inRbrKjt MGR_RBRKIJ.RBR_KJT%TYPE) RETURNS MGR_RBRKIJ.RIRITSU_KETTEI_YMD%TYPE AS $body$
+DECLARE
+	gNextRiritsuKetteiYmd MGR_RBRKIJ.RIRITSU_KETTEI_YMD%TYPE;
+	REPORT_ID CONSTANT char(11) := 'IP030001911';
 BEGIN
 	gNextRiritsuKetteiYmd := NULL;
 	SELECT	MG2.RIRITSU_KETTEI_YMD 				-- 利率決定日
@@ -1075,10 +1122,11 @@ BEGIN
 							  AND wMG2.MGR_CD = l_inMgrCd
 							  AND wMG2.RBR_KJT > l_inRbrKjt
 							  AND wMG2.KAIJI != 0);
+	RETURN gNextRiritsuKetteiYmd;
 EXCEPTION
 	WHEN no_data_found THEN
 		-- 今回が最終の場合等データが取得できないときはNULLにしておく。（この後のロジックで'-'がセットされる。）
-		gNextRiritsuKetteiYmd := NULL;
+		RETURN NULL;
 	WHEN OTHERS THEN
 		CALL pkLog.fatal('ECM701', REPORT_ID, '銘柄コード:'||l_inMgrCd||' 利払期日:'||l_inRbrKjt);
 		RAISE;
@@ -1086,7 +1134,7 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip01901_getnextriritsuketteiymd (l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE ,l_inMgrCd MGR_KIHON.MGR_CD%TYPE ,l_inRbrKjt MGR_RBRKIJ.RBR_KJT%TYPE) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spip01901_getnextriritsuketteiymd (l_inItakuKaishaCd MGR_KIHON.ITAKU_KAISHA_CD%TYPE ,l_inMgrCd MGR_KIHON.MGR_CD%TYPE ,l_inRbrKjt MGR_RBRKIJ.RBR_KJT%TYPE) FROM PUBLIC;
 
 
 

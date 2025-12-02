@@ -162,10 +162,7 @@ DECLARE
 	gRbrKjtMoji					varchar(20) := NULL;					-- 利払期日
 	gItakuKaishaRnm			VJIKO_ITAKU.BANK_RNM%TYPE;					-- 委託会社略称
 	-- カーソル
-	TYPE spIp01801_CURSOR_TYPE 					-- 委託会社略称
-	-- カーソル
-	TYPE CURSOR_TYPE REFCURSOR;
-	curMeisai spIp01801_CURSOR_TYPE
+	curMeisai refcursor;
 --==============================================================================
 --	メイン処理	
 --==============================================================================
@@ -192,7 +189,8 @@ BEGIN
 	AND		SAKUSEI_YMD = l_inGyomuYmd
 	AND		CHOHYO_ID = REPORT_ID;
 	-- SQL編集
-	CALL spIp01801_createSQL();
+	gSQL := spIp01801_createSQL(l_inItakuKaishaCd, l_inHktCd, l_inKozaTenCd, l_inKozaTenCifCd, 
+		l_inMgrCd, l_inIsinCd, l_inGanriBaraiYmdF, l_inGanriBaraiYmdT);
 	-- ヘッダレコードを追加
 	CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, REPORT_ID);
 	-- カーソルオープン
@@ -278,7 +276,12 @@ BEGIN
      		gRbrKjtMoji := ' ';
   		ELSE
 	   		-- 利払期日名称の編集
-	   		gRbrKjtMoji :=	pkRibaraiKijitsu.getRibaraiKijitsu(gNenrbrCnt, gStRbrKjt, gRbrDd,gOutFlg);
+	   		DECLARE
+	   			v_outflg integer;
+	   		BEGIN
+		   		SELECT l_outflg, l_outResult INTO v_outflg, gRbrKjtMoji 
+		   		FROM pkRibaraiKijitsu.getRibaraiKijitsu(gNenrbrCnt::integer, gStRbrKjt, gRbrDd);
+	   		END;
   		END IF;
 		-- 期中銘柄変更(銘柄).銘柄変更区分が'01'(銘柄情報)の時、情報出力(※１)
 		IF gMgrHenkoKbnMg21 = '01' THEN
@@ -472,9 +475,12 @@ BEGIN
 -- エラー処理
 EXCEPTION
 	WHEN	OTHERS	THEN
-		IF curMeisai%ISOPEN THEN
+		BEGIN
 			CLOSE curMeisai;
-		END IF;
+		EXCEPTION
+			WHEN OTHERS THEN
+				NULL;  -- Ignore if cursor not open
+		END;
 		CALL pkLog.fatal(l_inUserId, REPORT_ID, 'SQLCODE:'||SQLSTATE);
 		CALL pkLog.fatal(l_inUserId, REPORT_ID, 'SQLERRM:'||SQLERRM);
 		l_outSqlCode := RTN_FATAL;
@@ -491,7 +497,18 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spip01801_createsql () AS $body$
+CREATE OR REPLACE FUNCTION spip01801_createsql (
+	l_inItakuKaishaCd TEXT,
+	l_inHktCd TEXT,
+	l_inKozaTenCd TEXT,
+	l_inKozaTenCifCd TEXT,
+	l_inMgrCd TEXT,
+	l_inIsinCd TEXT,
+	l_inGanriBaraiYmdF TEXT,
+	l_inGanriBaraiYmdT TEXT
+) RETURNS TEXT AS $body$
+DECLARE
+	gSQL varchar(3500);
 BEGIN
 	gSQL := '';
 	gSQL := gSQL || 'SELECT VMG1.ISIN_CD,';										-- ＩＳＩＮコード
@@ -547,43 +564,20 @@ BEGIN
 	gSQL := gSQL || '		MG23.ED_PUTKOSHIKIKAN_YMD,';						-- 行使期間終了日
 	gSQL := gSQL || '		VJ1.BANK_RNM,';										-- 銀行略称
 	gSQL := gSQL || '		VJ1.JIKO_DAIKO_KBN ';								-- 自行代行区分
-	gSQL := gSQL || 'FROM 	VMGR_LIST VMG1,';									-- 銘柄情報一覧VIEW
-	gSQL := gSQL || '		UPD_MGR_KHN MG21,';									-- 期中銘柄変更（銘柄）
-	gSQL := gSQL || '		UPD_MGR_RBR MG22,';									-- 期中銘柄変更（利払）
-	gSQL := gSQL || '		UPD_MGR_SHN MG23,';									-- 期中銘柄変更（償還）
-	gSQL := gSQL || '		VJIKO_ITAKU VJ1,';			 						-- 自行・委託会社VIEW
-	gSQL := gSQL || '		MTSUKA M641,';										-- 通貨マスタ
-	gSQL := gSQL || '		MTSUKA M642,';										-- 通貨マスタ
-	gSQL := gSQL || '		MTSUKA M643,';										-- 通貨マスタ
-	gSQL := gSQL || '		SCODE MCD1,';										-- コードマスタ
-	gSQL := gSQL || '		SCODE MCD2,';										-- コードマスタ
-	gSQL := gSQL || '		SCODE MCD3,';										-- コードマスタ
-	gSQL := gSQL || '		SCODE MCD4,';										-- コードマスタ
-	gSQL := gSQL || '		SCODE MCD5 ';										-- コードマスタ
+	gSQL := gSQL || 'FROM 	VMGR_LIST VMG1 ';									-- 銘柄情報一覧VIEW
+	gSQL := gSQL || 'LEFT OUTER JOIN UPD_MGR_KHN MG21 ON (VMG1.MGR_CD = MG21.MGR_CD AND VMG1.ITAKU_KAISHA_CD = MG21.ITAKU_KAISHA_CD AND MG21.SHORI_KBN = ''1'') ';
+	gSQL := gSQL || 'LEFT OUTER JOIN UPD_MGR_RBR MG22 ON (VMG1.MGR_CD = MG22.MGR_CD AND VMG1.ITAKU_KAISHA_CD = MG22.ITAKU_KAISHA_CD AND MG22.SHORI_KBN = ''1'') ';
+	gSQL := gSQL || 'LEFT OUTER JOIN UPD_MGR_SHN MG23 ON (VMG1.MGR_CD = MG23.MGR_CD AND VMG1.ITAKU_KAISHA_CD = MG23.ITAKU_KAISHA_CD AND MG23.SHORI_KBN = ''1'') ';
+	gSQL := gSQL || 'INNER JOIN VJIKO_ITAKU VJ1 ON (VJ1.KAIIN_ID = ''' || l_inItakuKaishaCd || ''') ';
+	gSQL := gSQL || 'INNER JOIN MTSUKA M641 ON (VMG1.HAKKO_TSUKA_CD = M641.TSUKA_CD) ';
+	gSQL := gSQL || 'INNER JOIN MTSUKA M642 ON (VMG1.RBR_TSUKA_CD = M642.TSUKA_CD) ';
+	gSQL := gSQL || 'INNER JOIN MTSUKA M643 ON (VMG1.SHOKAN_TSUKA_CD = M643.TSUKA_CD) ';
+	gSQL := gSQL || 'LEFT OUTER JOIN SCODE MCD1 ON (MG21.KK_KANYO_FLG = MCD1.CODE_VALUE AND MCD1.CODE_SHUBETSU = ''505'') ';
+	gSQL := gSQL || 'LEFT OUTER JOIN SCODE MCD2 ON (MG21.KOBETSU_SHONIN_SAIYO_FLG = MCD2.CODE_VALUE AND MCD2.CODE_SHUBETSU = ''511'') ';
+	gSQL := gSQL || 'LEFT OUTER JOIN SCODE MCD3 ON (VMG1.CALLALL_UMU_FLG = MCD3.CODE_VALUE AND MCD3.CODE_SHUBETSU = ''101'') ';
+	gSQL := gSQL || 'LEFT OUTER JOIN SCODE MCD4 ON (VMG1.CALLITIBU_UMU_FLG = MCD4.CODE_VALUE AND MCD4.CODE_SHUBETSU = ''101'') ';
+	gSQL := gSQL || 'LEFT OUTER JOIN SCODE MCD5 ON (VMG1.PUTUMU_FLG = MCD5.CODE_VALUE AND MCD5.CODE_SHUBETSU = ''101'') ';
 	gSQL := gSQL || 'WHERE 	VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' ';
-	gSQL := gSQL || 'AND 	VMG1.MGR_CD = MG21.MGR_CD(+) ';
-	gSQL := gSQL || 'AND 	VMG1.ITAKU_KAISHA_CD = MG21.ITAKU_KAISHA_CD(+) ';
-	gSQL := gSQL || 'AND 	VMG1.MGR_CD = MG22.MGR_CD(+) ';
-	gSQL := gSQL || 'AND 	VMG1.ITAKU_KAISHA_CD = MG22.ITAKU_KAISHA_CD(+) ';
-	gSQL := gSQL || 'AND 	VMG1.MGR_CD = MG23.MGR_CD(+) ';
-	gSQL := gSQL || 'AND 	VMG1.ITAKU_KAISHA_CD = MG23.ITAKU_KAISHA_CD(+) ';
-	gSQL := gSQL || 'AND 	VJ1.KAIIN_ID = ''' || l_inItakuKaishaCd || ''' ';
-	gSQL := gSQL || 'AND 	VMG1.HAKKO_TSUKA_CD = M641.TSUKA_CD ';
-	gSQL := gSQL || 'AND 	VMG1.RBR_TSUKA_CD = M642.TSUKA_CD ';
-	gSQL := gSQL || 'AND 	VMG1.SHOKAN_TSUKA_CD = M643.TSUKA_CD ';
-	gSQL := gSQL || 'AND 	MG21.SHORI_KBN = ''1'' ';
-	gSQL := gSQL || 'AND 	MG22.SHORI_KBN = ''1'' ';
-	gSQL := gSQL || 'AND 	MG23.SHORI_KBN = ''1'' ';
-	gSQL := gSQL || 'AND 	MG21.KK_KANYO_FLG = MCD1.CODE_VALUE ';
-	gSQL := gSQL || 'AND 	MCD1.CODE_SHUBETSU = ''505'' ';
-	gSQL := gSQL || 'AND 	MG21.KOBETSU_SHONIN_SAIYO_FLG = MCD2.CODE_VALUE ';
-	gSQL := gSQL || 'AND 	MCD2.CODE_SHUBETSU = ''511'' ';
-	gSQL := gSQL || 'AND 	VMG1.CALLALL_UMU_FLG = MCD3.CODE_VALUE ';
-	gSQL := gSQL || 'AND 	MCD3.CODE_SHUBETSU = ''101'' ';
-	gSQL := gSQL || 'AND 	VMG1.CALLITIBU_UMU_FLG = MCD4.CODE_VALUE ';
-	gSQL := gSQL || 'AND 	MCD4.CODE_SHUBETSU = ''101'' ';
-	gSQL := gSQL || 'AND 	VMG1.PUTUMU_FLG = MCD5.CODE_VALUE ';
-	gSQL := gSQL || 'AND 	MCD5.CODE_SHUBETSU = ''101'' ';
 	IF (l_inHktCd IS NOT NULL AND l_inHktCd::text <> '') THEN
 		gSQL := gSQL || 'AND 	VMG1.HKT_CD = ''' || l_inHktCd || ''' ';
 	END IF;
@@ -618,6 +612,8 @@ BEGIN
 		gSQL := gSQL || 'AND 	MG23.SHR_KJT <= ''' || l_inGanriBaraiYmdT || ''' ';
 	END IF;
 	gSQL := gSQL || 'ORDER BY 	VMG1.ISIN_CD ';
+	
+	RETURN gSQL;
 EXCEPTION
 	WHEN	OTHERS	THEN
 		RAISE;
@@ -625,4 +621,4 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip01801_createsql () FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spip01801_createsql () FROM PUBLIC;
