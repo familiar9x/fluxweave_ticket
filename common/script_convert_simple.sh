@@ -28,6 +28,7 @@ check_oracle_incompat() {
     echo "  - Gọi pkprint.insertdata(...) nhưng vẫn truyền từng item lẻ thay vì composite TYPE_SREPORT_WK_ITEM"
     echo "  - l_outSqlCode OUT nên là integer, l_outSqlErrM OUT nên là text"
     echo "  - Cú pháp Oracle array-style: aryXxx(0) → PostgreSQL: aryXxx[1]"
+    echo "  - Sub-procedure / sub-function lồng trong function/procedure/package (PostgreSQL không hỗ trợ nested)"
     echo
 
     # Mỗi entry dạng: "LABEL|REGEX"
@@ -154,6 +155,23 @@ check_oracle_incompat() {
         echo "    PostgreSQL dùng cú pháp mảng: aryBun[1] thay vì aryBun(0)"
         echo "    (mảng trong PostgreSQL bắt đầu từ 1, không phải 0)"
         echo "$array_calls"
+        echo
+    fi
+
+    ########################################################
+    # Cảnh báo: Sub-procedure / sub-function Oracle (nested)
+    ########################################################
+    local subproc_matches
+    subproc_matches=$(grep -niE '^[[:space:]]*(PROCEDURE|FUNCTION)[[:space:]]+[A-Za-z0-9_]+[[:space:]]*(\(|RETURN|IS|AS)' "$file" 2>/dev/null \
+        | grep -viE '^[[:space:]]*CREATE[[:space:]]+(OR[[:space:]]+REPLACE[[:space:]]+)?(FUNCTION|PROCEDURE)' \
+        || true)
+
+    if [[ -n "$subproc_matches" ]]; then
+        has_any=1
+        echo ">>> [SUBPROC_NESTED] Phát hiện sub-procedure / sub-function lồng trong function/procedure/package:"
+        echo "    PostgreSQL **không hỗ trợ** nested procedure/function."
+        echo "    → Cần tách ra thành hàm/proc top-level và truyền đầy đủ parameters thay vì dùng outer scope."
+        echo "$subproc_matches"
         echo
     fi
 

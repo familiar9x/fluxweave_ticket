@@ -596,7 +596,7 @@ END $$;
         'timeout': 60,
         'tests': [
             {
-                'description': 'Interest calculation certificate - with test data',
+                'description': 'Variable interest rate decision notice - with actual data',
                 'postgres_sql': """
 DO $$ 
 DECLARE 
@@ -604,14 +604,19 @@ DECLARE
     v_msg text; 
 BEGIN 
     CALL spip01901(
+        '300762'::text,         -- l_inHktCd (actual data)
+        NULL::text,             -- l_inKozaTenCd
+        NULL::text,             -- l_inKozaTenCifCd
+        'S320130731004'::text,  -- l_inMgrCd (actual variable rate record)
+        'JP387970BDK2'::text,   -- l_inIsinCd
+        '20180101'::text,       -- l_inKijunYmdF (RBR_KJT date range)
+        '20180131'::text,       -- l_inKijunYmdT
+        NULL::text,             -- l_inTsuchiYmd
         '0005'::text,           -- l_inItakuKaishaCd
         'TESTUSER'::text,       -- l_inUserId
-        'S620060331876'::text,  -- l_inMgrCd
-        'JP90B0006TP8'::text,   -- l_inIsinCd
-        '20180101'::text,       -- l_inRibaraiYmd
-        '20250101'::text,       -- l_inKijunYmd
-        NULL::text,             -- l_inTsuchiYmd
+        '0'::text,              -- l_inHendoRiritsuShoninDtFlg (use RBR_KJT, not shonin_dt)
         '0'::text,              -- l_inChohyoKbn
+        '20180201'::text,       -- l_inGyomuYmd
         v_code,
         v_msg
     );

@@ -32,7 +32,7 @@ SQLCODE → SQLSTATE
 dont use CASCADE drop, just drop thing in order of dependencies
 
 When call function with OUT parameter -> select * into xxx from function(...); 
-
+gRiritsu				numeric
 gInvoiceTourokuNo		varchar(14)
 
 ko bao h cast text sang kieu khac
@@ -71,7 +71,6 @@ OUT extra_param integer
 
 
 VARCHAR2(n) -> VARCHAR(n)
-INTERGER -> NUMERIC
 NUMBER -> NUMERIC
 CLOB	-> TEXT	    PostgreSQL không có CLOB.
 BLOB	-> BYTEA	Dữ liệu nhị phân.

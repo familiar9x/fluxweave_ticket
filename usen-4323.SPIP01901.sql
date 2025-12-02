@@ -34,6 +34,12 @@ CREATE TYPE spip01901_coupon_result AS (
 		gCapFloorTekiyoNm varchar(50)
 	);
 
+DROP TYPE IF EXISTS spip01901_updmgr_result CASCADE;
+CREATE TYPE spip01901_updmgr_result AS (
+		recUpdMgr spip01901_type_record,
+		gSakuseiDt varchar(8),
+		gShoninDt varchar(8)
+	);
 
 CREATE OR REPLACE PROCEDURE spip01901 ( l_inHktCd TEXT,		-- 発行体コード
  l_inKozaTenCd TEXT,		-- 口座店コード
@@ -144,7 +150,7 @@ DECLARE
 	gKijunKinriNm2				SCODE.CODE_NM%TYPE;						-- 基準金利２名称
 	gSpread						char(11);								-- スプレッド
 	gKaiji						MGR_RBRKIJ.KAIJI%TYPE;					-- 回次
-	gRiritsu					char(10);								-- 利率
+	gRiritsu					numeric								-- 利率
 	gKijunKinriRrt1				char(11);								-- 基準金利１
 	gKijunKinriRrt2				char(11);								-- 基準金利２
 	gKijunKinriCmnt				MGR_KIHON.KIJUN_KINRI_CMNT%TYPE;		-- 基準金利コメント
@@ -174,7 +180,7 @@ DECLARE
 	gWrkNextRiritsuKetteiYmd	varchar(20) := NULL;			-- 次回利率決定日
 	gWrkTsuchiYmd				varchar(16) := NULL;			-- 通知日(西暦)
 	gAtena						varchar(200) := NULL;			-- 宛名
-	gOutflg						numeric := 0;					-- 正常処理フラグ
+	gOutflg						integer := 0;					-- 正常処理フラグ
 	gRisokuKngkCalc				varchar(90) := NULL;			-- 利息金額(計算式)
 	gTsukaRishiKngk				MGR_RBRKIJ.TSUKARISHI_KNGK%TYPE := NULL;	-- １通貨当たりの利子額
 	gTsukaRishiKngkChk			MGR_RBRKIJ.TSUKARISHI_KNGK%TYPE := NULL;	-- １通貨当たりの利子額(金額のチェック用)
@@ -390,16 +396,16 @@ BEGIN
 			gRbrTaishoZndk	:= pkIpaZndk.getKjnZndk(l_inItakuKaishaCd, gMgrCd, gHakkoYmd, 3);
 		END IF;
 		IF gRbrTsukaCd = 'JPY' THEN
-			gRisokuKngk := TRUNC(gRbrTaishoZndk * gTsukaRishiKngk::numeric, 0);
+			gRisokuKngk := TRUNC(gRbrTaishoZndk::numeric * gTsukaRishiKngk::numeric, 0);
 		ELSE
-			gRisokuKngk := TRUNC(gRbrTaishoZndk * gTsukaRishiKngk::numeric, 2);
+			gRisokuKngk := TRUNC(gRbrTaishoZndk::numeric * gTsukaRishiKngk::numeric, 2);
 		END IF;
 		-- この後で計算式を編集するために、その回次で使う実日数計算区分を取得する
 		SELECT
 			CASE 
 				WHEN MG2.RBR_KJT = MG1.ST_RBR_KJT	THEN MG1.FST_NISSUKSN_KBN 	-- 初期
 				WHEN MG2.RBR_KJT = MG2MAX.KAIJI_MAX	THEN MG1.END_NISSUKSN_KBN 	-- 終期
-				WHEN MG2.KAIJI   = '0'				THEN MG1.END_NISSUKSN_KBN 	-- 期中利払の場合も終期の実日数計算区分を使用
+				WHEN MG2.KAIJI   = 0				THEN MG1.END_NISSUKSN_KBN 	-- 期中利払の場合も終期の実日数計算区分を使用
 				ELSE									 MG1.KICHU_NISSUKSN_KBN 	-- 期中
 			END INTO STRICT gJitsuNissuCalcKbn 		-- 実日数計算区分をセット
 			FROM
@@ -431,14 +437,14 @@ BEGIN
 				-- 半ヵ年区分＝「1/年利払回数」の場合
 				IF gSpananbunBunbo <= 12 THEN
 					-- 特例債かつフラグが1の場合は、新計算方式
-					IF (CTL_VALUE = 1 AND gTokureiShasaiFlg = 'Y') THEN
+					IF (CTL_VALUE = '1' AND gTokureiShasaiFlg = 'Y') THEN
 					-- 新計算方式の場合、１通貨当たりの利子額（計算式）は表示しない
 						gTsukaRishiCalc := '';
 --
 --						gTsukaRishiCalc := RISHIGAKU_COMMENT;
 --						gTsukaRishiCalc1 := RISHIGAKU_BUN;
 --
---						gTsukaRishiKngkKakushasai := getKakushasaiRoundProcess(gRknRoundProcessKbn, gKakushasaiKngk * (gRiritsu / 100) * gSpananbunBunshi / gSpananbunBunbo);
+--						gTsukaRishiKngkKakushasai := getKakushasaiRoundProcess(gRknRoundProcessKbn, gKakushasaiKngk * (gRiritsu::numeric / 100) * gSpananbunBunshi / gSpananbunBunbo);
 --
 --						gTsukaRishiCalc2 := '各社債当りの利子額　' || TRIM(TO_CHAR(TO_NUMBER(gKakushasaiKngk), '99,999,999,999,999')) || '円 × ' || TRIM(gRiritsu) || '% × ' 
 --											|| gSpananbunBunshi || '日 ÷ '|| gSpananbunBunbo || '日 ＝ ' || TRIM(TO_CHAR(TO_NUMBER(gTsukaRishiKngkKakushasai), '99,999,999,999,999'))
@@ -456,11 +462,11 @@ BEGIN
 												|| gSpananbunBunshi || '/' || gSpananbunBunbo
 												|| ' ・・・' || gRknRoundProcessNm || ')';
 						-- 計算式の値を計算し、次に１通貨当たりの利子額が正しいかをチェックする為に確認用の金額を取得する
-						gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu / 100) * gSpananbunBunshi / gSpananbunBunbo);
+						gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu::numeric / 100) * gSpananbunBunshi / gSpananbunBunbo);
 						-- 発行通貨≠利払通貨の場合
 						IF gHakkoTsukaCd != gRbrTsukaCd THEN
 							IF gRbrKawaseRate <> 0 THEN
-								gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu / 100) * gSpananbunBunshi / gSpananbunBunbo / gRbrKawaseRate);
+								gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu::numeric / 100) * gSpananbunBunshi / gSpananbunBunbo / gRbrKawaseRate);
 							END IF;
 						END IF;
 					END IF;
@@ -471,14 +477,14 @@ BEGIN
 						-- 実日数計算区分 = 半か年実日数の場合
 						IF gJitsuNissuCalcKbn = '4' THEN
 							-- 特例債かつフラグが1の場合は、新計算方式
-							IF (CTL_VALUE = 1 AND gTokureiShasaiFlg = 'Y') THEN
+							IF (CTL_VALUE = '1' AND gTokureiShasaiFlg = 'Y') THEN
 					           -- 新計算方式の場合、１通貨当たりの利子額（計算式）は表示しない
 								gTsukaRishiCalc := '';
 --
 --								gTsukaRishiCalc := RISHIGAKU_COMMENT;
 --								gTsukaRishiCalc1 := RISHIGAKU_BUN;
 --
---								gTsukaRishiKngkKakushasai := getKakushasaiRoundProcess(gRknRoundProcessKbn, gKakushasaiKngk * (gRiritsu / 100) * 1 / gNenRbrCnt * gSpananbunBunshi / gSpananbunBunbo);
+--								gTsukaRishiKngkKakushasai := getKakushasaiRoundProcess(gRknRoundProcessKbn, gKakushasaiKngk * (gRiritsu::numeric / 100) * 1 / gNenRbrCnt * gSpananbunBunshi / gSpananbunBunbo);
 --
 --								gTsukaRishiCalc2 := '各社債当りの利子額　' || TRIM(TO_CHAR(TO_NUMBER(gKakushasaiKngk), '99,999,999,999,999')) || '円 × ' || TRIM(gRiritsu) || '% × '
 --													|| '1/ ' || TO_NUMBER(gNenRbrCnt) || ' × ' || gSpananbunBunshi || '日 ÷ '
@@ -496,25 +502,25 @@ BEGIN
 														|| gSpananbunBunshi || '日 ÷ ' || gSpananbunBunbo || '日 '
 														|| ' ・・・' || gRknRoundProcessNm || ')';
 								-- 計算式の値を計算し、次に１通貨当たりの利子額が正しいかをチェックする為に確認用の金額を取得する
-								gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu / 100) * 1 / gNenRbrCnt * gSpananbunBunshi / gSpananbunBunbo);
+								gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu::numeric / 100) * 1 / gNenRbrCnt * gSpananbunBunshi / gSpananbunBunbo);
 								-- 発行通貨≠利払通貨の場合
 								IF gHakkoTsukaCd != gRbrTsukaCd THEN
 									IF gRbrKawaseRate <> 0 THEN
-										gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu / 100) * 1 / gNenRbrCnt * gSpananbunBunshi / gSpananbunBunbo / gRbrKawaseRate);
+										gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu::numeric / 100) * 1 / gNenRbrCnt * gSpananbunBunshi / gSpananbunBunbo / gRbrKawaseRate);
 									END IF;
 								END IF;
 							END IF;
 						-- 半か年実日数以外（365日、366日、実日数）
 						ELSE
 							-- 特例債かつフラグが1の場合は、新計算方式
-							IF (CTL_VALUE = 1 AND gTokureiShasaiFlg = 'Y') THEN
+							IF (CTL_VALUE = '1' AND gTokureiShasaiFlg = 'Y') THEN
 					           -- 新計算方式の場合、１通貨当たりの利子額（計算式）は表示しない
 								gTsukaRishiCalc := '';
 --
 --								gTsukaRishiCalc := RISHIGAKU_COMMENT;
 --								gTsukaRishiCalc1 := RISHIGAKU_BUN;
 --
---								gTsukaRishiKngkKakushasai := getKakushasaiRoundProcess(gRknRoundProcessKbn, gKakushasaiKngk * (gRiritsu / 100) * gSpananbunBunshi / gSpananbunBunbo);
+--								gTsukaRishiKngkKakushasai := getKakushasaiRoundProcess(gRknRoundProcessKbn, gKakushasaiKngk * (gRiritsu::numeric / 100) * gSpananbunBunshi / gSpananbunBunbo);
 --
 --								gTsukaRishiCalc2 := '各社債当りの利子額　' || TRIM(TO_CHAR(TO_NUMBER(gKakushasaiKngk), '99,999,999,999,999')) || '円 × ' || TRIM(gRiritsu) || '% × ' || gSpananbunBunshi || '日 ÷ ' 
 --														|| gSpananbunBunbo || '日 ＝ ' || TRIM(TO_CHAR(TO_NUMBER(gTsukaRishiKngkKakushasai), '99,999,999,999,999')) || ' (' || gRknRoundProcessNm || ')';
@@ -530,11 +536,11 @@ BEGIN
 														|| gSpananbunBunshi || '日 ÷ ' || gSpananbunBunbo || '日 '
 														|| ' ・・・' || gRknRoundProcessNm || ')';
 								-- 計算式の値を計算し、次に１通貨当たりの利子額が正しいかをチェックする為に確認用の金額を取得する
-								gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu / 100) * gSpananbunBunshi / gSpananbunBunbo);
+								gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu::numeric / 100) * gSpananbunBunshi / gSpananbunBunbo);
 								-- 発行通貨≠利払通貨の場合
 								IF gHakkoTsukaCd != gRbrTsukaCd THEN
 									IF gRbrKawaseRate <> 0 THEN
-										gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu / 100) * gSpananbunBunshi / gSpananbunBunbo / gRbrKawaseRate);
+										gTsukaRishiKngkChk := spIp01901_getRknRoundProcess(gRknRoundProcessKbn,(gRiritsu::numeric / 100) * gSpananbunBunshi / gSpananbunBunbo / gRbrKawaseRate);
 									END IF;
 								END IF;
 							END IF;
@@ -549,7 +555,7 @@ BEGIN
 					-- 発行通貨≠利払通貨の場合
 					-- 利息金額(計算式)、為替レート
 					IF gHakkoTsukaCd != gRbrTsukaCd THEN
-						IF (CTL_VALUE = 1 AND gTokureiShasaiFlg = 'Y') THEN
+						IF (CTL_VALUE = '1' AND gTokureiShasaiFlg = 'Y') THEN
 							-- 新計算方式の場合は、式を表示しない
 							gTsukaRishiKawaseRate := ' ';
 							gTsukaRishiCalc := '';
@@ -574,7 +580,7 @@ BEGIN
 			END IF;
 		ELSIF gTsukaRishiKngk_S <> gTsukaRishiKngkChk THEN
 			-- 「１通貨当たりの利子額(算出値)」と計算式の「１通貨当たりの利子額」が一致しない場合にはログも書き出す。
-			CALL PKLOG.DEBUG(l_inUserId,REPORT_ID,'銘柄_基本.１通貨当たりの利子額(算出値)と、計算式の結果が一致しません。');
+			CALL CALL CALL PKLOG.DEBUG(l_inUserId,REPORT_ID,'銘柄_基本.１通貨当たりの利子額(算出値)と、計算式の結果が一致しません。');
 		END IF;
 		--*********** 利息金額編集式 ************
 		gRisokuKngkCalc := '('	|| trim(both TO_CHAR((gRbrTaishoZndk)::numeric , '999,999,999,999,999')) || ' × '
@@ -593,7 +599,14 @@ BEGIN
 		-- 【非応答日の場合】
 		IF gKaiji = 0 THEN
 			--期中銘柄変更（償還）の取得
-			CALL spIp01901_getUpdMgrShn2(l_inItakuKaishaCd,gMgrCd,gShrKjt);
+			DECLARE
+				updmgr_result spip01901_updmgr_result;
+			BEGIN
+				updmgr_result := spIp01901_getUpdMgrShn2(l_inKozaTenCifCd, gMgrCd, gShrKjt, l_inItakuKaishaCd, REPORT_ID);
+				recUpdMgrShn2 := updmgr_result.recUpdMgr;
+				gSakuseiDt := updmgr_result.gSakuseiDt;
+				gShoninDt := updmgr_result.gShoninDt;
+			END;
 			IF (recUpdMgrShn2.gMgrCd IS NOT NULL AND recUpdMgrShn2.gMgrCd::text <> '') THEN
 				DECLARE
 					coupon_result spip01901_coupon_result;
@@ -608,7 +621,14 @@ BEGIN
 		-- 【応答日の場合】
 		ELSE
 			--期中銘柄変更（利払）の取得
-			CALL spIp01901_getUpdMgrRbr2(l_inItakuKaishaCd,gMgrCd,gShrKjt);
+			DECLARE
+				updmgr_result spip01901_updmgr_result;
+			BEGIN
+				updmgr_result := spIp01901_getUpdMgrRbr2(l_inItakuKaishaCd, gMgrCd, gShrKjt, REPORT_ID);
+				recUpdMgrRbr2 := updmgr_result.recUpdMgr;
+				gSakuseiDt := updmgr_result.gSakuseiDt;
+				gShoninDt := updmgr_result.gShoninDt;
+			END;
 			IF (recUpdMgrRbr2.gMgrCd IS NOT NULL AND recUpdMgrRbr2.gMgrCd::text <> '') THEN
 				DECLARE
 					coupon_result spip01901_coupon_result;
@@ -623,7 +643,7 @@ BEGIN
 		END IF;
 		-- 帳票ワークへデータを追加
 				-- Clear composite type
-		v_item := ROW();
+		v_item := NULL::type_sreport_wk_item;
 		
 		v_item.l_inItem001 := gWrkTsuchiYmd;	-- 入力通知日
 		v_item.l_inItem002 := gSfskPostNo;	-- 送付先郵便番号
@@ -688,7 +708,7 @@ BEGIN
 		gRtnCd := RTN_NODATA;
 		-- 帳票ワークへデータを追加
 				-- Clear composite type
-		v_item := ROW();
+		v_item := NULL::type_sreport_wk_item;
 		
 		v_item.l_inItem001 := gWrkTsuchiYmd;	-- 入力通知日
 		v_item.l_inItem030 := '対象データなし';
@@ -715,9 +735,11 @@ BEGIN
 -- エラー処理
 EXCEPTION
 	WHEN	OTHERS	THEN
-		IF curMeisai%ISOPEN THEN
+		BEGIN
 			CLOSE curMeisai;
-		END IF;
+		EXCEPTION
+			WHEN OTHERS THEN NULL;  -- Cursor already closed
+		END;
 		CALL pkLog.fatal('ECM701', REPORT_ID, 'SQLCODE:'||SQLSTATE);
 		CALL pkLog.fatal('ECM701', REPORT_ID, 'SQLERRM:'||SQLERRM);
 		l_outSqlCode := RTN_FATAL;
@@ -776,13 +798,13 @@ BEGIN
 	gSQL := gSQL || '		) AS RBR_TSUKA_NM,';
 	gSQL := gSQL || '		(SELECT MCD1.CODE_NM';								-- 基準金利１名称
 	gSQL := gSQL || '		   FROM SCODE MCD1';
-	gSQL := gSQL || '		  WHERE MCD1.CODE_SHUBETSU(+) = ''140''';
-	gSQL := gSQL || '		    AND VMG1.KIJUN_KINRI_CD1 = MCD1.CODE_VALUE(+)';
+	gSQL := gSQL || '		  WHERE MCD1.CODE_SHUBETSU = ''140''';
+	gSQL := gSQL || '		    AND VMG1.KIJUN_KINRI_CD1 = MCD1.CODE_VALUE';
 	gSQL := gSQL || '		) AS KIJUN_KINRI_NM1,';
 	gSQL := gSQL || '		(SELECT MCD2.CODE_NM';								-- 基準金利２名称
 	gSQL := gSQL || '		   FROM SCODE MCD2';
-	gSQL := gSQL || '		  WHERE MCD2.CODE_SHUBETSU(+) = ''140''';
-	gSQL := gSQL || '		    AND VMG1.KIJUN_KINRI_CD2 = MCD2.CODE_VALUE(+)';
+	gSQL := gSQL || '		  WHERE MCD2.CODE_SHUBETSU = ''140''';
+	gSQL := gSQL || '		    AND VMG1.KIJUN_KINRI_CD2 = MCD2.CODE_VALUE';
 	gSQL := gSQL || '		) AS KIJUN_KINRI_NM2,';
 	gSQL := gSQL || '		TO_CHAR(MG2.SPREAD,''FM99999999990.0000000''),';				-- スプレッド
 	gSQL := gSQL || '		MG2.KAIJI,';										-- 回次
@@ -801,8 +823,8 @@ BEGIN
 	gSQL := gSQL || '		VMG1.RKN_ROUND_PROCESS AS RKN_ROUND_PROCESS_KBN,';	-- 利金計算単位未満端数処理区分
 	gSQL := gSQL || '		(SELECT MCD3.CODE_NM';								-- 利金計算単位未満端数処理名称
 	gSQL := gSQL || '		   FROM SCODE MCD3';
-	gSQL := gSQL || '		  WHERE MCD3.CODE_SHUBETSU(+) = ''128''';
-	gSQL := gSQL || '		    AND VMG1.RKN_ROUND_PROCESS = MCD3.CODE_VALUE(+)';
+	gSQL := gSQL || '		  WHERE MCD3.CODE_SHUBETSU = ''128''';
+	gSQL := gSQL || '		    AND VMG1.RKN_ROUND_PROCESS = MCD3.CODE_VALUE';
 	gSQL := gSQL || '		) AS RKN_ROUND_PROCESS_NM,';
 	gSQL := gSQL || '		MG2.TSUKARISHI_KNGK,';								-- １通貨当たりの金額
 	gSQL := gSQL || '		MG2.TSUKARISHI_KNGK_S ';							-- １通貨当たりの金額(システム算出値)
@@ -824,41 +846,24 @@ BEGIN
 		 || '	,BT03.DISPATCH_FLG AS DISPATCH_FLG '            -- 請求書発送区分
 		 || '	,BT01.KYOTEN_KBN AS KYOTEN_KBN '                -- 拠点区分
 		 || '	,M01.SHORI_KBN AS SHORI_KBN ';                  -- 処理区分
-	gSQL := gSQL || ' FROM MGR_RBRKIJ MG2,';								-- 銘柄_利払回次
-	gSQL := gSQL || '		MGR_KIHON_VIEW VMG1,';							-- 銘柄_基本
-	gSQL := gSQL || '		MGR_KIHON2   BT03,';                        -- 銘柄_基本２
+	gSQL := gSQL || ' FROM MGR_RBRKIJ MG2 ';								-- 銘柄_利払回次
+	gSQL := gSQL || ' INNER JOIN MGR_KIHON_VIEW VMG1 ON VMG1.MGR_CD = MG2.MGR_CD AND VMG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD ';
+	gSQL := gSQL || ' INNER JOIN MGR_KIHON2 BT03 ON VMG1.ITAKU_KAISHA_CD = BT03.ITAKU_KAISHA_CD AND VMG1.MGR_CD = BT03.MGR_CD ';
+	gSQL := gSQL || ' INNER JOIN MHAKKOTAI M01 ON MG2.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD AND VMG1.HKT_CD = M01.HKT_CD ';
+	gSQL := gSQL || ' INNER JOIN MHAKKOTAI2 BT01 ON M01.ITAKU_KAISHA_CD = BT01.ITAKU_KAISHA_CD AND M01.HKT_CD = BT01.HKT_CD ';
+	gSQL := gSQL || ' CROSS JOIN VJIKO_ITAKU VJ1 '; 								-- 自行・委託会社VIEW
 	-- 変動利率承認日チェックボックスによる場合分け
 	IF l_inHendoRiritsuShoninDtFlg = '1' THEN
-		gSQL := gSQL || '		UPD_MGR_RBR MG22,';							-- 期中銘柄変更（利払）
-		gSQL := gSQL || '		UPD_MGR_SHN MG23,';							-- 期中銘柄変更（償還）
+		gSQL := gSQL || ' LEFT JOIN UPD_MGR_RBR MG22 ON MG2.ITAKU_KAISHA_CD = MG22.ITAKU_KAISHA_CD AND MG2.MGR_CD = MG22.MGR_CD AND MG2.RBR_KJT = MG22.SHR_KJT ';
+		gSQL := gSQL || ' LEFT JOIN UPD_MGR_SHN MG23 ON MG2.ITAKU_KAISHA_CD = MG23.ITAKU_KAISHA_CD AND MG2.MGR_CD = MG23.MGR_CD AND MG2.RBR_KJT = MG23.SHR_KJT ';
 	END IF;
-	gSQL := gSQL || '		MHAKKOTAI M01,';								-- 発行体マスタ
-	gSQL := gSQL || '		MHAKKOTAI2   BT01,';                        -- 発行体マスタ２
-	gSQL := gSQL || '		VJIKO_ITAKU VJ1 '; 								-- 自行・委託会社VIEW
-	gSQL := gSQL || 'WHERE	MG2.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' ';
+	gSQL := gSQL || ' WHERE MG2.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' ';
 	gSQL := gSQL || 'AND	VMG1.RITSUKE_WARIBIKI_KBN = ''V'' ';
 	gSQL := gSQL || 'AND	VMG1.ISIN_CD <> '' '' ';
 	gSQL := gSQL || 'AND	VMG1.JTK_KBN				<> ''2'' ';		-- 受託区分=副受託は対象外
 	gSQL := gSQL || 'AND	VMG1.JTK_KBN				<> ''5'' ';		-- 受託区分=金融債は対象外
 	gSQL := gSQL || 'AND	VMG1.MGR_STAT_KBN			=  ''1'' ';		-- 未承認は対象外
 --		gSQL := gSQL || 'AND	MG2.RIRITSU <> 0 ';
-	gSQL := gSQL || 'AND	VMG1.MGR_CD = MG2.MGR_CD ';
-	gSQL := gSQL || 'AND	VMG1.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD ';
-	gSQL := gSQL || 'AND	MG2.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD ';
-	-- 変動利率承認日チェックボックスによる場合分け
-	IF l_inHendoRiritsuShoninDtFlg = '1' THEN
-		gSQL := gSQL || 'AND	MG2.ITAKU_KAISHA_CD = MG22.ITAKU_KAISHA_CD(+) ';
-		gSQL := gSQL || 'AND	MG2.MGR_CD = MG22.MGR_CD(+) ';
-		gSQL := gSQL || 'AND	MG2.RBR_KJT = MG22.SHR_KJT(+) ';
-		gSQL := gSQL || 'AND	MG2.ITAKU_KAISHA_CD = MG23.ITAKU_KAISHA_CD(+) ';
-		gSQL := gSQL || 'AND	MG2.MGR_CD = MG23.MGR_CD(+) ';
-		gSQL := gSQL || 'AND	MG2.RBR_KJT = MG23.SHR_KJT(+) ';
-	END IF;
-	gSQL := gSQL || 'AND	VMG1.ITAKU_KAISHA_CD = BT03.ITAKU_KAISHA_CD ';     -- 委託会社コード
-	gSQL := gSQL || 'AND	VMG1.MGR_CD = BT03.MGR_CD ';                       -- 銘柄コード
-	gSQL := gSQL || 'AND	M01.ITAKU_KAISHA_CD = BT01.ITAKU_KAISHA_CD ';      -- 委託会社コード
-	gSQL := gSQL || 'AND	M01.HKT_CD = BT01.HKT_CD ';                        -- 発行体コード
-	gSQL := gSQL || 'AND	VMG1.HKT_CD = M01.HKT_CD ';
 	gSQL := gSQL || 'AND	VJ1.KAIIN_ID = ''' || l_inItakuKaishaCd || ''' ';
 	-- 請求書出力可能な場合のみ(併存銘柄出力チェック)
 	gSQL := gSQL || 'AND	PKIPACALCTESURYO.checkHeizonMgr( '
@@ -880,7 +885,7 @@ BEGIN
 		gSQL := gSQL || '( ';
 		gSQL := gSQL || 'MG23.SHORI_KBN = ''1'' ';
 		gSQL := gSQL || 'AND 	MG23.MGR_HENKO_KBN IN (''40'',''41'') ';			-- コード種別714（40：コールオプション・全額 , 41：コールオプション・一部）
-		gSQL := gSQL || 'AND 	MG2.KAIJI = ''0'' ';
+		gSQL := gSQL || 'AND 	MG2.KAIJI = 0 ';
 		gSQL := gSQL || 'AND 	MG2.RBR_KJT = MG23.SHR_KJT ';
 		gSQL := gSQL || 'AND 	TO_CHAR(MG23.SHONIN_DT,''YYYYMMDD'') BETWEEN ''' || l_inKijunYmdF || ''' AND ''' || l_inKijunYmdT || ''' ';
 		gSQL := gSQL || ') ';
@@ -936,21 +941,21 @@ DECLARE
 BEGIN
 	-- 指標金利が未設定の場合
 	IF coalesce(trim(both recUpdMgr.gKijunKinriCd1)::text, '') = '' THEN
-		result.gCoupon1          := '';  -- クーポン条件１
-		result.gCoupon2          := '';  -- クーポン条件２
-		result.gCoupon3          := '';  -- クーポン条件３
+		result.gCoupon1 := '';  -- クーポン条件１
+		result.gCoupon2 := '';  -- クーポン条件２
+		result.gCoupon3 := '';  -- クーポン条件３
 		result.gCapFloorTekiyoNm := '';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
 		RETURN result;
 	END IF;
 	-- ＣＡＰ適用の場合(上限下限適用有無フラグ＝”１”上限適用有り、”２”上限固定　の場合)　→　（上限金利　 Z9.9999999%を適用）
 	IF recUpdMgr.gTekiyoUmu IN ('1','2') THEN
-		gCapFloorTekiyoNm := '( ' || '上限金利　' || recUpdMgr.gKinriMaxTekiyoriritru || '%を適用 )';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
+		result.gCapFloorTekiyoNm := '( ' || '上限金利　' || recUpdMgr.gKinriMaxTekiyoriritru || '%を適用 )';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
 	-- FLOOR適用の場合(上限下限適用有無フラグ＝”３”下限適用有り、”４”下限固定　の場合)　→　（下限金利　 Z9.9999999%を適用）
 	ELSIF recUpdMgr.gTekiyoUmu IN ('3','4') THEN
-		gCapFloorTekiyoNm := '( ' || '下限金利　' || recUpdMgr.gFloorKinriTekiyoriritru || '%を適用 )';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
+		result.gCapFloorTekiyoNm := '( ' || '下限金利　' || recUpdMgr.gFloorKinriTekiyoriritru || '%を適用 )';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
 	--C上限下限適用有無フラグ＝”０”適用なし、”５”適用利率マイナス　の場合　→　空白
 	ELSE
-		gCapFloorTekiyoNm := '';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
+		result.gCapFloorTekiyoNm := '';  -- ＣＡＰ・ＦＬＯＯＲ適用名称
 	END IF;
 	CASE recUpdMgr.gTekiyoUmu   -- 上限・下限適用有無
 		-- 上限下限適用有無フラグ:”１”上限適用有り
@@ -958,39 +963,39 @@ BEGIN
 			--期中銘柄変更（利払/償還）２．基準金利（上限）名称　＋（−）　期中銘柄変更（利払/償還）２．基準金利（上限）スプレッド
 			-- 基準金利（上限）スプレッドがプラスの場合
 			IF (coalesce(trim(both recUpdMgr.gKinriMaxSpread),0))::numeric  >= 0 THEN
-				gCoupon1 := recUpdMgr.gKinriMaxNm || ' ＋ ' || recUpdMgr.gKinriMaxSpread || '%';
+				result.gCoupon1 := recUpdMgr.gKinriMaxNm || ' ＋ ' || recUpdMgr.gKinriMaxSpread || '%';
 			-- 基準金利（上限）スプレッドがマイナスの場合
 			ELSE
-				gCoupon1 := recUpdMgr.gKinriMaxNm || ' − ' || replace(recUpdMgr.gKinriMaxSpread, '-', '') || '%';
+				result.gCoupon1 := recUpdMgr.gKinriMaxNm || ' − ' || replace(recUpdMgr.gKinriMaxSpread, '-', '') || '%';
 			END IF;
 			--期中銘柄変更（利払/償還）２．基準金利（上限）名称　＋（−）　期中銘柄変更（利払/償還）２．基準金利（上限）金利
-			gCoupon2 := '( ' || recUpdMgr.gKinriMaxNm || ' ＝ ' || recUpdMgr.gKinriMaxKinri || '% )';
+			result.gCoupon2 := '( ' || recUpdMgr.gKinriMaxNm || ' ＝ ' || recUpdMgr.gKinriMaxKinri || '% )';
 			-- 期中銘柄変更（利払/償還）２．基準金利（上限） = 「その他」の場合　→　空白
 			IF recUpdMgr.gKinriMax = '700' THEN
-				gCoupon3 := '';
+				result.gCoupon3 := '';
 			-- 期中銘柄変更（利払/償還）２．基準金利（上限） = 「その他」以外の場合　→　金利概要．金利概要
 			ELSE
-				gCoupon3 := recUpdMgr.gKinriMaxGaiyo;
+				result.gCoupon3 := recUpdMgr.gKinriMaxGaiyo;
 			END IF;
 		-- 上限下限適用有無フラグ:”３”下限適用有り
 		WHEN '3' THEN
 			--期中銘柄変更（利払/償還）２．基準金利（下限）名称　＋（−）　期中銘柄変更（利払/償還）２．基準金利（下限）スプレッド
 			-- 基準金利（下限）スプレッドがプラスの場合
 			IF (coalesce(trim(both recUpdMgr.gKinriFloorSpread),0))::numeric  >= 0 THEN
-				gCoupon1 := recUpdMgr.gKinriFloorNm || ' ＋ ' || recUpdMgr.gKinriFloorSpread || '%';
+				result.gCoupon1 := recUpdMgr.gKinriFloorNm || ' ＋ ' || recUpdMgr.gKinriFloorSpread || '%';
 			-- 基準金利（下限）スプレッドがマイナスの場合
 			ELSE
-				gCoupon1 := recUpdMgr.gKinriFloorNm || ' − ' || replace(recUpdMgr.gKinriFloorSpread, '-', '') || '%';
+				result.gCoupon1 := recUpdMgr.gKinriFloorNm || ' − ' || replace(recUpdMgr.gKinriFloorSpread, '-', '') || '%';
 			END IF;
 			--期中銘柄変更（利払/償還）２．基準金利（下限）名称　＋（−）　期中銘柄変更（利払/償還）２．基準金利（下限）金利
-			gCoupon2 := '( ' || recUpdMgr.gKinriFloorNm || ' ＝ ' || recUpdMgr.gKinriFloorKinri || '% )';
+			result.gCoupon2 := '( ' || recUpdMgr.gKinriFloorNm || ' ＝ ' || recUpdMgr.gKinriFloorKinri || '% )';
 			-- 基準金利（下限）金利がマイナスの場合
 			-- 期中銘柄変更（利払/償還）２．基準金利（下限） = 「その他」の場合　→　空白
 			IF recUpdMgr.gKinriFloor = '700' THEN
-				gCoupon3 := '';
+				result.gCoupon3 := '';
 			-- 期中銘柄変更（利払/償還）２．基準金利（下限） = 「その他」以外の場合　→　金利概要．金利概要
 			ELSE
-				gCoupon3 := recUpdMgr.gKinriFloorGaiyo;
+				result.gCoupon3 := recUpdMgr.gKinriFloorGaiyo;
 			END IF;
 		-- 上限下限適用有無フラグ:”０”上限下限適用無し
 		WHEN '0' THEN
@@ -998,76 +1003,76 @@ BEGIN
 				AND	(trim(both gKijunKinriNm3) IS NOT NULL AND (trim(both gKijunKinriNm3))::text <> '')  THEN
 				-- スプレッドがプラスの場合
 				IF (coalesce(trim(both gSpread),0))::numeric  >= 0 THEN
-					gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' − ' || gKijunKinriNm3 || ' ＋ ' || trim(both gSpread) || '%';
+					result.gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' − ' || gKijunKinriNm3 || ' ＋ ' || trim(both gSpread) || '%';
 				-- スプレッドがマイナスの場合
 				ELSE
-					gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' − ' || gKijunKinriNm3 || ' − ' || replace(trim(both gSpread), '-', '') || '%';
+					result.gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' − ' || gKijunKinriNm3 || ' − ' || replace(trim(both gSpread), '-', '') || '%';
 				END IF;
 				--期中銘柄変更（利払/償還）２．基準金利コード１　=　銘柄利払回次．基準金利利率１、銘柄基本．基準金利コード２　= 銘柄利払回次．基準金利利率２
-				gCoupon2 := '( ' || recUpdMgr.gKijunKinriCd1Nm || ' ＝ ' || trim(both gKijunKinriRrt1) || '%' || '、'
+				result.gCoupon2 := '( ' || recUpdMgr.gKijunKinriCd1Nm || ' ＝ ' || trim(both gKijunKinriRrt1) || '%' || '、'
 							 || gKijunKinriNm3 || ' ＝ ' || trim(both gKijunKinriRrt2) || '% )';
 			ELSE
 				IF coalesce(trim(both recUpdMgr.gKijunKinriCd1Nm)::text, '') = ''
 					AND	coalesce(trim(both gKijunKinriNm3)::text, '') = ''  THEN
 					-- スプレッドが 0 の場合
 					IF (coalesce(trim(both gSpread),0))::numeric  = 0 THEN
-						gCoupon1 := '';
+						result.gCoupon1 := '';
 					-- スプレッドが 0以外の場合
 					ELSE
-						gCoupon1 := trim(both gSpread) || '%';
+						result.gCoupon1 := trim(both gSpread) || '%';
 					END IF;
-					gCoupon2 := '';
+					result.gCoupon2 := '';
 				ELSE
 					-- 期中銘柄変更（利払/償還）２．基準金利コード１のみ入力されている場合
 					IF (trim(both recUpdMgr.gKijunKinriCd1Nm) IS NOT NULL AND (trim(both recUpdMgr.gKijunKinriCd1Nm))::text <> '') THEN
 						-- スプレッドがプラスの場合
 						IF (coalesce(trim(both gSpread),0))::numeric  >= 0 THEN
-							gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' ＋ ' || trim(both gSpread) || '%';
+							result.gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' ＋ ' || trim(both gSpread) || '%';
 						-- スプレッドがマイナスの場合
 						ELSE
-							gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' − ' || replace(trim(both gSpread), '-', '') || '%';
+							result.gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' − ' || replace(trim(both gSpread), '-', '') || '%';
 						END IF;
-						gCoupon2 := '( ' || recUpdMgr.gKijunKinriCd1Nm || ' ＝ ' || trim(both gKijunKinriRrt1) || '% )';
+						result.gCoupon2 := '( ' || recUpdMgr.gKijunKinriCd1Nm || ' ＝ ' || trim(both gKijunKinriRrt1) || '% )';
 					END IF;
 					-- 銘柄基本．基準金利コード２のみ入力されている場合
 					IF (trim(both gKijunKinriNm3) IS NOT NULL AND (trim(both gKijunKinriNm3))::text <> '') THEN
 						IF (coalesce(trim(both gSpread),0))::numeric  >= 0 THEN
-							gCoupon1 := gKijunKinriNm3 || ' ＋ ' || trim(both gSpread) || '%';
+							result.gCoupon1 := gKijunKinriNm3 || ' ＋ ' || trim(both gSpread) || '%';
 						-- スプレッドがマイナスの場合
 						ELSE
-							gCoupon1 := gKijunKinriNm3 || ' − ' || replace(trim(both gSpread), '-', '') || '%';
+							result.gCoupon1 := gKijunKinriNm3 || ' − ' || replace(trim(both gSpread), '-', '') || '%';
 						END IF;
-						gCoupon2 := '( ' || gKijunKinriNm3 || ' ＝ ' || trim(both gKijunKinriRrt2) || '% )';
+						result.gCoupon2 := '( ' || gKijunKinriNm3 || ' ＝ ' || trim(both gKijunKinriRrt2) || '% )';
 					END IF;
 				END IF;
 			END IF;
 			-- 銘柄基本．基準金利コード２ = 「ブランク」以外の場合　→　空白
 			IF (trim(both gMgrKihonKinriCd2) IS NOT NULL AND (trim(both gMgrKihonKinriCd2))::text <> '') THEN
-				gCoupon3 := '';
+				result.gCoupon3 := '';
 			ELSE
 				-- 期中銘柄変更（利払/償還）２．基準金利コード１ = 「その他」の場合　→　銘柄基本２．その他指標金利コード内容
 				IF recUpdMgr.gKijunKinriCd1 = '700' THEN
-					gCoupon3 := gShihyoukinriNmEtc;
+					result.gCoupon3 := gShihyoukinriNmEtc;
 				-- 期中銘柄変更（利払/償還）２．基準金利コード１ = 「その他」以外の場合　→　金利概要．金利概要
 				ELSE
-					gCoupon3 := recUpdMgr.gKijunKinriCd1Gaiyo;
+					result.gCoupon3 := recUpdMgr.gKijunKinriCd1Gaiyo;
 				END IF;
 			END IF;
 		-- 上限下限適用有無フラグ:適用利率マイナス
 		WHEN '5' THEN
-			gCoupon1          := '';  -- クーポン条件１
-			gCoupon2          := '';  -- クーポン条件２
-			gCoupon3          := '';  -- クーポン条件３
+			result.gCoupon1 := '';  -- クーポン条件１
+			result.gCoupon2 := '';  -- クーポン条件２
+			result.gCoupon3 := '';  -- クーポン条件３
 		-- 上限下限適用有無フラグ:上限適用有り（固定値）
 		WHEN '2' THEN
-			gCoupon1          := '';  -- クーポン条件１
-			gCoupon2          := '';  -- クーポン条件２
-			gCoupon3          := '';  -- クーポン条件３
+			result.gCoupon1 := '';  -- クーポン条件１
+			result.gCoupon2 := '';  -- クーポン条件２
+			result.gCoupon3 := '';  -- クーポン条件３
 		-- 上限下限適用有無フラグ:下限適用有り（固定値）
 		WHEN '4' THEN
-			gCoupon1          := '';  -- クーポン条件１
-			gCoupon2          := '';  -- クーポン条件２
-			gCoupon3          := '';  -- クーポン条件３
+			result.gCoupon1 := '';  -- クーポン条件１
+			result.gCoupon2 := '';  -- クーポン条件２
+			result.gCoupon3 := '';  -- クーポン条件３
 		ELSE
 			result.gCoupon1 := '';  -- クーポン条件１
 			result.gCoupon2 := '';  -- クーポン条件２
@@ -1160,14 +1165,20 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE PROCEDURE spip01901_getupdmgrrbr2 (l_inItakuKaishaCd TEXT, -- 委託会社コード
- l_inMgrCd TEXT, -- 銘柄コード
- l_inShrKjt TEXT   -- 支払期日
- ) AS $body$
+CREATE OR REPLACE FUNCTION spip01901_getupdmgrrbr2 (
+	l_inItakuKaishaCd TEXT, -- 委託会社コード
+	l_inMgrCd TEXT, -- 銘柄コード
+	l_inShrKjt TEXT,   -- 支払期日
+	p_reportId TEXT  -- REPORT_ID parameter
+) RETURNS spip01901_updmgr_result AS $body$
+DECLARE
+	result spip01901_updmgr_result;
 BEGIN
-	recUpdMgrRbr2.gMgrCd := NULL;
-	gSakuseiDt           := NULL; -- 作成日時
-	gShoninDt            := NULL; -- 作成日時
+	-- Initialize result
+	result.recUpdMgr.gMgrCd := NULL;
+	result.gSakuseiDt        := NULL;
+	result.gShoninDt         := NULL;
+	
 	SELECT
 		-- 期中銘柄変更（利払）２ 
 		BT05.KIJUN_KINRI_CD1                                   AS RBR2_KIJUN_KINRI_CD1           -- 基準金利コード１
@@ -1214,29 +1225,29 @@ BEGIN
 		,TO_CHAR(MG22.SHONIN_DT, 'YYYYMMDD')  AS SHONIN_DT            --承認日時
 		INTO STRICT 
 			-- 期中銘柄変更（利払）２
-			recUpdMgrRbr2.gKijunKinriCd1             -- 基準金利コード１
-			,recUpdMgrRbr2.gKinriMax                  -- 基準金利（上限）
-			,recUpdMgrRbr2.gKinriMaxKinri             -- 基準金利（上限）金利	
-			,recUpdMgrRbr2.gKinriMaxSpread            -- 基準金利（上限）スプレッド
-			,recUpdMgrRbr2.gMaxKinri                  -- 上限金利
-			,recUpdMgrRbr2.gKinriMaxTekiyoriritru     -- 基準金利（上限）適用利率
-			,recUpdMgrRbr2.gKinriFloor                -- 基準金利（下限）
-			,recUpdMgrRbr2.gKinriFloorKinri 	         -- 基準金利（下限）金利
-			,recUpdMgrRbr2.gKinriFloorSpread          -- 基準金利（下限）スプレッド
-			,recUpdMgrRbr2.gFloorKinri                -- 下限金利
-			,recUpdMgrRbr2.gFloorKinriTekiyoriritru   -- 基準金利（下限）適用利率
-			,recUpdMgrRbr2.gTekiyoUmu                 -- 上限・下限適用有無
-			,recUpdMgrRbr2.gKinriMaxNm                -- 基準金利（上限）_基準金利名称
-			,recUpdMgrRbr2.gKinriMaxGaiyo             -- 基準金利（上限）_基準金利概要
-			,recUpdMgrRbr2.gKinriFloorNm              -- 基準金利（下限）_基準金利名称
-			,recUpdMgrRbr2.gKinriFloorGaiyo           -- 基準金利（下限）_基準金利概要
-			,recUpdMgrRbr2.gKijunKinriCd1Nm           -- 基準金利コード１_基準金利名称
-			,recUpdMgrRbr2.gKijunKinriCd1Gaiyo        -- 基準金利コード１_基準金利概要
-			,recUpdMgrRbr2.gShoriKbn                  -- 処理区分
-			,recUpdMgrRbr2.gMgrHenkoKbn               -- 銘柄情報変更区分
-			,recUpdMgrRbr2.gMgrCd                     -- 銘柄コード
-			,gSakuseiDt                               -- 作成日時
-			,gShoninDt                                -- 作成日時
+			result.recUpdMgr.gKijunKinriCd1             -- 基準金利コード１
+			,result.recUpdMgr.gKinriMax                  -- 基準金利（上限）
+			,result.recUpdMgr.gKinriMaxKinri             -- 基準金利（上限）金利	
+			,result.recUpdMgr.gKinriMaxSpread            -- 基準金利（上限）スプレッド
+			,result.recUpdMgr.gMaxKinri                  -- 上限金利
+			,result.recUpdMgr.gKinriMaxTekiyoriritru     -- 基準金利（上限）適用利率
+			,result.recUpdMgr.gKinriFloor                -- 基準金利（下限）
+			,result.recUpdMgr.gKinriFloorKinri 	         -- 基準金利（下限）金利
+			,result.recUpdMgr.gKinriFloorSpread          -- 基準金利（下限）スプレッド
+			,result.recUpdMgr.gFloorKinri                -- 下限金利
+			,result.recUpdMgr.gFloorKinriTekiyoriritru   -- 基準金利（下限）適用利率
+			,result.recUpdMgr.gTekiyoUmu                 -- 上限・下限適用有無
+			,result.recUpdMgr.gKinriMaxNm                -- 基準金利（上限）_基準金利名称
+			,result.recUpdMgr.gKinriMaxGaiyo             -- 基準金利（上限）_基準金利概要
+			,result.recUpdMgr.gKinriFloorNm              -- 基準金利（下限）_基準金利名称
+			,result.recUpdMgr.gKinriFloorGaiyo           -- 基準金利（下限）_基準金利概要
+			,result.recUpdMgr.gKijunKinriCd1Nm           -- 基準金利コード１_基準金利名称
+			,result.recUpdMgr.gKijunKinriCd1Gaiyo        -- 基準金利コード１_基準金利概要
+			,result.recUpdMgr.gShoriKbn                  -- 処理区分
+			,result.recUpdMgr.gMgrHenkoKbn               -- 銘柄情報変更区分
+			,result.recUpdMgr.gMgrCd                     -- 銘柄コード
+			,result.gSakuseiDt                               -- 作成日時
+			,result.gShoninDt                                -- 作成日時
 	FROM
 		UPD_MGR_RBR MG22,
 		UPD_MGR_RBR2 BT05
@@ -1249,33 +1260,44 @@ BEGIN
 	AND MG22.ITAKU_KAISHA_CD = l_inItakuKaishaCd
 	AND MG22.MGR_CD = l_inMgrCd
 	AND MG22.SHR_KJT =l_inShrKjt  LIMIT 1;
+	
+	RETURN result;
 -- エラー処理
 EXCEPTION
 	WHEN no_data_found THEN
-		recUpdMgrRbr2.gMgrCd := NULL; -- 銘柄コード
-		gSakuseiDt           := NULL; -- 作成日時
-		gShoninDt            := NULL; -- 作成日時
+		result.recUpdMgr.gMgrCd := NULL; -- 銘柄コード
+		result.gSakuseiDt        := NULL; -- 作成日時
+		result.gShoninDt         := NULL; -- 作成日時
+		RETURN result;
 	WHEN	OTHERS	THEN
-		CALL pkLog.fatal('ECM701', REPORT_ID, '銘柄コード:' || l_inMgrCd||' 利払期日:' || l_inShrKjt);
-		RAISE;
+		CALL pkLog.fatal('ECM701', p_reportId, '銘柄コード:' || l_inMgrCd||' 利払期日:' || l_inShrKjt);
+		-- RAISE;
+		RETURN result;
 END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip01901_getupdmgrrbr2 (l_inItakuKaishaCd TEXT, l_inMgrCd TEXT, l_inShrKjt TEXT  ) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spip01901_getupdmgrrbr2 (l_inItakuKaishaCd TEXT, l_inMgrCd TEXT, l_inShrKjt TEXT, p_reportId TEXT) FROM PUBLIC;
 
 
 
 
 
-CREATE OR REPLACE PROCEDURE spip01901_getupdmgrshn2 (l_inKozaTenCifCd TEXT, -- 口座店CIFコード
- l_inMgrCd TEXT, -- 銘柄コード
- l_inShrKjt TEXT   -- 支払期日
- ) AS $body$
+CREATE OR REPLACE FUNCTION spip01901_getupdmgrshn2 (
+	l_inKozaTenCifCd TEXT, -- 口座店CIFコード
+	l_inMgrCd TEXT, -- 銘柄コード
+	l_inShrKjt TEXT,   -- 支払期日
+	l_inItakuKaishaCd TEXT,  -- Added parameter
+	p_reportId TEXT  -- REPORT_ID parameter
+) RETURNS spip01901_updmgr_result AS $body$
+DECLARE
+	result spip01901_updmgr_result;
 BEGIN
-	recUpdMgrShn2.gMgrCd := NULL;
-	gSakuseiDt           := NULL; -- 作成日時
-	gShoninDt            := NULL; -- 作成日時
+	-- Initialize result
+	result.recUpdMgr.gMgrCd := NULL;
+	result.gSakuseiDt        := NULL;
+	result.gShoninDt         := NULL;
+	
 	SELECT
 		-- 期中銘柄変更（利払）２ 
 		BT06.KIJUN_KINRI_CD1                                   AS SHN2_KIJUN_KINRI_CD1           -- 基準金利コード１
@@ -1322,29 +1344,29 @@ BEGIN
 		,TO_CHAR(MG23.SHONIN_DT, 'YYYYMMDD')  AS SHONIN_DT            -- 承認日時
 		INTO STRICT 
 			-- 期中銘柄変更（利払）２
-			recUpdMgrShn2.gKijunKinriCd1             -- 基準金利コード１
-			,recUpdMgrShn2.gKinriMax                  -- 基準金利（上限）
-			,recUpdMgrShn2.gKinriMaxKinri             -- 基準金利（上限）金利	
-			,recUpdMgrShn2.gKinriMaxSpread            -- 基準金利（上限）スプレッド
-			,recUpdMgrShn2.gMaxKinri                  -- 上限金利
-			,recUpdMgrShn2.gKinriMaxTekiyoriritru     -- 基準金利（上限）適用利率
-			,recUpdMgrShn2.gKinriFloor                -- 基準金利（下限）
-			,recUpdMgrShn2.gKinriFloorKinri 	         -- 基準金利（下限）金利
-			,recUpdMgrShn2.gKinriFloorSpread          -- 基準金利（下限）スプレッド
-			,recUpdMgrShn2.gFloorKinri                -- 下限金利
-			,recUpdMgrShn2.gFloorKinriTekiyoriritru   -- 基準金利（下限）適用利率
-			,recUpdMgrShn2.gTekiyoUmu                 -- 上限・下限適用有無
-			,recUpdMgrShn2.gKinriMaxNm                -- 基準金利（上限）_基準金利名称
-			,recUpdMgrShn2.gKinriMaxGaiyo             -- 基準金利（上限）_基準金利概要
-			,recUpdMgrShn2.gKinriFloorNm              -- 基準金利（下限）_基準金利名称
-			,recUpdMgrShn2.gKinriFloorGaiyo           -- 基準金利（下限）_基準金利概要
-			,recUpdMgrShn2.gKijunKinriCd1Nm           -- 基準金利コード１_基準金利名称
-			,recUpdMgrShn2.gKijunKinriCd1Gaiyo        -- 基準金利コード１_基準金利概要
-			,recUpdMgrShn2.gShoriKbn                  -- 処理区分
-			,recUpdMgrShn2.gMgrHenkoKbn               -- 銘柄情報変更区分
-			,recUpdMgrShn2.gMgrCd                     -- 銘柄コード
-			,gSakuseiDt                               -- 作成日時
-			,gShoninDt                                -- 作成日時
+			result.recUpdMgr.gKijunKinriCd1             -- 基準金利コード１
+			,result.recUpdMgr.gKinriMax                  -- 基準金利（上限）
+			,result.recUpdMgr.gKinriMaxKinri             -- 基準金利（上限）金利	
+			,result.recUpdMgr.gKinriMaxSpread            -- 基準金利（上限）スプレッド
+			,result.recUpdMgr.gMaxKinri                  -- 上限金利
+			,result.recUpdMgr.gKinriMaxTekiyoriritru     -- 基準金利（上限）適用利率
+			,result.recUpdMgr.gKinriFloor                -- 基準金利（下限）
+			,result.recUpdMgr.gKinriFloorKinri 	         -- 基準金利（下限）金利
+			,result.recUpdMgr.gKinriFloorSpread          -- 基準金利（下限）スプレッド
+			,result.recUpdMgr.gFloorKinri                -- 下限金利
+			,result.recUpdMgr.gFloorKinriTekiyoriritru   -- 基準金利（下限）適用利率
+			,result.recUpdMgr.gTekiyoUmu                 -- 上限・下限適用有無
+			,result.recUpdMgr.gKinriMaxNm                -- 基準金利（上限）_基準金利名称
+			,result.recUpdMgr.gKinriMaxGaiyo             -- 基準金利（上限）_基準金利概要
+			,result.recUpdMgr.gKinriFloorNm              -- 基準金利（下限）_基準金利名称
+			,result.recUpdMgr.gKinriFloorGaiyo           -- 基準金利（下限）_基準金利概要
+			,result.recUpdMgr.gKijunKinriCd1Nm           -- 基準金利コード１_基準金利名称
+			,result.recUpdMgr.gKijunKinriCd1Gaiyo        -- 基準金利コード１_基準金利概要
+			,result.recUpdMgr.gShoriKbn                  -- 処理区分
+			,result.recUpdMgr.gMgrHenkoKbn               -- 銘柄情報変更区分
+			,result.recUpdMgr.gMgrCd                     -- 銘柄コード
+			,result.gSakuseiDt                           -- 作成日時
+			,result.gShoninDt                            -- 作成日時
 	FROM
 		UPD_MGR_SHN  MG23,
 		UPD_MGR_SHN2 BT06
@@ -1358,17 +1380,22 @@ BEGIN
 	AND MG23.MGR_CD = l_inMgrCd
 	AND MG23.SHR_KJT =l_inShrKjt
 	AND MG23.MGR_HENKO_KBN IN ('40','41')   LIMIT 1;
+	
+	RETURN result;
+	
 -- エラー処理
 EXCEPTION
 	WHEN no_data_found THEN
-		recUpdMgrShn2.gMgrCd := NULL; -- 銘柄コード
-		gSakuseiDt           := NULL; -- 作成日時
-		gShoninDt            := NULL; -- 作成日時
+		result.recUpdMgr.gMgrCd := NULL; -- 銘柄コード
+		result.gSakuseiDt       := NULL; -- 作成日時
+		result.gShoninDt        := NULL; -- 作成日時
+		RETURN result;
 	WHEN	OTHERS	THEN
-		CALL pkLog.fatal('ECM701', REPORT_ID, '銘柄コード:' || l_inMgrCd || ' 利払期日:' || l_inShrKjt);
-		RAISE;
+		CALL pkLog.fatal('ECM701', p_reportId, '銘柄コード:' || l_inMgrCd || ' 利払期日:' || l_inShrKjt);
+		-- RAISE;
+		RETURN result;
 END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON PROCEDURE spip01901_getupdmgrshn2 (l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inShrKjt TEXT  ) FROM PUBLIC;
+-- REVOKE ALL ON FUNCTION spip01901_getupdmgrshn2 (l_inKozaTenCifCd TEXT, l_inMgrCd TEXT, l_inShrKjt TEXT, l_inItakuKaishaCd TEXT, p_reportId TEXT) FROM PUBLIC;
