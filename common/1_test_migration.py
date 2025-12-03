@@ -628,6 +628,30 @@ END $$;
             }
         ]
     },
+    'vphd-3946': {
+        'name': 'SFIPI051K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Principal and interest payment fund return notice (batch)',
+                'postgres_sql': "SELECT sfipi051k15r01();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'csvg-0068': {
+        'name': 'SFIP931500141_01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Upfront fee slip issuing sheet (return portion)',
+                'postgres_sql': "SELECT * FROM sfip931500141_01('TESTUSER', '0005', 'S520041229999', NULL, '201912', '20191231', '1');",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NODATA
+            }
+        ]
+    },
     'tmke-9930': {
         'name': 'SPIP02901',
         'type': 'procedure',

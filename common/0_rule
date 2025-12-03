@@ -1,4 +1,5 @@
 Process to migrate each file:
+0. Kiểm tra xem đã có file trong jip-ipa/db/plsql chưa, nếu có rồi thì bỏ qua
 1. Copy file từ generated về file có tên: ticket.ten_file.sql
 2. RUN: script_convert_simple.sh    ← FIX data type
 3. Run convert_pkprint_calls.py để convert pkprint calls sang PostgreSQL syntax

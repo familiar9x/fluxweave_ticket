@@ -3,7 +3,8 @@
 
 
 
-CREATE OR REPLACE PROCEDURE spip05801 ( l_inUserId character varying,		-- ユーザーID
+CREATE OR REPLACE PROCEDURE spip05801 ( 
+	l_inUserId character varying,		-- ユーザーID
  l_inItakuKaishaCd character varying,		-- 委託会社コード
  l_inKijunYm character varying,		-- 基準年月
  l_outSqlCode OUT integer,		-- リターン値
@@ -52,8 +53,17 @@ DECLARE
 --	メイン処理	
 --==============================================================================
 BEGIN
+    --l_outSqlCode := 0;
+    --l_outSqlErrM := 'TEST';
+    --RETURN;
     -- 業務日付取得
-    l_GyomuYmd := pkDate.getGyomuYmd()::char(8);
+    DECLARE
+        temp_gyomu text;
+    BEGIN
+        temp_gyomu := pkDate.getGyomuYmd();
+        l_GyomuYmd := temp_gyomu::char(8);
+    END;
+    --*/
 	IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, REPORT_ID, 'spIp05801 START');	END IF;
 	-- 入力パラメータのチェック
 	IF coalesce(trim(both l_inKijunYm)::text, '') = ''
