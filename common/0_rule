@@ -33,6 +33,30 @@ SQLCODE → SQLSTATE
 dont use CASCADE drop, just drop thing in order of dependencies
 
 When call function with OUT parameter -> select * into xxx from function(...); 
+
+	SELECT f.l_outsqlcode, f.l_outsqlerrm, f.extra_param 
+	INTO l_tmpSqlCode, l_tmpSqlErrM, l_tmpExtra
+	FROM pkipakichutesuryo.insKichuTesuryoSeikyuOut(l_inuserid,
+                                           l_GyomuYmd,
+                                           gKjtFrom,
+                                           gKjtTo,
+                                           l_initakukaishacd,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           REPORT_ID,
+                                           PKIPACALCTESURYO.C_REAL(),
+										   PKIPACALCTESURYO.C_DATA_KBN_YOTEI(),
+										   PKIPACALCTESURYO.C_SI_KBN_ICHIRAN(),
+										   '0') AS f; --フロント照会画面判別フラグ '0'(フロント照会画面以外)
+	gReturnCode := l_tmpExtra;
+	l_outSqlCode := l_tmpSqlCode;
+	l_outSqlErrM := l_tmpSqlErrM;
+
+
 gRiritsu				numeric
 gInvoiceTourokuNo		varchar(14)
 

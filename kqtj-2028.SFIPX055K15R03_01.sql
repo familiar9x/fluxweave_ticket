@@ -182,9 +182,11 @@ BEGIN
  EXCEPTION
 	WHEN OTHERS THEN
 	--カーソルが開いていたら閉じておく
-		IF gCur%ISOPEN THEN
+		BEGIN
 			CLOSE gCur;
-		END IF;
+		EXCEPTION
+			WHEN OTHERS THEN NULL;
+		END;
 		CALL pkLog.fatal('ECM701', 'SFIPX055K15R03_01', 'エラーコード'||SQLSTATE);
 		CALL pkLog.fatal('ECM701', 'SFIPX055K15R03_01', 'エラー内容'||SQLERRM);
 		RETURN pkconstant.FATAL();

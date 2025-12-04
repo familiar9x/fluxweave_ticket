@@ -98,7 +98,7 @@ BEGIN
 										   PKIPACALCTESURYO.C_DATA_KBN_YOTEI(),
 										   PKIPACALCTESURYO.C_SI_KBN_ICHIRAN(),
 										   '0') AS f; --フロント照会画面判別フラグ '0'(フロント照会画面以外)
-	gReturnCode := l_tmpSqlCode;
+	gReturnCode := l_tmpExtra;
 	l_outSqlCode := l_tmpSqlCode;
 	l_outSqlErrM := l_tmpSqlErrM;
 	IF gReturnCode <> pkconstant.success() THEN

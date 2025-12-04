@@ -131,8 +131,7 @@ BEGIN
 	gYokuEigyoYmd := pkDate.getPlusDateBusiness(gGyomuYmd,1,'1');
 	RAISE NOTICE '[DEBUG] gYokuEigyoYmd = %', gYokuEigyoYmd;
 	-- 外部ＩＦ送受信管理登録
-	SELECT f.l_outCnt, f.extra_param INTO gMakeCnt, gResult
-	FROM pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd) f;
+	gResult := pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd, gMakeCnt);
 	IF gResult <> pkconstant.success() THEN
 		RETURN gResult;
 	END IF;
@@ -140,14 +139,12 @@ BEGIN
 		-- 初期化
 		gDataNo := gDataNo + 1;
 		-- 電文通番の取得
-		SELECT f.l_outNo, f.extra_param INTO gDenbunNo, gResult
-		FROM pkIpIF.getIFNum(pkIpIF.C_NUMBERING_DENBUN_NO()) f;
+		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_DENBUN_NO(), gDenbunNo);
 		IF gResult <> pkconstant.success() THEN
 			RETURN gResult;
 		END IF;
 		-- 業務通番の取得
-		SELECT f.l_outNo, f.extra_param INTO gGyomuNo, gResult
-		FROM pkIpIF.getIFNum(pkIpIF.C_NUMBERING_GYOMU_NO()) f;
+		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_GYOMU_NO(), gGyomuNo);
 		IF gResult <> pkconstant.success() THEN
 			RETURN gResult;
 		END IF;

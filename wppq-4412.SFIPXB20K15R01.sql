@@ -85,7 +85,8 @@ BEGIN
 	gGyomuYmd := pkDate.getGyomuYmd();
 	RAISE NOTICE 'DEBUG: gGyomuYmd = %', gGyomuYmd;
 	-- 作成回数の取得
-	gResult := pkIpIF.getRenkeiFlg(l_inIfId, gGyomuYmd, gMakeCnt, gRenkeiFlg);
+	SELECT f.l_outCnt, f.l_outRenkeiFlg, f.extra_param INTO gMakeCnt, gRenkeiFlg, gResult
+	FROM pkIpIF.getRenkeiFlg(l_inIfId, gGyomuYmd) f;
 	RAISE NOTICE 'DEBUG: getRenkeiFlg result = %, gMakeCnt = %, gRenkeiFlg = %', gResult, gMakeCnt, gRenkeiFlg;
 	IF gResult <> pkconstant.success() THEN
 		RAISE NOTICE 'DEBUG: getRenkeiFlg failed, returning %', gResult;

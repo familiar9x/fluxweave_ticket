@@ -652,6 +652,234 @@ END $$;
             }
         ]
     },
+    'whjf-9176': {
+        'name': 'SFIPX217K15R02',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Administrative agency fee management data creation',
+                'postgres_sql': "SELECT sfipx217k15r02();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'hygv-6046': {
+        'name': 'SFIP931500111_01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Upfront fee statement (principal and interest payment fee)',
+                'postgres_sql': "SELECT extra_param FROM sfip931500111_01('TESTUSER', '0005', NULL, NULL, NULL, '201801', '1');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'cged-5234': {
+        'name': 'SFIPX217K15R02_01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Administrative agency fee management data update',
+                'postgres_sql': "SELECT sfipx217k15r02_01('0005', '0');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'dphm-6312': {
+        'name': 'SFIPX117K15R01_01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Warning contact information list, bond-related management list creation',
+                'postgres_sql': "SELECT sfipx117k15r01_01('0005', 'テスト会社', '0');",
+                'expected': 0  # 99=Missing dependency SPIPX117K15R01
+            }
+        ]
+    },
+    'vgjk-3898': {
+        'name': 'SFIPX117K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Warning contact information list batch',
+                'postgres_sql': "SELECT sfipx117k15r01();",
+                'expected': 0  # 99=Missing dependency (SPIPX117K15R01 called by SFIPX117K15R01_01)
+            }
+        ]
+    },
+    'zjdf-5160': {
+        'name': 'SFIP931500111',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Upfront fee lump sum income statement',
+                'postgres_sql': "SELECT extra_param FROM sfip931500111('USER01', '0005', '', '', '', '201912', '1');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'bagk-9790': {
+        'name': 'SFIPXB18K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'RTGS-XG interface data creation for principal/interest funds settlement',
+                'postgres_sql': "SELECT sfipxb18k15r01('IF001');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'wppq-4412': {
+        'name': 'SFIPXB20K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'CIF information reception file processing',
+                'postgres_sql': "SELECT sfipxb20k15r01('IF002');",
+                'expected': 0  # 0=SUCCESS (with test data)
+            }
+        ]
+    },
+    'ubkp-9509': {
+        'name': 'SFIP931500131',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Upfront fee voucher issuance sheet',
+                'postgres_sql': "SELECT extra_param FROM sfip931500131('USER01', '01', '202409', '20240930', '1');",
+                'expected': 99  # 99=RTN_FATAL (missing SHNRTSU_YOTEI_TEKIYO_KKN table)
+            }
+        ]
+    },
+    'fnyc-9532': {
+        'name': 'SFIPXB35K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'External IF numbering table clear',
+                'postgres_sql': "SELECT sfipxb35k15r01();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'kqtj-2028': {
+        'name': 'SFIPX055K15R03',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Bond fund receipt schedule (trust fee, mid-term fee)',
+                'postgres_sql': "SELECT sfipx055k15r03();",
+                'expected': 99  # 99=RTN_FATAL (missing SFIPX055K15R03_01 procedure)
+            }
+        ]
+    },
+    'jxus-5069': {
+        'name': 'SFIPXB31K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'External IF data garbage collection (30 days)',
+                'postgres_sql': "SELECT sfipxb31k15r01(30);",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'vfty-4113': {
+        'name': 'SFIPXB19K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'CIF info sending to deposit system',
+                'postgres_sql': "SELECT sfipxb19k15r01('IF001');",
+                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+            }
+        ]
+    },
+    'rcsd-0338': {
+        'name': 'SFIPXB23K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Customer management store info reception',
+                'postgres_sql': "SELECT sfipxb23k15r01('IF001');",
+                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+            }
+        ]
+    },
+    'verh-5062': {
+        'name': 'SFIPI037K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Redemption schedule creation',
+                'postgres_sql': "SELECT sfipi037k15r01();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'sswf-4349': {
+        'name': 'SFIPI019K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Variable interest rate decision notice',
+                'postgres_sql': "SELECT sfipi019k15r01();",
+                'expected': 99  # 99=RTN_FATAL (missing SPIP01901 procedure)
+            }
+        ]
+    },
+    'heyv-2795': {
+        'name': 'SFIPXB36K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Week start check for store attribute file',
+                'postgres_sql': "SELECT sfipxb36k15r01();",
+                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+            }
+        ]
+    },
+    'grkn-8679': {
+        'name': 'SFIPXB10K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Bond settlement data creation',
+                'postgres_sql': "SELECT sfipxb10k15r01('IF001');",
+                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+            }
+        ]
+    },
+    'mmzt-3752': {
+        'name': 'SFCALCKICHUHENREI',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Mid-term fee refund calculation',
+                'postgres_sql': "SELECT extra_param FROM sfcalckichuhenrei('01', 'MGR001', '01', '20240101', 1000, 900, 100);",
+                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+            }
+        ]
+    },
     'tmke-9930': {
         'name': 'SPIP02901',
         'type': 'procedure',
