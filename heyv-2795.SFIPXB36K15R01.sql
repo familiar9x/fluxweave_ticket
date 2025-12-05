@@ -55,7 +55,7 @@ BEGIN
 	-- 基準日の取得 
 	gKijunYmd := pkDate.getPlusDateBusiness(pkDate.getGyomuYmd(), 1);
 	-- 共通関数・週初チェック処理関数で業務日付が週初かチェック 
-	gWeekHeadFlg := pkDate.getShushoHantei(gKijunYmd, pkconstant.TOKYO_AREA_CD);
+	gWeekHeadFlg := pkDate.getShushoHantei(gKijunYmd, pkconstant.TOKYO_AREA_CD());
 	CALL pkLog.debug('BATCH', C_FUNCTION_ID, '***** ' || C_FUNCTION_ID || ' END *****');
 	RETURN gWeekHeadFlg;
 -- 例外処理

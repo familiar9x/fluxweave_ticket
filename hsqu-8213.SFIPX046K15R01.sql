@@ -33,8 +33,17 @@ DECLARE
 --                  メイン処理                                                  
 --==============================================================================
 BEGIN
+	RAISE NOTICE '[DEBUG] Starting SFIPX046K15R01';
 	FOR rec IN CUR_DATA LOOP
-		gReturnCode := SFIPX046K15R01_01(rec.KAIIN_ID);
+		RAISE NOTICE '[DEBUG] Processing KAIIN_ID: %', rec.KAIIN_ID;
+		BEGIN
+			gReturnCode := SFIPX046K15R01_01(rec.KAIIN_ID);
+			RAISE NOTICE '[DEBUG] Return code: %', gReturnCode;
+		EXCEPTION
+			WHEN OTHERS THEN
+				RAISE NOTICE '[DEBUG] Error in SFIPX046K15R01_01: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
+				RAISE;
+		END;
 		--対象データなしの場合、正常終了（但し、デバッグログを書き出す）
 		IF gReturnCode = pkconstant.NO_DATA_FIND() THEN
 			gReturnCode := pkconstant.success();
@@ -44,11 +53,13 @@ BEGIN
 			RETURN gReturnCode;
 		END IF;
 	END LOOP;
+	RAISE NOTICE '[DEBUG] Completed successfully';
 	RETURN pkconstant.success();
 EXCEPTION
 	WHEN OTHERS THEN
 		CALL pkLog.fatal('ECM701', 'SFIPX046K15R01', 'エラーコード'||SQLSTATE);
 		CALL pkLog.fatal('ECM701', 'SFIPX046K15R01', 'エラー内容'||SQLERRM);
+		RAISE NOTICE '[DEBUG] Fatal error: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 		RETURN pkconstant.FATAL();
 END;
 $body$

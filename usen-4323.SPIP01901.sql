@@ -458,7 +458,7 @@ BEGIN
 --
 					ELSE
 						-- １通貨当たりの利子額の計算式
-						gTsukaRishiCalc := '('	|| trim(both gRiritsu) || '% × '
+						gTsukaRishiCalc := '('	|| trim(both gRiritsu::text) || '% × '
 												|| gSpananbunBunshi || '/' || gSpananbunBunbo
 												|| ' ・・・' || gRknRoundProcessNm || ')';
 						-- 計算式の値を計算し、次に１通貨当たりの利子額が正しいかをチェックする為に確認用の金額を取得する
@@ -497,7 +497,7 @@ BEGIN
 --
 							ELSE
 								-- １通貨当たりの利子額の計算式
-								gTsukaRishiCalc := '('	|| trim(both gRiritsu) || '% × '
+								gTsukaRishiCalc := '('	|| trim(both gRiritsu::text) || '% × '
 														|| '1/' || (gNenRbrCnt)::numeric  || ' × '
 														|| gSpananbunBunshi || '日 ÷ ' || gSpananbunBunbo || '日 '
 														|| ' ・・・' || gRknRoundProcessNm || ')';
@@ -532,7 +532,7 @@ BEGIN
 --
 							ELSE
 								-- １通貨当たりの利子額の計算式
-								gTsukaRishiCalc := '('	|| trim(both gRiritsu) || '% × '
+								gTsukaRishiCalc := '('	|| trim(both gRiritsu::text) || '% × '
 														|| gSpananbunBunshi || '日 ÷ ' || gSpananbunBunbo || '日 '
 														|| ' ・・・' || gRknRoundProcessNm || ')';
 								-- 計算式の値を計算し、次に１通貨当たりの利子額が正しいかをチェックする為に確認用の金額を取得する
@@ -962,7 +962,7 @@ BEGIN
 		WHEN '1' THEN
 			--期中銘柄変更（利払/償還）２．基準金利（上限）名称　＋（−）　期中銘柄変更（利払/償還）２．基準金利（上限）スプレッド
 			-- 基準金利（上限）スプレッドがプラスの場合
-			IF (coalesce(trim(both recUpdMgr.gKinriMaxSpread),0))::numeric  >= 0 THEN
+			IF (coalesce(trim(both recUpdMgr.gKinriMaxSpread),'0'))::numeric  >= 0 THEN
 				result.gCoupon1 := recUpdMgr.gKinriMaxNm || ' ＋ ' || recUpdMgr.gKinriMaxSpread || '%';
 			-- 基準金利（上限）スプレッドがマイナスの場合
 			ELSE
@@ -981,7 +981,7 @@ BEGIN
 		WHEN '3' THEN
 			--期中銘柄変更（利払/償還）２．基準金利（下限）名称　＋（−）　期中銘柄変更（利払/償還）２．基準金利（下限）スプレッド
 			-- 基準金利（下限）スプレッドがプラスの場合
-			IF (coalesce(trim(both recUpdMgr.gKinriFloorSpread),0))::numeric  >= 0 THEN
+			IF (coalesce(trim(both recUpdMgr.gKinriFloorSpread),'0'))::numeric  >= 0 THEN
 				result.gCoupon1 := recUpdMgr.gKinriFloorNm || ' ＋ ' || recUpdMgr.gKinriFloorSpread || '%';
 			-- 基準金利（下限）スプレッドがマイナスの場合
 			ELSE
@@ -1002,7 +1002,7 @@ BEGIN
 			IF (trim(both recUpdMgr.gKijunKinriCd1Nm) IS NOT NULL AND (trim(both recUpdMgr.gKijunKinriCd1Nm))::text <> '')
 				AND	(trim(both gKijunKinriNm3) IS NOT NULL AND (trim(both gKijunKinriNm3))::text <> '')  THEN
 				-- スプレッドがプラスの場合
-				IF (coalesce(trim(both gSpread),0))::numeric  >= 0 THEN
+				IF (coalesce(trim(both gSpread),'0'))::numeric  >= 0 THEN
 					result.gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' − ' || gKijunKinriNm3 || ' ＋ ' || trim(both gSpread) || '%';
 				-- スプレッドがマイナスの場合
 				ELSE
@@ -1015,7 +1015,7 @@ BEGIN
 				IF coalesce(trim(both recUpdMgr.gKijunKinriCd1Nm)::text, '') = ''
 					AND	coalesce(trim(both gKijunKinriNm3)::text, '') = ''  THEN
 					-- スプレッドが 0 の場合
-					IF (coalesce(trim(both gSpread),0))::numeric  = 0 THEN
+					IF (coalesce(trim(both gSpread),'0'))::numeric  = 0 THEN
 						result.gCoupon1 := '';
 					-- スプレッドが 0以外の場合
 					ELSE
@@ -1026,7 +1026,7 @@ BEGIN
 					-- 期中銘柄変更（利払/償還）２．基準金利コード１のみ入力されている場合
 					IF (trim(both recUpdMgr.gKijunKinriCd1Nm) IS NOT NULL AND (trim(both recUpdMgr.gKijunKinriCd1Nm))::text <> '') THEN
 						-- スプレッドがプラスの場合
-						IF (coalesce(trim(both gSpread),0))::numeric  >= 0 THEN
+						IF (coalesce(trim(both gSpread),'0'))::numeric  >= 0 THEN
 							result.gCoupon1 := recUpdMgr.gKijunKinriCd1Nm || ' ＋ ' || trim(both gSpread) || '%';
 						-- スプレッドがマイナスの場合
 						ELSE
@@ -1036,7 +1036,7 @@ BEGIN
 					END IF;
 					-- 銘柄基本．基準金利コード２のみ入力されている場合
 					IF (trim(both gKijunKinriNm3) IS NOT NULL AND (trim(both gKijunKinriNm3))::text <> '') THEN
-						IF (coalesce(trim(both gSpread),0))::numeric  >= 0 THEN
+						IF (coalesce(trim(both gSpread),'0'))::numeric  >= 0 THEN
 							result.gCoupon1 := gKijunKinriNm3 || ' ＋ ' || trim(both gSpread) || '%';
 						-- スプレッドがマイナスの場合
 						ELSE

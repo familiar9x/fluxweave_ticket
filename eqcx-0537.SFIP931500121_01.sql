@@ -229,7 +229,7 @@ BEGIN
             ,l_inSakuseiYmd     =>  gyomuYmd::char                  -- 作成年月日
             ,l_inChohyoId       =>  REPORT_ID::char                 -- 帳票ＩＤ
             ,l_inSeqNo          =>  seqNo::integer                  -- 連番
-            ,l_inHeaderFlg      =>  1::integer                      -- ヘッダフラグ
+            ,l_inHeaderFlg      =>  '1'                      -- ヘッダフラグ
             ,l_inItem           =>  v_item                          -- アイテム
             ,l_inKousinId       =>  l_inUserId::varchar             -- 更新者ID
             ,l_inSakuseiId      =>  l_inUserId::varchar             -- 作成者ID
@@ -253,7 +253,7 @@ BEGIN
         ,l_inSakuseiYmd     =>  gyomuYmd::char                       -- 作成年月日
         ,l_inChohyoId       =>  REPORT_ID::char                      -- 帳票ＩＤ
         ,l_inSeqNo          =>  1::integer                           -- 連番
-        ,l_inHeaderFlg      =>  1::integer                           -- ヘッダフラグ
+        ,l_inHeaderFlg      =>  '1'                           -- ヘッダフラグ
         ,l_inItem           =>  v_item                               -- アイテム
         ,l_inKousinId       =>  l_inUserId::varchar                  -- 更新者ID
         ,l_inSakuseiId      =>  l_inUserId::varchar                  -- 作成者ID

@@ -115,12 +115,12 @@ DECLARE
   tesuZeiSum          numeric := 0;                   -- 手数料消費税額合計
   fncRtn              numeric := 0;                   -- FUNCTION戻り値格納
   gSQL                varchar(10000) := NULL;    -- SQL編集
-  v_item              type_sreport_wk_item;          -- Composite type for pkPrint.insertData
   -- カーソル
-  curMeisai REFCURSOR;
+  curMeisai refcursor;
   -- DB取得項目
   -- 配列定義
   recMeisai SFIP931500131_01_TYPE_RECORD;                      -- レコード
+  v_item    type_sreport_wk_item;                              -- アイテム
   -- 書式フォーマット
   fmtKngk     varchar(21) := NULL;        -- 金額
   fmtSzei     varchar(21) := NULL;        -- 税金額
@@ -190,201 +190,143 @@ BEGIN
   mgrCd := NULL;
   -- ヘッダーレコード出力
   CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyo_Kbn, gyomuYmd, REPORT_ID);
-  -- SQL編集 (inlined from sfip931500131_01_createSQL procedure)
+  -- SQL編集 (inline)
   gSQL := '';
   gSQL := 'SELECT '
-      ||'    ViewSELECT.TSUKA_CD, '                                                           -- 通貨コード
-      ||'    ViewSELECT.TSUKA_NM, '                                                           -- 通貨名称
-      ||'    ViewSELECT.HKT_CD, '                                                             -- 発行体コード
-      ||'    ViewSELECT.MGR_CD, '                                                             -- 銘柄コード
-      ||'    ViewSELECT.MGR_RNM, '                                                            -- 銘柄略称
-      ||'    ViewSELECT.ISIN_CD, '                                                            -- ＩＳＩＮコード
-      ||'    ViewSELECT.GNRBARAI_KJT, '                                                       -- 元利払期日
-      ||'    COALESCE(SUM(ViewSELECT.FURIKAE_KNGK),0), '                                           -- 仮受金からの振替金額(税込)
-      ||'    COALESCE(SUM(ViewSELECT.FURIKAE_ZEI),0), '                                            -- 仮受金からの振替消費税額
-      ||'    COALESCE(ViewSELECT.FURIKAE_KNGK_HNR,0), '                                            -- 発行体への返戻金額
-      ||'    COALESCE(ViewSELECT.FURIKAE_ZEI_HNR,0), '                                             -- 発行体への返戻消費税額
-      ||'    CASE WHEN ViewSELECT.IS_UPF_KEIJO = ''0'' THEN NULL ELSE MAX((TRIM(ViewSELECT.FURIKAE_YMD))::numeric) END, ' -- 仮受金からの振替日
-      ||'    ViewSELECT.IS_UPF_KEIJO, '                                                       -- アップフロント手数料勘定計上フラグ
-      ||'    ViewSELECT.GEN_FURI_KBN, '                                                       -- 現登振替区分
-      ||'    ViewSELECT.GNR_KBN '                                                             -- 元利区分
+      ||'    ViewSELECT.TSUKA_CD, '
+      ||'    ViewSELECT.TSUKA_NM, '
+      ||'    ViewSELECT.HKT_CD, '
+      ||'    ViewSELECT.MGR_CD, '
+      ||'    ViewSELECT.MGR_RNM, '
+      ||'    ViewSELECT.ISIN_CD, '
+      ||'    ViewSELECT.GNRBARAI_KJT, '
+      ||'    COALESCE(SUM(ViewSELECT.FURIKAE_KNGK),0), '
+      ||'    COALESCE(SUM(ViewSELECT.FURIKAE_ZEI),0), '
+      ||'    COALESCE(ViewSELECT.FURIKAE_KNGK_HNR,0), '
+      ||'    COALESCE(ViewSELECT.FURIKAE_ZEI_HNR,0), '
+      ||'    CASE WHEN ViewSELECT.IS_UPF_KEIJO = ''0'' THEN NULL ELSE MAX(CAST(TRIM(ViewSELECT.FURIKAE_YMD) AS NUMERIC)) END, '
+      ||'    ViewSELECT.IS_UPF_KEIJO, '
+      ||'    ViewSELECT.GEN_FURI_KBN, '
+      ||'    ViewSELECT.GNR_KBN '
       ||'  FROM  '
       ||'    ( SELECT '
-      ||'        VMG1.TSUKA_CD AS TSUKA_CD, '                                                 -- 通貨コード
-      ||'        VMG1.TSUKA_NM AS TSUKA_NM, '                                                 -- 通貨名称
-      ||'        VMG1.ITAKU_KAISHA_CD AS ITAKU_KAISHA_CD, '                                   -- 委託会社コード
-      ||'        VMG1.HKT_CD AS HKT_CD, '                                                     -- 発行体コード
-      ||'        VMG1.MGR_CD AS MGR_CD, '                                                     -- 銘柄コード
-      ||'        VMG1.MGR_RNM AS MGR_RNM, '                                                   -- 銘柄略称
-      ||'        VMG1.ISIN_CD AS ISIN_CD, '                                                   -- ＩＳＩＮコード
-      ||'        VMG1.RBR_KJT AS GNRBARAI_KJT, '                                              -- 元利払期日
-      ||'        UPF.KEIJO_YMD AS FURIKAE_YMD, '                                              -- 仮受金からの振替日
-      ||'        (CASE '
-      ||'          WHEN UPF.SYUEKI_KEIJO_KNGK IS NULL '
-      ||'            THEN NULL '
+      ||'        VMG1.TSUKA_CD AS TSUKA_CD, '
+      ||'        VMG1.TSUKA_NM AS TSUKA_NM, '
+      ||'        VMG1.ITAKU_KAISHA_CD AS ITAKU_KAISHA_CD, '
+      ||'        VMG1.HKT_CD AS HKT_CD, '
+      ||'        VMG1.MGR_CD AS MGR_CD, '
+      ||'        VMG1.MGR_RNM AS MGR_RNM, '
+      ||'        VMG1.ISIN_CD AS ISIN_CD, '
+      ||'        VMG1.RBR_KJT AS GNRBARAI_KJT, '
+      ||'        VMG1.KKN_NYUKIN_KNGK AS FURIKAE_KNGK, '
+      ||'        (CASE WHEN VMG1.KKN_IDO_KBN IN (''13'',''23'') '
+      ||'          THEN VMG1.KKN_NYUKIN_KNGK '
+      ||'          ELSE 0 '
+      ||'         END) AS FURIKAE_ZEI, '
+      ||'        UPF.KEIJO_YMD AS FURIKAE_YMD, '
+      ||'        COALESCE(UPF.KEIJO_STS_KBN,''0'') AS IS_UPF_KEIJO, '
+      ||'        VMG1.GEN_FURI_KBN AS GEN_FURI_KBN, '
+      ||'        ( CASE WHEN VMG1.GEN_FURI_KBN = ''0'' AND TRIM(VMG1.ISIN_CD) IS NULL THEN '
+      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK),0) + '
+      ||'                       COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
+      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
+      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             ELSE '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK),0) +   '
+      ||'                       COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
+      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
+      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             END '
+      ||'          WHEN VMG1.GEN_FURI_KBN = ''0'' THEN '
+      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK),0) +  '
+      ||'                       COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
+      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
+      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
+      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
+      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
+      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             ELSE '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK),0) + '
+      ||'                       COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
+      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
+      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
+      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
+      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
+      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             END '
       ||'          ELSE '
-      ||'            UPF.SYUEKI_KEIJO_KNGK '
-      ||'             + UPF.SYUEKI_KEIJO_ZEI '
-      ||'        END '
-      ||'        ) AS FURIKAE_KNGK, '                                                         -- 仮受金からの振替金額(税込)
-      ||'        UPF.SYUEKI_KEIJO_ZEI AS FURIKAE_ZEI, '                                       -- 仮受金からの振替消費税額
-      ||'        ( CASE '
-      ||'          WHEN VMG1.GNR_KBN = ''1'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN GNK_HNR.GNK_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  GNK_HNR.GNK_SHR_KNGK '
-      ||'                   + GNK_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
-      ||'          WHEN VMG1.GNR_KBN = ''2'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN KKN_HNR.RKIN_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  KKN_HNR.RKIN_SHR_KNGK '
-      ||'                   + KKN_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
+      ||'            (SELECT COALESCE(SUM(KKN_HNR.SHR_TESU_KNGK),0) +   '
+      ||'                    COALESCE(SUM(KKN_HNR.SHR_TESU_SZEI),0) '
+      ||'            FROM KIKIN_HENREI KKN_HNR '
+      ||'            WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR.ITAKU_KAISHA_CD '
+      ||'              AND VMG1.MGR_CD = KKN_HNR.MGR_CD '
+      ||'              AND VMG1.TSUKA_CD = KKN_HNR.TSUKA_CD '
+      ||'              AND VMG1.RBR_KJT = KKN_HNR.RBR_KJT '
+      ||'              AND VMG1.GNR_KBN = KKN_HNR.GNR_KBN) '
+      ||'          END '
+      ||'        ) AS FURIKAE_KNGK_HNR, '
+      ||'        ( CASE WHEN VMG1.GEN_FURI_KBN = ''0'' AND TRIM(VMG1.ISIN_CD) IS NULL THEN '
+      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
+      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
+      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             ELSE '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
+      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
+      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             END '
+      ||'          WHEN VMG1.GEN_FURI_KBN = ''0'' THEN '
+      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
+      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
+      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
+      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
+      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
+      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             ELSE '
+      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
+      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
+      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
+      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
+      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
+      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
+      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
+      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
+      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
+      ||'             END '
       ||'          ELSE '
-      ||'            0 '
-      ||'        END '
-      ||'        ) AS FURIKAE_KNGK_HNR, '                                                     -- 仮受金からの振替金額(返戻分)
-      ||'        ( CASE '
-      ||'          WHEN VMG1.GNR_KBN = ''1'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN GNK_HNR.GNK_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  GNK_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
-      ||'          WHEN VMG1.GNR_KBN = ''2'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN KKN_HNR.RKIN_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  KKN_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
-      ||'          ELSE '
-      ||'            0 '
-      ||'        END '
-      ||'        ) AS FURIKAE_ZEI_HNR, '                                                      -- 仮受金からの振替消費税額(返戻分)
-      ||'        VMG1.GEN_FURI_KBN AS GEN_FURI_KBN, '                                         -- 現登振替区分
-      ||'        COALESCE(VMG1.IS_UPF_KEIJO,''0'') AS IS_UPF_KEIJO, '                              -- アップフロント手数料勘定計上フラグ
-      ||'        VMG1.GNR_KBN AS GNR_KBN '
-      ||'      FROM  '
-      ||'        MGR_KIHON_VIEW_UPF VMG1 '
-      ||'        LEFT JOIN UPFR_TESURYO_KEIJYO UPF '
-      ||'          ON VMG1.ITAKU_KAISHA_CD = UPF.ITAKU_KAISHA_CD '
-      ||'         AND VMG1.GEN_FURI_KBN = UPF.GEN_FURI_KBN '
-      ||'         AND VMG1.MGR_CD = UPF.MGR_CD '
-      ||'         AND VMG1.RBR_KJT = UPF.GNRBARAI_KJT '
-      ||'        LEFT OUTER JOIN '
-      ||'          (SELECT ITAKU_KAISHA_CD, '
-      ||'                  MGR_CD, '
-      ||'                  GEN_FURI_KBN, '
-      ||'                  GNRBARAI_KJT, '
-      ||'                  SUM(COALESCE(GNK_SHR_KNGK,0)) AS GNK_SHR_KNGK, '
-      ||'                  SUM(COALESCE(TSUKA_HNR_SHR_KNGK,0)) AS TSUKA_HNR_SHR_KNGK '
-      ||'             FROM SHNRTSU_YOTEI_TEKIYO_KKN '
-      ||'            WHERE HAKK_HNRT_KBN = ''0'' '
-      ||'              AND GEN_FURI_KBN = ''0'' '
-      ||'              AND GNR_KBN = ''1'' '
-      ||'            GROUP BY ITAKU_KAISHA_CD,MGR_CD,GEN_FURI_KBN,GNRBARAI_KJT '
-      ||'          ) GNK_HNR '
-      ||'        ON (VMG1.ITAKU_KAISHA_CD = GNK_HNR.ITAKU_KAISHA_CD '
-      ||'               AND VMG1.MGR_CD = GNK_HNR.MGR_CD '
-      ||'               AND VMG1.GEN_FURI_KBN = GNK_HNR.GEN_FURI_KBN '
-      ||'               AND VMG1.RBR_KJT = GNK_HNR.GNRBARAI_KJT '
-      ||'               AND VMG1.GNR_KBN = ''1'') '
-      ||'        LEFT OUTER JOIN '
-      ||'          (SELECT ITAKU_KAISHA_CD, '
-      ||'                  MGR_CD, '
-      ||'                  GEN_FURI_KBN, '
-      ||'                  GNRBARAI_KJT, '
-      ||'                  SUM(COALESCE(RKIN_SHR_KNGK,0)) AS RKIN_SHR_KNGK, '
-      ||'                  SUM(COALESCE(TSUKA_HNR_SHR_KNGK,0)) AS TSUKA_HNR_SHR_KNGK '
-      ||'             FROM SHNRTSU_YOTEI_TEKIYO_KKN '
-      ||'            WHERE HAKK_HNRT_KBN = ''0'' '
-      ||'              AND GEN_FURI_KBN = ''0'' '
-      ||'              AND GNR_KBN = ''2'' '
-      ||'            GROUP BY ITAKU_KAISHA_CD,MGR_CD,GEN_FURI_KBN,GNRBARAI_KJT '
-      ||'          ) KKN_HNR '
-      ||'        ON (VMG1.ITAKU_KAISHA_CD = KKN_HNR.ITAKU_KAISHA_CD '
+      ||'            (SELECT COALESCE(SUM(KKN_HNR.SHR_TESU_SZEI),0) '
+      ||'             FROM KIKIN_HENREI KKN_HNR '
+      ||'             WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR.ITAKU_KAISHA_CD '
       ||'               AND VMG1.MGR_CD = KKN_HNR.MGR_CD '
-      ||'               AND VMG1.GEN_FURI_KBN = KKN_HNR.GEN_FURI_KBN '
-      ||'               AND VMG1.RBR_KJT = KKN_HNR.GNRBARAI_KJT '
-      ||'               AND VMG1.GNR_KBN = ''2'') '
-      ||'      WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' '
-      ||'        AND VMG1.GNR_KBN = ''1'' '
-      ||'        AND VMG1.GEN_FURI_KBN IN (''0'',''9'') '
-      ||'        UNION '
-      ||'      SELECT '
-      ||'        VMG1.TSUKA_CD AS TSUKA_CD, '                                                 -- 通貨コード
-      ||'        VMG1.TSUKA_NM AS TSUKA_NM, '                                                 -- 通貨名称
-      ||'        VMG1.ITAKU_KAISHA_CD AS ITAKU_KAISHA_CD, '                                   -- 委託会社コード
-      ||'        VMG1.HKT_CD AS HKT_CD, '                                                     -- 発行体コード
-      ||'        VMG1.MGR_CD AS MGR_CD, '                                                     -- 銘柄コード
-      ||'        VMG1.MGR_RNM AS MGR_RNM, '                                                   -- 銘柄略称
-      ||'        VMG1.ISIN_CD AS ISIN_CD, '                                                   -- ＩＳＩＮコード
-      ||'        VMG1.RBR_KJT AS GNRBARAI_KJT, '                                              -- 元利払期日
-      ||'        UPF.KEIJO_YMD AS FURIKAE_YMD, '                                              -- 仮受金からの振替日
-      ||'        (CASE '
-      ||'          WHEN UPF.SYUEKI_KEIJO_KNGK IS NULL '
-      ||'            THEN NULL '
-      ||'          ELSE '
-      ||'            UPF.SYUEKI_KEIJO_KNGK '
-      ||'             + UPF.SYUEKI_KEIJO_ZEI '
-      ||'        END '
-      ||'        ) AS FURIKAE_KNGK, '                                                         -- 仮受金からの振替金額(税込)
-      ||'        UPF.SYUEKI_KEIJO_ZEI AS FURIKAE_ZEI, '                                       -- 仮受金からの振替消費税額
-      ||'        ( CASE '
-      ||'          WHEN VMG1.GNR_KBN = ''1'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN GNK_HNR.GNK_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  GNK_HNR.GNK_SHR_KNGK '
-      ||'                   + GNK_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
-      ||'          WHEN VMG1.GNR_KBN = ''2'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN KKN_HNR.RKIN_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  KKN_HNR.RKIN_SHR_KNGK '
-      ||'                   + KKN_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
-      ||'          ELSE '
-      ||'            0 '
-      ||'        END '
-      ||'        ) AS FURIKAE_KNGK_HNR, '                                                     -- 仮受金からの振替金額(返戻分)
-      ||'        ( CASE '
-      ||'          WHEN VMG1.GNR_KBN = ''1'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN GNK_HNR.GNK_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  GNK_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
-      ||'          WHEN VMG1.GNR_KBN = ''2'' AND VMG1.GEN_FURI_KBN = ''0'' '
-      ||'            THEN '
-      ||'              CASE '
-      ||'                WHEN KKN_HNR.RKIN_SHR_KNGK IS NULL '
-      ||'                  THEN 0 '
-      ||'                ELSE '
-      ||'                  KKN_HNR.TSUKA_HNR_SHR_KNGK '
-      ||'              END '
-      ||'          ELSE '
-      ||'            0 '
-      ||'        END '
-      ||'        ) AS FURIKAE_ZEI_HNR, '                                                      -- 仮受金からの振替消費税額(返戻分)
+      ||'               AND VMG1.TSUKA_CD = KKN_HNR.TSUKA_CD '
+      ||'               AND VMG1.RBR_KJT = KKN_HNR.RBR_KJT '
+      ||'               AND VMG1.GNR_KBN = KKN_HNR.GNR_KBN) '
+      ||'          END '
+      ||'        ) AS FURIKAE_ZEI_HNR, '
       ||'         VMG1.GNR_KBN AS GNR_KBN '
       ||'      FROM  '
       ||'        MGR_KIHON_VIEW_UPF VMG1 '
@@ -393,66 +335,28 @@ BEGIN
       ||'         AND VMG1.GEN_FURI_KBN = UPF.GEN_FURI_KBN '
       ||'         AND VMG1.MGR_CD = UPF.MGR_CD '
       ||'         AND VMG1.RBR_KJT = UPF.GNRBARAI_KJT '
-      ||'        LEFT OUTER JOIN '
-      ||'          (SELECT ITAKU_KAISHA_CD, '
-      ||'                  MGR_CD, '
-      ||'                  GEN_FURI_KBN, '
-      ||'                  GNRBARAI_KJT, '
-      ||'                  SUM(COALESCE(GNK_SHR_KNGK,0)) AS GNK_SHR_KNGK, '
-      ||'                  SUM(COALESCE(TSUKA_HNR_SHR_KNGK,0)) AS TSUKA_HNR_SHR_KNGK '
-      ||'             FROM SHNRTSU_YOTEI_TEKIYO_KKN '
-      ||'            WHERE HAKK_HNRT_KBN = ''0'' '
-      ||'              AND GEN_FURI_KBN = ''0'' '
-      ||'              AND GNR_KBN = ''1'' '
-      ||'            GROUP BY ITAKU_KAISHA_CD,MGR_CD,GEN_FURI_KBN,GNRBARAI_KJT '
-      ||'          ) GNK_HNR '
-      ||'        ON (VMG1.ITAKU_KAISHA_CD = GNK_HNR.ITAKU_KAISHA_CD '
-      ||'               AND VMG1.MGR_CD = GNK_HNR.MGR_CD '
-      ||'               AND VMG1.GEN_FURI_KBN = GNK_HNR.GEN_FURI_KBN '
-      ||'               AND VMG1.RBR_KJT = GNK_HNR.GNRBARAI_KJT '
-      ||'               AND VMG1.GNR_KBN = ''1'') '
-      ||'        LEFT OUTER JOIN '
-      ||'          (SELECT ITAKU_KAISHA_CD, '
-      ||'                  MGR_CD, '
-      ||'                  GEN_FURI_KBN, '
-      ||'                  GNRBARAI_KJT, '
-      ||'                  SUM(COALESCE(RKIN_SHR_KNGK,0)) AS RKIN_SHR_KNGK, '
-      ||'                  SUM(COALESCE(TSUKA_HNR_SHR_KNGK,0)) AS TSUKA_HNR_SHR_KNGK '
-      ||'             FROM SHNRTSU_YOTEI_TEKIYO_KKN '
-      ||'            WHERE HAKK_HNRT_KBN = ''0'' '
-      ||'              AND GEN_FURI_KBN = ''0'' '
-      ||'              AND GNR_KBN = ''2'' '
-      ||'            GROUP BY ITAKU_KAISHA_CD,MGR_CD,GEN_FURI_KBN,GNRBARAI_KJT '
-      ||'          ) KKN_HNR '
-      ||'        ON (VMG1.ITAKU_KAISHA_CD = KKN_HNR.ITAKU_KAISHA_CD '
-      ||'               AND VMG1.MGR_CD = KKN_HNR.MGR_CD '
-      ||'               AND VMG1.GEN_FURI_KBN = KKN_HNR.GEN_FURI_KBN '
-      ||'               AND VMG1.RBR_KJT = KKN_HNR.GNRBARAI_KJT '
-      ||'               AND VMG1.GNR_KBN = ''2'') '
-      ||'      WHERE VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' '
-      ||'        AND VMG1.GNR_KBN = ''2'' '
-      ||'        AND VMG1.GEN_FURI_KBN IN (''0'',''9'') '
-      ||'    ) ViewSELECT '
+      ||'      WHERE 1=1 ';
+  gSQL := gSQL ||'    ) ViewSELECT '
       ||'  WHERE '
       ||'        SUBSTR(ViewSELECT.GNRBARAI_KJT,1,6) = ''' || l_inKijun_Ym || ''''
       ||'  GROUP BY '
-      ||'    ViewSELECT.ITAKU_KAISHA_CD, '                                                    -- 委託会社コード
-      ||'    ViewSELECT.TSUKA_CD, '                                                           -- 通貨コード
-      ||'    ViewSELECT.TSUKA_NM, '                                                           -- 通貨名称
-      ||'    ViewSELECT.HKT_CD, '                                                             -- 発行体コード
-      ||'    ViewSELECT.MGR_CD, '                                                             -- 銘柄コード
-      ||'    ViewSELECT.MGR_RNM, '                                                            -- 銘柄略称
-      ||'    ViewSELECT.ISIN_CD, '                                                            -- ＩＳＩＮコード
-      ||'    ViewSELECT.GNRBARAI_KJT, '                                                       -- 元利払期日
-      ||'    ViewSELECT.FURIKAE_KNGK_HNR, '                                                   -- 発行体への返戻金額
-      ||'    ViewSELECT.FURIKAE_ZEI_HNR, '                                                    -- 発行体への返戻消費税額
-      ||'    ViewSELECT.IS_UPF_KEIJO, '                                                       -- アップフロント手数料勘定計上フラグ
-      ||'    ViewSELECT.GEN_FURI_KBN, '                                                       -- 現登振替区分
+      ||'    ViewSELECT.ITAKU_KAISHA_CD, '
+      ||'    ViewSELECT.TSUKA_CD, '
+      ||'    ViewSELECT.TSUKA_NM, '
+      ||'    ViewSELECT.HKT_CD, '
+      ||'    ViewSELECT.MGR_CD, '
+      ||'    ViewSELECT.MGR_RNM, '
+      ||'    ViewSELECT.ISIN_CD, '
+      ||'    ViewSELECT.GNRBARAI_KJT, '
+      ||'    ViewSELECT.FURIKAE_KNGK_HNR, '
+      ||'    ViewSELECT.FURIKAE_ZEI_HNR, '
+      ||'    ViewSELECT.IS_UPF_KEIJO, '
+      ||'    ViewSELECT.GEN_FURI_KBN, '
       ||'    ViewSELECT.FURIKAE_YMD, '
-      ||'    ViewSELECT.GNR_KBN '                                                             -- 元利区分
+      ||'    ViewSELECT.GNR_KBN '
       ||'  ORDER BY '
-      ||'    CASE WHEN ViewSELECT.IS_UPF_KEIJO = ''0'' THEN NULL ELSE MAX((TRIM(ViewSELECT.FURIKAE_YMD))::numeric) END, '
-      ||'    ViewSELECT.TSUKA_CD, '                                                           -- 通貨コード
+      ||'    CASE WHEN ViewSELECT.IS_UPF_KEIJO = ''0'' THEN NULL ELSE MAX(CAST(TRIM(ViewSELECT.FURIKAE_YMD) AS NUMERIC)) END, '
+      ||'    ViewSELECT.TSUKA_CD, '
       ||'    ViewSELECT.HKT_CD, '
       ||'    ViewSELECT.MGR_CD, '
       ||'    ViewSELECT.GNRBARAI_KJT ';
@@ -614,7 +518,7 @@ BEGIN
     ELSIF coalesce(trim(both recMeisai.gFurikaeYmd)::text, '') = '' THEN
       -- 1件でもレコードが取得できない場合、空白を設定
       furikaeYmd := NULL;
-    ELSIF (trim(both recMeisai.gFurikaeYmd))::numeric  > trim(both furikaeYmd) THEN
+    ELSIF (trim(both recMeisai.gFurikaeYmd))::numeric  > (trim(both furikaeYmd))::numeric THEN
       -- 複数レコードを取得した場合、直近日を設定
       furikaeYmd := trim(both recMeisai.gFurikaeYmd);
     END IF;
@@ -776,190 +680,3 @@ LANGUAGE PLPGSQL
 ;
 -- REVOKE ALL ON FUNCTION sfip931500131_01 ( l_inUserId text , l_inItakuKaishaCd text , l_inKijun_Ym text , l_inKeijo_Ymd text , l_inChohyo_Kbn text , l_outErrMsg OUT text , OUT extra_param numeric) FROM PUBLIC;
 
-
-
-
--- NESTED PROCEDURE INLINED ABOVE - PostgreSQL does not support nested procedures accessing parent variables
-/*
-CREATE OR REPLACE PROCEDURE sfip931500131_01_createsql () AS $body$
-BEGIN
-  -- 変数を初期化
-  gSql := '';
-  -- 変数にSQLクエリ文を代入
-  gSql := 'SELECT '
-      ||'    ViewSELECT.TSUKA_CD, '                                                           -- 通貨コード
-      ||'    ViewSELECT.TSUKA_NM, '                                                           -- 通貨名称
-      ||'    ViewSELECT.HKT_CD, '                                                             -- 発行体コード
-      ||'    ViewSELECT.MGR_CD, '                                                             -- 銘柄コード
-      ||'    ViewSELECT.MGR_RNM, '                                                            -- 銘柄略称
-      ||'    ViewSELECT.ISIN_CD, '                                                            -- ＩＳＩＮコード
-      ||'    ViewSELECT.GNRBARAI_KJT, '                                                       -- 元利払期日
-      ||'    COALESCE(SUM(ViewSELECT.FURIKAE_KNGK),0), '                                           -- 仮受金からの振替金額(税込)
-      ||'    COALESCE(SUM(ViewSELECT.FURIKAE_ZEI),0), '                                            -- 仮受金からの振替消費税額
-      ||'    COALESCE(ViewSELECT.FURIKAE_KNGK_HNR,0), '                                            -- 発行体への返戻金額
-      ||'    COALESCE(ViewSELECT.FURIKAE_ZEI_HNR,0), '                                             -- 発行体への返戻消費税額
-      ||'    CASE WHEN ViewSELECT.IS_UPF_KEIJO = ''0'' THEN NULL ELSE MAX((TRIM(ViewSELECT.FURIKAE_YMD))::numeric) END, ' -- 仮受金からの振替日
-      ||'    ViewSELECT.IS_UPF_KEIJO, '                                                       -- アップフロント手数料勘定計上フラグ
-      ||'    ViewSELECT.GEN_FURI_KBN, '                                                       -- 現登振替区分
-      ||'    ViewSELECT.GNR_KBN '                                                             -- 元利区分
-      ||'  FROM  '
-      ||'    ( SELECT '
-      ||'        VMG1.TSUKA_CD AS TSUKA_CD, '                                                 -- 通貨コード
-      ||'        VMG1.TSUKA_NM AS TSUKA_NM, '                                                 -- 通貨名称
-      ||'        VMG1.ITAKU_KAISHA_CD AS ITAKU_KAISHA_CD, '                                   -- 委託会社コード
-      ||'        VMG1.HKT_CD AS HKT_CD, '                                                     -- 発行体コード
-      ||'        VMG1.MGR_CD AS MGR_CD, '                                                     -- 銘柄コード
-      ||'        VMG1.MGR_RNM AS MGR_RNM, '                                                   -- 銘柄略称
-      ||'        VMG1.ISIN_CD AS ISIN_CD, '                                                   -- ＩＳＩＮコード
-      ||'        VMG1.RBR_KJT AS GNRBARAI_KJT, '                                              -- 元利払期日
-      ||'        VMG1.KKN_NYUKIN_KNGK AS FURIKAE_KNGK, '                                      -- 仮受金からの振替金額(税込)
-      ||'        (CASE WHEN VMG1.KKN_IDO_KBN IN (''13'',''23'') '                             -- (コード種別:101、103)
-      ||'          THEN VMG1.KKN_NYUKIN_KNGK '
-      ||'          ELSE 0 '
-      ||'         END) AS FURIKAE_ZEI, '                                                      -- 仮受金からの振替消費税額
-      ||'        UPF.KEIJO_YMD AS FURIKAE_YMD, '                                              -- 仮受金からの振替日
-      ||'        COALESCE(UPF.KEIJO_STS_KBN,''0'') AS IS_UPF_KEIJO, '                              -- アップフロント手数料勘定計上フラグ
-      ||'        VMG1.GEN_FURI_KBN AS GEN_FURI_KBN, '                                         -- 現登振替区分
-      ||'        ( CASE WHEN VMG1.GEN_FURI_KBN = ''0'' AND TRIM(VMG1.ISIN_CD) IS NULL THEN '  --(現登債)
-      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN ' -- 元金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK),0) + '
-      ||'                       COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
-      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
-      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             ELSE '                              -- 利金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK),0) +   '
-      ||'                       COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
-      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
-      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             END '
-      ||'          WHEN VMG1.GEN_FURI_KBN = ''0'' THEN '                                      --(現登債:並存銘柄)
-      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN ' -- 元金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK),0) +  '
-      ||'                       COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
-      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
-      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
-      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
-      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
-      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             ELSE '                              -- 利金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK),0) + '
-      ||'                       COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
-      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
-      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
-      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
-      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
-      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             END '
-      ||'          ELSE '                                                                     --(振替債)
-      ||'            (SELECT COALESCE(SUM(KKN_HNR.SHR_TESU_KNGK),0) +   '
-      ||'                    COALESCE(SUM(KKN_HNR.SHR_TESU_SZEI),0) '
-      ||'            FROM KIKIN_HENREI KKN_HNR '
-      ||'            WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR.ITAKU_KAISHA_CD '
-      ||'              AND VMG1.MGR_CD = KKN_HNR.MGR_CD '
-      ||'              AND VMG1.TSUKA_CD = KKN_HNR.TSUKA_CD '
-      ||'              AND VMG1.RBR_KJT = KKN_HNR.RBR_KJT '
-      ||'              AND VMG1.GNR_KBN = KKN_HNR.GNR_KBN) '
-      ||'          END '
-      ||'        ) AS FURIKAE_KNGK_HNR, '                                                     -- 仮受金からの振替金額(返戻分)
-      ||'        ( CASE WHEN VMG1.GEN_FURI_KBN = ''0'' AND TRIM(VMG1.ISIN_CD) IS NULL THEN '  --(現登債)
-      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN ' -- 元金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
-      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
-      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             ELSE '                              -- 利金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
-      ||'               FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'               WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                 AND VMG1.MGR_CD = KKN_HNR_GT.MGR_CD '
-      ||'                 AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                 AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             END '
-      ||'          WHEN VMG1.GEN_FURI_KBN = ''0'' THEN '                                      --(現登債:並存銘柄)
-      ||'             CASE VMG1.GNR_KBN WHEN ''1'' THEN ' -- 元金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.GNKN_TESU_KNGK_ZEI),0) '
-      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
-      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
-      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
-      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
-      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             ELSE '                              -- 利金
-      ||'               (SELECT COALESCE(SUM(KKN_HNR_GT.RKN_TESU_KNGK_ZEI),0) '
-      ||'                FROM B_KIKIN_HENREI KKN_HNR_GT '
-      ||'                WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR_GT.ITAKU_KAISHA_CD '
-      ||'                  AND KKN_HNR_GT.MGR_CD = ( '
-      ||'                     SELECT DISTINCT MG01.MGR_CD FROM B_MGR_KIHON MG01 '
-      ||'                     WHERE MG01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD '
-      ||'                       AND MG01.ISIN_CD = VMG1.ISIN_CD) '
-      ||'                  AND VMG1.TSUKA_CD = KKN_HNR_GT.TSUKA_CD '
-      ||'                  AND VMG1.RBR_KJT = KKN_HNR_GT.RBR_KJT) '
-      ||'             END '
-      ||'          ELSE '                                                                     --(振替債)
-      ||'            (SELECT COALESCE(SUM(KKN_HNR.SHR_TESU_SZEI),0) '
-      ||'             FROM KIKIN_HENREI KKN_HNR '
-      ||'             WHERE VMG1.ITAKU_KAISHA_CD = KKN_HNR.ITAKU_KAISHA_CD '
-      ||'               AND VMG1.MGR_CD = KKN_HNR.MGR_CD '
-      ||'               AND VMG1.TSUKA_CD = KKN_HNR.TSUKA_CD '
-      ||'               AND VMG1.RBR_KJT = KKN_HNR.RBR_KJT '
-      ||'               AND VMG1.GNR_KBN = KKN_HNR.GNR_KBN) '
-      ||'          END '
-      ||'        ) AS FURIKAE_ZEI_HNR, '                                                      -- 仮受金からの振替消費税額(返戻分)
-      ||'         VMG1.GNR_KBN AS GNR_KBN '
-      ||'      FROM  '
-      ||'        MGR_KIHON_VIEW_UPF VMG1 '
-      ||'        LEFT JOIN UPFR_TESURYO_KEIJYO UPF '
-      ||'          ON VMG1.ITAKU_KAISHA_CD = UPF.ITAKU_KAISHA_CD '
-      ||'         AND VMG1.GEN_FURI_KBN = UPF.GEN_FURI_KBN '
-      ||'         AND VMG1.MGR_CD = UPF.MGR_CD '
-      ||'         AND VMG1.RBR_KJT = UPF.GNRBARAI_KJT '
-      ||'      WHERE 1=1 ';
-  gSql := gSql ||'    ) ViewSELECT '
-      ||'  WHERE '
-      ||'        SUBSTR(ViewSELECT.GNRBARAI_KJT,1,6) = ''' || l_inKijun_Ym || ''''
-      ||'  GROUP BY '
-      ||'    ViewSELECT.ITAKU_KAISHA_CD, '                                                    -- 委託会社コード
-      ||'    ViewSELECT.TSUKA_CD, '                                                           -- 通貨コード
-      ||'    ViewSELECT.TSUKA_NM, '                                                           -- 通貨名称
-      ||'    ViewSELECT.HKT_CD, '                                                             -- 発行体コード
-      ||'    ViewSELECT.MGR_CD, '                                                             -- 銘柄コード
-      ||'    ViewSELECT.MGR_RNM, '                                                            -- 銘柄略称
-      ||'    ViewSELECT.ISIN_CD, '                                                            -- ＩＳＩＮコード
-      ||'    ViewSELECT.GNRBARAI_KJT, '                                                       -- 元利払期日
-      ||'    ViewSELECT.FURIKAE_KNGK_HNR, '                                                   -- 発行体への返戻金額
-      ||'    ViewSELECT.FURIKAE_ZEI_HNR, '                                                    -- 発行体への返戻消費税額
-      ||'    ViewSELECT.IS_UPF_KEIJO, '                                                       -- アップフロント手数料勘定計上フラグ
-      ||'    ViewSELECT.GEN_FURI_KBN, '                                                       -- 現登振替区分
-      ||'    ViewSELECT.FURIKAE_YMD, '
-      ||'    ViewSELECT.GNR_KBN '                                                             -- 元利区分
-      ||'  ORDER BY '
-      ||'    CASE WHEN ViewSELECT.IS_UPF_KEIJO = ''0'' THEN NULL ELSE MAX((TRIM(ViewSELECT.FURIKAE_YMD))::numeric) END, '
-      ||'    ViewSELECT.TSUKA_CD, '                                                           -- 通貨コード
-      ||'    ViewSELECT.HKT_CD, '
-      ||'    ViewSELECT.MGR_CD, '
-      ||'    ViewSELECT.GNRBARAI_KJT ';
-   EXCEPTION
-  WHEN OTHERS THEN
-    RAISE;
-  END;
-$body$
-LANGUAGE PLPGSQL
-;
-*/
--- REVOKE ALL ON PROCEDURE sfip931500131_01_createsql () FROM PUBLIC;
