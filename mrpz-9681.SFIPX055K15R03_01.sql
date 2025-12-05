@@ -18,7 +18,7 @@ CREATE TYPE sfipx055k15r03_01_type_record AS (
 	);
 
 
-CREATE OR REPLACE FUNCTION sfipx055k15r03_01 ( l_initakuKaishaCd char(4) , l_inBankRnm varchar(30) ) RETURNS integer AS $body$
+CREATE OR REPLACE FUNCTION sfipx055k15r03_01 ( l_initakuKaishaCd MITAKU_KAISHA.ITAKU_KAISHA_CD%TYPE , l_inBankRnm VJIKO_ITAKU.BANK_RNM%TYPE ) RETURNS integer AS $body$
 DECLARE
 
 --*
@@ -38,64 +38,69 @@ DECLARE
 -- * @return INTEGER 0:正常、99:異常、それ以外：エラー
 -- 
 --==============================================================================
---					変数定義													
+--					変数定義												
 --==============================================================================
+	v_item type_sreport_wk_item;						-- Composite type for pkPrint.insertData
 	gReturnCode			integer := 0;
-	gCur REFCURSOR;	--システム設定分と個別設定分を取得するカーソル
-	gGyomuYmd			char(8);
-	gKjtFrom			char(8);
-	gKjtTo				char(8);
+	gCur refcursor;	--システム設定分と個別設定分を取得するカーソル
+	gGyomuYmd			SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE;
+	gKjtFrom			MGR_TESKIJ.CHOKYU_KJT%TYPE;
+	gKjtTo				MGR_TESKIJ.CHOKYU_KJT%TYPE;
 	gSeqNo				integer := 0;
 	gSeqNo2				integer := 0;
 	gMaxSeqNo			integer := 0;
-	gSQL				varchar(5000) := NULL;		-- SQL格納用変数
+	gSQL				text := NULL;		-- SQL格納用変数
 	gREPORT_ID			CONSTANT char(11) := 'IP931505531';	-- レポートＩＤ
-	wkChohyoId			varchar(11);		-- ワーク帳票ＩＤ
+	wkChohyoId			SREPORT_WK.CHOHYO_ID%TYPE;		-- ワーク帳票ＩＤ
 	gAlltesukngk			integer := 0;
 	gChokyuYmdFrom			char(8)	:=	'99999999';		--	徴求日	From	(抽出した徴求日との大小関係を比較するため、初期値は最大値)
 	gChokyuYmdTo			char(8)	:=	'00000000';		--	徴求日	To	(抽出した徴求日との大小関係を比較するため、初期値は最小値)
-	gOutSqlErrM			varchar(5000) := NULL;				-- エラーコメント
+	gOutSqlErrM			text := NULL;				-- エラーコメント
 	-- レコードタイプ宣言
 	-- レコード
 	rec sfipx055k15r03_01_type_record[];
-	temp_rec sfipx055k15r03_01_type_record;
+	tmp_rec sfipx055k15r03_01_type_record;
 --==============================================================================
---					メイン処理													
+--					メイン処理												
 --==============================================================================
 BEGIN
+	RAISE NOTICE 'DEBUG: Start sfipx055k15r03_01';
 	-- 業務日付取得
 	gGyomuYmd := pkDate.getGyomuYmd();
+	RAISE NOTICE 'DEBUG: gGyomuYmd = %', gGyomuYmd;
 	-- 請求書出力設定テーブルから、出力期間を取得する（業務日付が出力日ではない場合、From-Toは'99999999'で返る）
 	CALL PKIPACALCTESURYO.GETBATCHSEIKYUOUTFROMTO(l_initakukaishacd,		-- 委託会社コード
 						 '2',				-- 請求書区分（1：元利金、2：手数料）
 						 gKjtFrom,			-- 戻り値１：期間From
 						 gKjtTo);
+	RAISE NOTICE 'DEBUG: After GETBATCHSEIKYUOUTFROMTO, gKjtFrom=%, gKjtTo=%', gKjtFrom, gKjtTo;
 	-- システム設定分と個別設定分の請求書作成データを取得するためのカーソル文を作成する
 	gSQL := pkIpaKichuTesuryo.createCursor(gKjtFrom, gKjtTo, l_initakukaishacd, '', '', '', '', '', '1');
+	RAISE NOTICE 'DEBUG: After createCursor, SQL length = %', length(gSQL);
         -- カウントの初期化
 	gSeqNo := 0;
-	rec := ARRAY[]::sfipx055k15r03_01_type_record[];
 	-- カーソルオープン
+	RAISE NOTICE 'DEBUG: Opening cursor';
 	OPEN gCur FOR EXECUTE gSQL;
+	RAISE NOTICE 'DEBUG: Cursor opened, starting loop';
 	LOOP
 		FETCH gCur INTO
-			temp_rec.ITAKU_KAISHA_CD,
-			temp_rec.MGR_CD,
-			temp_rec.HAKKO_TSUKA_CD,
-			temp_rec.CHOKYU_YYYYMM,
-			temp_rec.KOZA_TEN_CD,
-			temp_rec.KOZA_TEN_CIFCD,
-			temp_rec.CHOKYU_DD,
-			temp_rec.KOZA_FURI_KBN,
-			temp_rec.ISIN_CD,
-			temp_rec.TESU_SHURUI_CD,
-			temp_rec.CHOKYU_KJT,
-			temp_rec.CHOKYU_YMD;
+			tmp_rec.ITAKU_KAISHA_CD,
+			tmp_rec.MGR_CD,
+			tmp_rec.HAKKO_TSUKA_CD,
+			tmp_rec.CHOKYU_YYYYMM,
+			tmp_rec.KOZA_TEN_CD,
+			tmp_rec.KOZA_TEN_CIFCD,
+			tmp_rec.CHOKYU_DD,
+			tmp_rec.KOZA_FURI_KBN,
+			tmp_rec.ISIN_CD,
+			tmp_rec.TESU_SHURUI_CD,
+			tmp_rec.CHOKYU_KJT,
+			tmp_rec.CHOKYU_YMD;
 		-- データが無くなったらループを抜ける
 		EXIT WHEN NOT FOUND;/* apply on gCur */
-		-- Append to array
-		rec := array_append(rec, temp_rec);
-		-- シーケンスナンバーをカウントアップしておく
+		-- Extend array and store
+		rec := array_append(rec, tmp_rec);
 		gSeqNo := gSeqNo + 1;
 	-- レコード数分ループの終了
 	END LOOP;
@@ -108,7 +113,6 @@ BEGIN
 	-- 公社債関連資金受入予定表出力対象をワークに格納
 	-- 最大値を保持してカウンタを初期化
 	gMaxSeqNo := gSeqNo;
-	gSeqNo := 1;
 	FOR gSeqNo IN 1..gMaxSeqNo LOOP
 		-- 対象銘柄の手数料が0円の場合、出力しない。
 		BEGIN
@@ -136,24 +140,32 @@ BEGIN
 			gSeqNo2 := gSeqNo2 + 1;
 			-- 請求書作票処理をおこなう
 			-- ワークデータ作成
-			CALL pkPrint.insertData(
-				l_inKeyCd	=>	rec[gSeqNo].ITAKU_KAISHA_CD 				-- 識別コード
-				,l_inUserId	=>	pkconstant.BATCH_USER() 								-- ユーザＩＤ
-				,l_inChohyoKbn	=>	'1'						-- 帳票区分
-				,l_inSakuseiYmd	=>	gGyomuYmd 							-- 作成年月日
-				,l_inChohyoId	=>	wkChohyoId 								-- WK帳票ＩＤ
-				,l_inSeqNo	=>	gSeqNo 									-- SEQNO
-				,l_inHeaderFlg	=>	'1'										-- ヘッダフラグ								-- 連番
-				,l_inItem001	=>	rec[gSeqNo].MGR_CD 						-- 銘柄コード
-				,l_inItem002	=>	rec[gSeqNo].CHOKYU_YMD 					-- 徴求日
-				,l_inKousinId	=>	pkconstant.BATCH_USER() 								-- 更新者ID
-				,l_inSakuseiId	=>	pkconstant.BATCH_USER() 								-- 作成者ID
-			);
+					-- Clear composite type
+		v_item := ROW();
+		
+		v_item.l_inItem001 := rec[gSeqNo].MGR_CD;	-- 銘柄コード
+		v_item.l_inItem002 := rec[gSeqNo].CHOKYU_YMD;	-- 徴求日
+		
+		-- Call pkPrint.insertData with composite type
+		CALL pkPrint.insertData(
+			l_inKeyCd		=> rec[gSeqNo].ITAKU_KAISHA_CD,
+			l_inUserId		=> pkconstant.BATCH_USER(),
+			l_inChohyoKbn	=> '1',
+			l_inSakuseiYmd	=> gGyomuYmd,
+			l_inChohyoId	=> wkChohyoId,
+			l_inSeqNo		=> gSeqNo,
+			l_inHeaderFlg	=> '1',
+			l_inItem		=> v_item,
+			l_inKousinId	=> pkconstant.BATCH_USER(),
+			l_inSakuseiId	=> pkconstant.BATCH_USER()
+		);
 		END IF;
 	END LOOP;
 	gMaxSeqNo := gSeqNo2;
+	RAISE NOTICE 'DEBUG: Before SPIPX055K15R03, gMaxSeqNo=%', gMaxSeqNo;
 	-- 公社債関連資金受入予定表（信託報酬・期中手数料）の作成
 	CALL SPIPX055K15R03(gREPORT_ID, l_initakukaishacd, l_inBankRnm, pkconstant.BATCH_USER(), '1', gGyomuYmd, gReturnCode, gOutSqlErrM);
+	RAISE NOTICE 'DEBUG: After SPIPX055K15R03, gReturnCode=%', gReturnCode;
   -- 対象データなしの場合
 	IF gReturnCode = pkconstant.NO_DATA_FIND() THEN
 		CALL pkLog.debug('BATCH', 'SPIPX055K15R03', '委託会社：' || l_initakukaishacd || ' 対象データなし');
@@ -187,6 +199,7 @@ BEGIN
 		EXCEPTION
 			WHEN OTHERS THEN NULL;
 		END;
+		RAISE NOTICE 'ERROR: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 		CALL pkLog.fatal('ECM701', 'SFIPX055K15R03_01', 'エラーコード'||SQLSTATE);
 		CALL pkLog.fatal('ECM701', 'SFIPX055K15R03_01', 'エラー内容'||SQLERRM);
 		RETURN pkconstant.FATAL();

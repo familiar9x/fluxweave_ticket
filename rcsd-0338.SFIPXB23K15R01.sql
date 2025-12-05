@@ -83,7 +83,8 @@ BEGIN
 	-- 業務日付の取得
 	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 処理制御値取得
-	gResult := pkIpIF.getRenkeiFlg(l_inIfId, gGyomuYmd, gMakeCnt, gRenkeiFlg);
+	SELECT f.l_outCnt, f.l_outRenkeiFlg, f.extra_param INTO gMakeCnt, gRenkeiFlg, gResult
+	FROM pkIpIF.getRenkeiFlg(l_inIfId, gGyomuYmd) f;
 	IF gResult <> pkconstant.success() THEN
 		RETURN gResult;
 	ELSE

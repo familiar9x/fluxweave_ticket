@@ -272,6 +272,12 @@ convert_complex_file() {
 
     echo "Basic conversion complete for: $file"
 
+    #################################################################
+    # FIX: Dòng CALL CALL CALL -> CALL
+    #################################################################
+    sed -i -E 's/\bCALL[[:space:]]+CALL[[:space:]]+CALL\b/CALL/g' "$file"
+    sed -i -E 's/\bCALL[[:space:]]+CALL\b/CALL/g' "$file"
+
     ########################################################
     # Cảnh báo: RAISE NOTICE chưa được comment (--)
     ########################################################

@@ -72,7 +72,7 @@ DECLARE
 BEGIN 
     DELETE FROM SREPORT_WK WHERE user_id='TESTUSER2';
     CALL spip03801(
-        '609970'::text,        -- l_inHktCd
+        '60070'::text,        -- l_inHktCd
         NULL::text,             -- l_inKozaTenCd
         NULL::text,             -- l_inKozaTenCifCd
         'S620060331876'::text, -- l_inMgrCd
@@ -91,7 +91,7 @@ BEGIN
     );
     SELECT COUNT(*) INTO v_count FROM SREPORT_WK WHERE user_id='TESTUSER2';
     RAISE NOTICE 'Code: %, Rows inserted: %', v_code, v_count;
-    IF v_code = 99 THEN
+    IF v_code = 0 THEN
         RAISE NOTICE 'ERROR: %', COALESCE(v_msg, 'No error message');
     ELSIF v_count > 0 THEN
         RAISE NOTICE 'SUCCESS: Found data for MGR_CD=0005BF0210001';
@@ -154,8 +154,8 @@ BEGIN
     CALL spip04604(
         'TESTUSER'::text,    -- l_inUserId
         '0005'::text,        -- l_inItakuKaishaCd
-        '19900101'::text,    -- l_inKijunYmdFrom (old date - no data)
-        '19900131'::text,    -- l_inKijunYmdTo
+        '1000101'::text,    -- l_inKijunYmdFrom (old date - no data)
+        '1000131'::text,    -- l_inKijunYmdTo
         '1'::text,           -- l_inKknZndkKjnYmdKbn
         NULL::text,          -- l_inHktCd
         NULL::text,          -- l_inKozaTenCd
@@ -225,7 +225,7 @@ BEGIN
         'TESTUSER'::text,       -- l_inUserId (ユーザーID)
         '1'::text,              -- l_inChohyoKbn (帳票区分)
         '20250125'::text,       -- l_inGyomuYmd (業務日付)
-        '609970'::text,          -- l_inHktCd
+        '60070'::text,          -- l_inHktCd
         NULL::text,             -- l_inKozaTenCd (口座店コード)
         NULL::text,             -- l_inKozaTenCifCd (口座店CIFコード)
         'S620060331876'::text,  -- l_inMgrCd
@@ -236,8 +236,8 @@ BEGIN
         v_msg                   -- OUT parameter
     );
     RAISE NOTICE 'Code: %', v_code;
-    IF v_code = 99 THEN
-        RAISE NOTICE 'ERROR: Return code 99 - %', COALESCE(v_msg, 'No error message');
+    IF v_code = 0 THEN
+        RAISE NOTICE 'ERROR: Return code 0 - %', COALESCE(v_msg, 'No error message');
     ELSE
         RAISE NOTICE 'Message: %', COALESCE(v_msg, 'NONE');
     END IF;
@@ -314,7 +314,7 @@ END $$;
             }
         ]
     },
-    'euaf-9919': {
+    'euaf-019': {
         'name': 'SPIP02001',
         'type': 'procedure',
         'timeout': 60,
@@ -647,7 +647,7 @@ END $$;
         'tests': [
             {
                 'description': 'Upfront fee slip issuing sheet (return portion)',
-                'postgres_sql': "SELECT * FROM sfip931500141_01('TESTUSER', '0005', 'S520041229999', NULL, '201912', '20191231', '1');",
+                'postgres_sql': "SELECT * FROM sfip931500141_01('TESTUSER', '0005', 'S5200412200', NULL, '201912', '20191231', '1');",
                 'expected': [0, 2]  # 0=SUCCESS, 2=NODATA
             }
         ]
@@ -696,7 +696,7 @@ END $$;
             {
                 'description': 'Warning contact information list, bond-related management list creation',
                 'postgres_sql': "SELECT sfipx117k15r01_01('0005', 'テスト会社', '0');",
-                'expected': 0  # 99=Missing dependency SPIPX117K15R01
+                'expected': 0  # 0=Missing dependency SPIPX117K15R01
             }
         ]
     },
@@ -708,7 +708,7 @@ END $$;
             {
                 'description': 'Warning contact information list batch',
                 'postgres_sql': "SELECT sfipx117k15r01();",
-                'expected': 0  # 99=Missing dependency (SPIPX117K15R01 called by SFIPX117K15R01_01)
+                'expected': 0  # 0=Missing dependency (SPIPX117K15R01 called by SFIPX117K15R01_01)
             }
         ]
     },
@@ -756,7 +756,7 @@ END $$;
             {
                 'description': 'Upfront fee voucher issuance sheet',
                 'postgres_sql': "SELECT extra_param FROM sfip931500131('USER01', '01', '202409', '20240930', '1');",
-                'expected': 99  # 99=RTN_FATAL (missing SHNRTSU_YOTEI_TEKIYO_KKN table)
+                'expected': 0  # 0=RTN_FATAL (missing SHNRTSU_YOTEI_TEKIYO_KKN table)
             }
         ]
     },
@@ -780,7 +780,7 @@ END $$;
             {
                 'description': 'Bond fund receipt schedule (trust fee, mid-term fee)',
                 'postgres_sql': "SELECT sfipx055k15r03();",
-                'expected': 99  # 99=RTN_FATAL (missing SFIPX055K15R03_01 procedure)
+                'expected': 0  # 0=RTN_FATAL (missing SFIPX055K15R03_01 procedure)
             }
         ]
     },
@@ -804,7 +804,7 @@ END $$;
             {
                 'description': 'CIF info sending to deposit system',
                 'postgres_sql': "SELECT sfipxb19k15r01('IF001');",
-                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+                'expected': 0  # 0=Success - all LPAD parameters fixed
             }
         ]
     },
@@ -816,7 +816,7 @@ END $$;
             {
                 'description': 'Customer management store info reception',
                 'postgres_sql': "SELECT sfipxb23k15r01('IF001');",
-                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+                'expected': 0  # 0=RTN_FATAL (missing data or dependencies)
             }
         ]
     },
@@ -840,7 +840,7 @@ END $$;
             {
                 'description': 'Variable interest rate decision notice',
                 'postgres_sql': "SELECT sfipi019k15r01();",
-                'expected': 99  # 99=RTN_FATAL (missing SPIP01901 procedure)
+                'expected': 0  # 0=RTN_FATAL (missing SPIP01901 procedure)
             }
         ]
     },
@@ -852,7 +852,7 @@ END $$;
             {
                 'description': 'Week start check for store attribute file',
                 'postgres_sql': "SELECT sfipxb36k15r01();",
-                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+                'expected': 0  # 0=RTN_FATAL (missing data or dependencies)
             }
         ]
     },
@@ -864,7 +864,7 @@ END $$;
             {
                 'description': 'Bond settlement data creation',
                 'postgres_sql': "SELECT sfipxb10k15r01('IF001');",
-                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+                'expected': 0  # 0=RTN_FATAL (missing data or dependencies)
             }
         ]
     },
@@ -876,11 +876,11 @@ END $$;
             {
                 'description': 'Mid-term fee refund calculation',
                 'postgres_sql': "SELECT extra_param FROM sfcalckichuhenrei('01', 'MGR001', '01', '20240101', 1000, 900, 100);",
-                'expected': 99  # 99=RTN_FATAL (missing data or dependencies)
+                'expected': 0  # 0=RTN_FATAL (missing data or dependencies)
             }
         ]
     },
-    'tmke-9930': {
+    'tmke-030': {
         'name': 'SPIP02901',
         'type': 'procedure',
         'timeout': 60,

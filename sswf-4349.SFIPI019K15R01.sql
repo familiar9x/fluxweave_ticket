@@ -34,19 +34,15 @@ DECLARE
 --==============================================================================
 BEGIN
     CALL pkLog.debug('BATCH', C_FUNCTION_ID , '--------------------------------------------------Start--------------------------------------------------');
-    RAISE NOTICE 'Starting function';
     -- 業務日付を取得
     gGyomuYmd := pkDate.getGyomuYmd();
-    RAISE NOTICE 'gGyomuYmd: %', gGyomuYmd;
     -- 会員IDを取得
     gKaiinID := pkConstant.getKaiinId();
-    RAISE NOTICE 'gKaiinID: %', gKaiinID;
     -- 翌営業日を取得
     gYokuBusinessYmd := pkDate.getYokuBusinessYmd(gGyomuYmd);
-    RAISE NOTICE 'gYokuBusinessYmd: %', gYokuBusinessYmd;
     -- 変動利率決定通知の作成
-    RAISE NOTICE 'Calling SPIP01901...';
-    CALL SPIP01901(
+    SELECT sqlcode, sqlerrm INTO gReturnCode, gSqlErrm
+    FROM spip01901_wrapper(
         NULL,                           -- 発行体コード
         NULL,                           -- 口座店コード
         NULL,                           -- 口座店CIFコード
@@ -59,11 +55,8 @@ BEGIN
         'BATCH',                        -- ユーザID
         '1',                            -- 変動利率承認日フラグ
         '1',                            -- 帳票区分
-        gGyomuYmd,                      -- 業務日付
-        gReturnCode,
-        gSqlErrm
+        gGyomuYmd                       -- 業務日付
     );
-    RAISE NOTICE 'SPIP01901 returned: %, error: %', gReturnCode, gSqlErrm;
     --対象データなしの場合、正常終了（但し、デバッグログを書き出す）
     IF gReturnCode = PKIPACALCTESURYO.C_NODATA() THEN
 		-- 対象データなしのレコードを削除する。(ステ管用)

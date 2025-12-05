@@ -107,7 +107,8 @@ BEGIN
 	-- 業務日付の取得
 	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 外部ＩＦ送受信管理登録
-	gResult := pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd, gMakeCnt);
+	SELECT f.l_outCnt, f.extra_param INTO gMakeCnt, gResult
+	FROM pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd) f;
 	IF gResult <> pkconstant.success() THEN
 		RETURN gResult;
 	END IF;
@@ -142,7 +143,7 @@ BEGIN
 		-- 明細レコードデータ件数
 		gRecordCount := gRecordCount + 1;
 		-- 店番
-		gCifJohoSoshinData.tenban := LPAD(rec.KOZA_TEN_CD, 7, 0);
+		gCifJohoSoshinData.tenban := LPAD(CAST(rec.KOZA_TEN_CD AS varchar), 7, '0');
 		-- 顧客番号
 		gCifJohoSoshinData.kokyakubango := substring(rec.KOZA_TEN_CIFCD, 2, 7);
 		INSERT INTO GAIBU_IF_DATA(
@@ -170,7 +171,7 @@ BEGIN
 	-- 外部IFデータ番号
 	gDataNo := gDataNo + 1;
 	-- 件数
-	gCIfjohoSoshinEnd.kensu := LPAD(gRecordCount, 6, '0');
+	gCIfjohoSoshinEnd.kensu := LPAD(gRecordCount::text, 6, '0');
 	INSERT INTO GAIBU_IF_DATA(
 		IF_ID,
 		IF_MAKE_DT,

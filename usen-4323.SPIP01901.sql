@@ -150,7 +150,7 @@ DECLARE
 	gKijunKinriNm2				SCODE.CODE_NM%TYPE;						-- 基準金利２名称
 	gSpread						char(11);								-- スプレッド
 	gKaiji						MGR_RBRKIJ.KAIJI%TYPE;					-- 回次
-	gRiritsu					numeric								-- 利率
+	gRiritsu					numeric;							-- 利率
 	gKijunKinriRrt1				char(11);								-- 基準金利１
 	gKijunKinriRrt2				char(11);								-- 基準金利２
 	gKijunKinriCmnt				MGR_KIHON.KIJUN_KINRI_CMNT%TYPE;		-- 基準金利コメント
@@ -580,7 +580,7 @@ BEGIN
 			END IF;
 		ELSIF gTsukaRishiKngk_S <> gTsukaRishiKngkChk THEN
 			-- 「１通貨当たりの利子額(算出値)」と計算式の「１通貨当たりの利子額」が一致しない場合にはログも書き出す。
-			CALL CALL CALL PKLOG.DEBUG(l_inUserId,REPORT_ID,'銘柄_基本.１通貨当たりの利子額(算出値)と、計算式の結果が一致しません。');
+			CALL PKLOG.DEBUG(l_inUserId,REPORT_ID,'銘柄_基本.１通貨当たりの利子額(算出値)と、計算式の結果が一致しません。');
 		END IF;
 		--*********** 利息金額編集式 ************
 		gRisokuKngkCalc := '('	|| trim(both TO_CHAR((gRbrTaishoZndk)::numeric , '999,999,999,999,999')) || ' × '

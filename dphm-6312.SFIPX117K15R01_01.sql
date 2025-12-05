@@ -362,16 +362,15 @@ UNION ALL
 		VMG1.MGR_RNM,  -- 銘柄略称
 		MG4.CHOKYU_YMD  -- 徴求日
 	FROM
-		MGR_TESKIJ MG4,
-		MGR_KIHON_VIEW VMG1
+		MGR_TESKIJ MG4
+		INNER JOIN MGR_KIHON_VIEW VMG1 
+			ON MG4.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD::integer
+			AND MG4.MGR_CD = VMG1.MGR_CD::integer
 	WHERE
-		    MG4.ITAKU_KAISHA_CD = l_inItakuKaishaCd
-		AND MG4.TESU_SHURUI_CD IN ('11','12')
-		AND (trim(both MG4.DISTRI_YMD) IS NOT NULL AND (trim(both MG4.DISTRI_YMD))::text <> '')
-		AND MG4.CHOKYU_YMD >= MG4.DISTRI_YMD
-		AND MG4.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
-		AND MG4.MGR_CD = VMG1.MGR_CD
-		AND (trim(both VMG1.ISIN_CD) IS NOT NULL AND (trim(both VMG1.ISIN_CD))::text <> '');
+		    MG4.ITAKU_KAISHA_CD = trim(l_inItakuKaishaCd)::integer
+		AND (MG4.TESU_SHURUI_CD = 11 OR MG4.TESU_SHURUI_CD = 12)
+		AND MG4.DISTRI_YMD IS NOT NULL
+		AND VMG1.ISIN_CD IS NOT NULL;
 /*==============================================================================*/
 
 /* IPI103SELECT                                                                 */
@@ -501,7 +500,7 @@ UNION
 		MGR_TESURYO_CTL MG7       -- 銘柄手数料（制御情報）
 	WHERE
 		    K02.TSUKA_CD = 'JPY'
-		AND K02.IDO_YMD = pkDate.getPlusDateBusiness(gGyomuYmd,6)
+		AND K02.IDO_YMD = gGyomuYmd6After
 		AND ((K02.KKN_IDO_KBN = '11' AND VMG1.KOZA_FURI_KBN IN ('10','11','12','13','14'))
 			OR (K02.KKN_IDO_KBN = '21' AND VMG1.KOZA_FURI_KBN IN ('10','11','12','13','14'))
 			OR ((K02.KKN_IDO_KBN = '12'
@@ -1320,10 +1319,10 @@ UNION
 		AND VMG1.MGR_CD = MG23_WK.MGR_CD
 		AND MG2.ITAKU_KAISHA_CD = MG23_WK.ITAKU_KAISHA_CD
 		AND MG2.MGR_CD = MG23_WK.MGR_CD
-		AND ((MG2.RBR_YMD BETWEEN pkDate.getPlusDateBusiness(MG23_WK.SHOKAN_YMD,1)
-				       AND pkDate.getPlusDateBusiness(MG23_WK.SHOKAN_YMD,3))
-			OR (MG2.RBR_YMD BETWEEN pkDate.getMinusDateBusiness(MG23_WK.SHOKAN_YMD,3)
-				       AND pkDate.getMinusDateBusiness(MG23_WK.SHOKAN_YMD,1)));
+		AND ((MG2.RBR_YMD BETWEEN pkDate.getPlusDateBusiness(MG23_WK.SHOKAN_YMD::character varying,1::integer)
+				       AND pkDate.getPlusDateBusiness(MG23_WK.SHOKAN_YMD::character varying,3::integer))
+			OR (MG2.RBR_YMD BETWEEN pkDate.getMinusDateBusiness(MG23_WK.SHOKAN_YMD::character varying,3::integer)
+				       AND pkDate.getMinusDateBusiness(MG23_WK.SHOKAN_YMD::character varying,1::integer)));
 /*==============================================================================*/
 
 /* IPW006SELECT                                                                 */
@@ -1873,7 +1872,7 @@ WHERE MG1.ITAKU_KAISHA_CD = l_inItakuKaishaCd AND BT03_WK.ISIN_CD = MG1.ISIN_CD 
 -- 銘柄_期中手数料回次．徴求期日の休日補正後の当日
 		AND pkDate.calcDateKyujitsuKbn(
 -- 徴求期日、日数、信託報酬・社管手数料_徴求日休日処理区分、地域コード
-		MG4.CHOKYU_KJT ,0 ,MG7.SS_CHOKYU_KYUJITSU_KBN,VMG1.AREACD
+		MG4.CHOKYU_KJT::character varying ,0::integer ,MG7.SS_CHOKYU_KYUJITSU_KBN::character,VMG1.AREACD::character
 		)   = gGyomuYmd        -- 地域コード
 		AND T01.DATA_SAKUSEI_KBN IN ('1','2');
 /*==============================================================================*/
@@ -2041,8 +2040,9 @@ BEGIN
 /*==============================================================================*/
 
 	IF l_inJikodaikoKbn = '1' THEN
-		RAISE NOTICE 'Processing IPI102...';
-		FOR recIPI102SELECT IN curIPI102SELECT LOOP
+		RAISE NOTICE 'Processing IPI102... Opening cursor curIPI102SELECT';
+		BEGIN
+			FOR recIPI102SELECT IN curIPI102SELECT LOOP
 			RAISE NOTICE 'Calling SFIPKEIKOKUINSERT for IPI102: ISIN_CD=%, MGR_RNM=%, HAKKO_YMD=%', recIPI102SELECT.ISIN_CD, recIPI102SELECT.MGR_RNM, recIPI102SELECT.HAKKO_YMD;
 			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
 					  		'2',
@@ -2065,7 +2065,13 @@ BEGIN
 				RAISE NOTICE 'SFIPKEIKOKUINSERT failed, returning FATAL';
 				RETURN pkconstant.FATAL();
 			END IF;
-		END LOOP;
+			END LOOP;
+			RAISE NOTICE 'IPI102 loop completed successfully';
+		EXCEPTION
+			WHEN OTHERS THEN
+				RAISE NOTICE 'Error in IPI102 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
+				RETURN pkconstant.FATAL();
+		END;
 	END IF;
 /*==============================================================================*/
 
@@ -2073,8 +2079,10 @@ BEGIN
 
 /*==============================================================================*/
 
-	FOR recIPW001SELECT IN curIPW001SELECT LOOP
-		gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
+	RAISE NOTICE 'Processing IPW001... Opening cursor curIPW001SELECT';
+	BEGIN
+		FOR recIPW001SELECT IN curIPW001SELECT LOOP
+			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
 					  	'1',
 					  	'IPW001',
 					  	recIPW001SELECT.ISIN_CD,
@@ -2093,13 +2101,20 @@ BEGIN
 			IF gFncResult != pkconstant.success() THEN
 				RETURN pkconstant.FATAL();
 			END IF;
-	END LOOP;
+		END LOOP;
+		RAISE NOTICE 'IPW001 loop completed successfully';
+	EXCEPTION
+		WHEN OTHERS THEN
+			RAISE NOTICE 'Error in IPW001 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
+			RETURN pkconstant.FATAL();
+	END;
 /*==============================================================================*/
 
 /* IPI001連絡データ作成(createIPI001)                                           */
 
 /*==============================================================================*/
 
+	RAISE NOTICE 'Processing IPI001... gGyomuYmd=%, gGetsumatuYmd=%', gGyomuYmd, gGetsumatuYmd;
 	IF gGyomuYmd = gGetsumatuYmd THEN
 		FOR recIPI001SELECT IN curIPI001SELECT LOOP
 			IF recIPI001SELECT.SHOKAN_KBN = '50' THEN
@@ -2135,6 +2150,7 @@ BEGIN
 
 /*==============================================================================*/
 
+	RAISE NOTICE 'Processing IPW002...';
 	IF gGyomuYmd = gGetsumatuYmd THEN
 		FOR recIPW002SELECT IN curIPW002SELECT LOOP
 			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
@@ -2164,7 +2180,9 @@ BEGIN
 
 /*==============================================================================*/
 
-	FOR recIPW003SELECT IN curIPW003SELECT LOOP
+	RAISE NOTICE 'Processing IPW003...';
+	BEGIN
+		FOR recIPW003SELECT IN curIPW003SELECT LOOP
 		gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
 					  	'1',
 					  	'IPW003',
@@ -2180,20 +2198,27 @@ BEGIN
 					  	' ',
 					  	' ',
 					  	l_inJikodaikoKbn);
-		-- エラー判定
-		IF gFncResult != pkconstant.success() THEN
+			-- エラー判定
+			IF gFncResult != pkconstant.success() THEN
+				RETURN pkconstant.FATAL();
+			END IF;
+		END LOOP;
+		RAISE NOTICE 'IPW003 loop completed successfully';
+	EXCEPTION
+		WHEN OTHERS THEN
+			RAISE NOTICE 'Error in IPW003 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 			RETURN pkconstant.FATAL();
-		END IF;
-	END LOOP;
+	END;
 /*==============================================================================*/
 
 /* IPW013連絡データ作成(createIPW013)                                           */
 
 /*==============================================================================*/
 
+	RAISE NOTICE 'Processing IPW013...';
 	IF gGyomuYmd = gGetsumatuYmd THEN
 		-- 業務日付（３か月後）の年月
-		gGyomuYmd3MAfterYM := SUBSTR(pkdate.calcMonth(gGyomuYmd,3),1,6);
+		gGyomuYmd3MAfterYM := SUBSTR(pkdate.calcMonth(gGyomuYmd::character varying,3::integer),1,6);
 		FOR recIPW013SELECT IN curIPW013SELECT LOOP
 			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
 						  	'1',
@@ -2222,7 +2247,9 @@ BEGIN
 
 /*==============================================================================*/
 
-	FOR recIPW014SELECT IN curIPW014SELECT LOOP
+	RAISE NOTICE 'Processing IPW014...';
+	BEGIN
+		FOR recIPW014SELECT IN curIPW014SELECT LOOP
 		gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
 					  	'1',
 					  	'IPW014',
@@ -2238,11 +2265,17 @@ BEGIN
 					  	' ',
 					  	' ',
 					  	l_inJikodaikoKbn);
-		-- エラー判定
-		IF gFncResult != pkconstant.success() THEN
+			-- エラー判定
+			IF gFncResult != pkconstant.success() THEN
+				RETURN pkconstant.FATAL();
+			END IF;
+		END LOOP;
+		RAISE NOTICE 'IPW014 loop completed successfully';
+	EXCEPTION
+		WHEN OTHERS THEN
+			RAISE NOTICE 'Error in IPW014 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 			RETURN pkconstant.FATAL();
-		END IF;
-	END LOOP;
+	END;
 /*==============================================================================*/
 
 /* IPI003連絡データ作成(createIPI003)                                           */
@@ -2582,7 +2615,7 @@ BEGIN
 			-- ファクタ銘柄の場合、保振の減債額を実質残高にする
 			IF gShokanMethodCd = '2' THEN
 				-- ファクタ取得（償還日前日時点）
-				gPreviousShokanYmd := pkDate.getZenYmd(gIPW008ShokanYmd);
+				gPreviousShokanYmd := pkDate.getZenYmd(gIPW008ShokanYmd::character varying);
 				gFactor := pkIpaZndk.getKjnZndk(
 									l_inItakuKaishaCd,
 									gIPW008MgrCd,
@@ -2651,8 +2684,7 @@ BEGIN
 						'IPP1003302010',
 						'0');
 	-- 翌営業日の取得
-	gYokuEigyoYmd := pkdate.getPlusDateBusiness(    gGyomuYmd,
-							'1');
+	gYokuEigyoYmd := gGyomuYmd1After;
 	FOR recIPW012SELECT IN curIPW012SELECT LOOP
 		IF recIPW012SELECT.HANTEI_FLG = '1' THEN
 			gIPW012BIKO := '利払日の2営業日前（' || substr(gYokuEigyoYmd,1,4) || '/' || substr(gYokuEigyoYmd,5,2) || '/' || substr(gYokuEigyoYmd,7,2) || '）';
@@ -2687,7 +2719,7 @@ BEGIN
 
 	IF l_inJikodaikoKbn = '1' THEN
 		FOR recIPI004SELECT_1 IN curIPI004SELECT_1 LOOP
-			g2MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_1.RBR_YMD2, 2);
+			g2MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_1.RBR_YMD2::character varying, 2::integer);
 			gIPI004BIKO1 := '（利率決定日　間近）';
 			gIPI004BIKO2 := '決定利率を確認のうえ、' || SUBSTR(g2MaeEigyoYmdIPI004,1,4) || '/' || SUBSTR(g2MaeEigyoYmdIPI004,5,2) || '/' || SUBSTR(g2MaeEigyoYmdIPI004,7,2) || '目処に利率の登録を';
 			gIPI004BIKO3 := 'してください。';
@@ -2712,7 +2744,7 @@ BEGIN
 			END IF;
 		END LOOP;
 		FOR recIPI004SELECT_3 IN curIPI004SELECT_3 LOOP
-			g8MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_3.RBR_YMD, 8);
+			g8MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_3.RBR_YMD::character varying, 8::integer);
 			gIPI004BIKO1 := '（利率決定日　到来済）';
 			gIPI004BIKO2 := SUBSTR(recIPI004SELECT_3.RBR_KJT,1,4) || '/' || SUBSTR(recIPI004SELECT_3.RBR_KJT,5,2) || '/' || SUBSTR(recIPI004SELECT_3.RBR_KJT,7,2) || '期日の変動利率が未登録（未承認）です。利';
 			gIPI004BIKO3 := '払日の8営業日前（' || SUBSTR(g8MaeEigyoYmdIPI004,1,4) || '/' || SUBSTR(g8MaeEigyoYmdIPI004,5,2) || '/' || SUBSTR(g8MaeEigyoYmdIPI004,7,2) || '）迄に登録が必要です。';
@@ -2738,7 +2770,7 @@ BEGIN
 		END LOOP;
 	ELSE
 		FOR recIPI004SELECT_2 IN curIPI004SELECT_2 LOOP
-			g2MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_2.RBR_YMD2, 2);
+			g2MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_2.RBR_YMD2::character varying, 2::integer);
 			gIPI004BIKO1 := '（利率決定日　間近）';
 			gIPI004BIKO2 := '決定利率を確認のうえ、' || SUBSTR(g2MaeEigyoYmdIPI004,1,4) || '/' || SUBSTR(g2MaeEigyoYmdIPI004,5,2) || '/' || SUBSTR(g2MaeEigyoYmdIPI004,7,2) || '目処に利率の登録を';
 			gIPI004BIKO3 := 'してください。';
@@ -2763,7 +2795,7 @@ BEGIN
 			END IF;
 		END LOOP;
 		FOR recIPI004SELECT_4 IN curIPI004SELECT_4 LOOP
-			g8MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_4.RBR_YMD, 8);
+			g8MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_4.RBR_YMD::character varying, 8::integer);
 			gIPI004BIKO1 := '（利率決定日　到来済）';
 			gIPI004BIKO2 := SUBSTR(recIPI004SELECT_4.RBR_KJT,1,4) || '/' || SUBSTR(recIPI004SELECT_4.RBR_KJT,5,2) || '/' || SUBSTR(recIPI004SELECT_4.RBR_KJT,7,2) || '期日の変動利率が未登録（未承認）です。利';
 			gIPI004BIKO3 := '払日の8営業日前（' || SUBSTR(g8MaeEigyoYmdIPI004,1,4) || '/' || SUBSTR(g8MaeEigyoYmdIPI004,5,2) || '/' || SUBSTR(g8MaeEigyoYmdIPI004,7,2) || '）迄に登録が必要です。';
@@ -2789,7 +2821,7 @@ BEGIN
 		END LOOP;
 	END IF;
 	FOR recIPI004SELECT_5 IN curIPI004SELECT_5 LOOP
-		g8MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_5.RBR_YMD, 8);
+		g8MaeEigyoYmdIPI004 := pkdate.getMinusDateBusiness(recIPI004SELECT_5.RBR_YMD::character varying, 8::integer);
 		gIPI004BIKO1 := '（初回利払）';
 		gIPI004BIKO2 := '初回利払期日の変動利率が未登録（未承認）です。初回';
 		gIPI004BIKO3 := '利払日の8営業日前（' || SUBSTR(g8MaeEigyoYmdIPI004,1,4) || '/' || SUBSTR(g8MaeEigyoYmdIPI004,5,2) || '/' || SUBSTR(g8MaeEigyoYmdIPI004,7,2) || '）迄に登録が必要です。';
@@ -3100,12 +3132,12 @@ BEGIN
 	IF gGyomuYmd = gGetsumatuYmd THEN
 	-- 月末営業日の場合の対象償還日：翌月〜翌々月
 		-- 月初営業日（１か月後）を取得
-		gGessyoYmdAfter := pkDate.getYokuBusinessYmd(gGyomuYmd);
+		gGessyoYmdAfter := pkDate.getYokuBusinessYmd(gGyomuYmd::character varying);
 		-- 月末営業日（２か月後）を取得
-		gGetsumatuYmdAfter := pkDate.getGetsumatsuBusinessYmd(gGyomuYmd,2);
+		gGetsumatuYmdAfter := pkDate.getGetsumatsuBusinessYmd(gGyomuYmd::character varying,2::integer);
 		FOR recIPI002SELECT_01 IN curIPI002SELECT_01 LOOP
 			-- 次回償還期日の８営業日前を取得
-			g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_01.SHOKAN_YMD, 8);
+			g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_01.SHOKAN_YMD::character varying, 8::integer);
 			IF recIPI002SELECT_01.KAIJI = '1' THEN
 				IF recIPI002SELECT_01.TEIJI_SHOKAN_KNGK = 0 THEN
 					gIPI002BIKO_01 := '次回償還日の8営業日前（' || substr(g8MaeEigyoYmdIPI002,1,4) || '/' || substr(g8MaeEigyoYmdIPI002,5,2) || '/' || substr(g8MaeEigyoYmdIPI002,7,2) || '）';
@@ -3155,14 +3187,14 @@ BEGIN
 	ELSIF gGyomuYmd <> gGetsumatuYmd THEN
 	-- 月末営業日でない場合の対象償還日：翌営業日（当月）〜翌月
 		-- 業務営業日（１か月後）を取得
-		gGyomuYmdAfter := pkdate.calcMonth(gGyomuYmd,1);
+		gGyomuYmdAfter := pkdate.calcMonth(gGyomuYmd::character varying,1::integer);
 		-- 月初営業日（１か月後）を取得
-		gGessyoYmdAfter := pkDate.getGesshoBusinessYmd(gGyomuYmdAfter,1);
+		gGessyoYmdAfter := pkDate.getGesshoBusinessYmd(gGyomuYmdAfter::character varying,'1'::character);
 		-- 月末営業日（１か月後）を取得
-		gGetsumatuYmdAfter := pkDate.getGetsumatsuBusinessYmd(gGyomuYmdAfter,0);
+		gGetsumatuYmdAfter := pkDate.getGetsumatsuBusinessYmd(gGyomuYmdAfter::character varying,0::integer);
 		FOR recIPI002SELECT_01 IN curIPI002SELECT_01 LOOP
       -- 次回償還期日の８営業日前を取得
-      g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_01.SHOKAN_YMD, 8);
+      g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_01.SHOKAN_YMD::character varying, 8::integer);
 			IF recIPI002SELECT_01.KAIJI = '1' THEN
 				IF recIPI002SELECT_01.TEIJI_SHOKAN_KNGK = 0 THEN
 						gIPI002BIKO_01 := '次回償還日の8営業日前（' || substr(g8MaeEigyoYmdIPI002,1,4) || '/' || substr(g8MaeEigyoYmdIPI002,5,2) || '/' || substr(g8MaeEigyoYmdIPI002,7,2) || '）';
@@ -3213,7 +3245,7 @@ BEGIN
 	--▼(2)請求書出力日が償還日（休日補正後）n営業日前の銘柄で、請求書出力日の3営業日前になり、次回償還期日の変動償還額が未入力または未承認の場合
 	FOR recIPI002SELECT_02 IN curIPI002SELECT_02 LOOP
     -- 次回償還期日の８営業日前を取得
-    g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_02.SHOKAN_YMD, 8);
+    g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_02.SHOKAN_YMD::character varying, 8::integer);
 		IF recIPI002SELECT_02.KAIJI = '1' THEN
 			IF recIPI002SELECT_02.TEIJI_SHOKAN_KNGK = 0 THEN
 				gIPI002BIKO_02 := '次回償還日の8営業日前（' || substr(g8MaeEigyoYmdIPI002,1,4) || '/' || substr(g8MaeEigyoYmdIPI002,5,2) || '/' || substr(g8MaeEigyoYmdIPI002,7,2) || '）';
@@ -3262,27 +3294,27 @@ BEGIN
 	END LOOP;
 	--▼(3)請求書出力日が償還日(休日補正後)の当月第1営業日の銘柄で、償還日（休日補正後）の前月15日（休日の場合、前営業日）になり、次回償還期日の変動償還額が未入力または未承認の場合。
 	-- 15日の休日判定区分を取得
-	gHolidayCheck := pkdate.isBusinessDay(SUBSTR(gGyomuYmd,1,6) || 15, 1);
+	gHolidayCheck := pkdate.isBusinessDay((SUBSTR(gGyomuYmd,1,6) || 15)::character varying, '1'::character);
 	-- 休日判定結果	＝'1'の場合
 	IF gHolidayCheck = '1' THEN
 		-- 共通部品にて、15日の前営業日を取得、ローカル変数．前営業日に設定する
-		gMaeEigyoYmd := pkdate.getMinusDateBusiness(SUBSTR(gGyomuYmd,1,6) || 15, 1);
+		gMaeEigyoYmd := pkdate.getMinusDateBusiness((SUBSTR(gGyomuYmd,1,6) || 15)::character varying, 1::integer);
 		-- 共通部品にて、警告出力日を取得、ローカル変数．警告出力日に設定する
-		gWarningYmd := pkdate.getMinusDateBusiness(gMaeEigyoYmd, 1);
+		gWarningYmd := pkdate.getMinusDateBusiness(gMaeEigyoYmd::character varying, 1::integer);
 	-- 休日判定結果	<>'1'の場合
 	ELSE
 		-- 共通部品にて、15日の前営業日を取得、ローカル変数．前営業日に設定する
-		gWarningYmd := pkdate.getMinusDateBusiness(SUBSTR(gGyomuYmd,1,6) || 15, 1);
+		gWarningYmd := pkdate.getMinusDateBusiness((SUBSTR(gGyomuYmd,1,6) || 15)::character varying, 1::integer);
 	END IF;
 	-- ローカル変数．業務日付　＞＝　ローカル変数．警告出力日の場合
 	IF gGyomuYmd >= gWarningYmd THEN
 		-- １か月後の日付を取得
-		gGyomuYmdAfter := pkdate.calcMonth(gGyomuYmd,1);
+		gGyomuYmdAfter := pkdate.calcMonth(gGyomuYmd::character varying,1::integer);
 		-- １か月後の月初営業日を取得
-		gGessyoYmdAfter := pkDate.getGesshoBusinessYmd(gGyomuYmdAfter,1);
+		gGessyoYmdAfter := pkDate.getGesshoBusinessYmd(gGyomuYmdAfter::character varying,'1'::character);
 		FOR recIPI002SELECT_03 IN curIPI002SELECT_03 LOOP
       -- 次回償還期日の８営業日前を取得
-      g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_03.SHOKAN_YMD, 8);
+      g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_03.SHOKAN_YMD::character varying, 8::integer);
       IF recIPI002SELECT_03.KAIJI = '1' THEN
 				IF recIPI002SELECT_03.TEIJI_SHOKAN_KNGK = 0  THEN
 						gIPI002BIKO_03 := '次回償還日の8営業日前（' || substr(g8MaeEigyoYmdIPI002,1,4) || '/' || substr(g8MaeEigyoYmdIPI002,5,2) || '/' || substr(g8MaeEigyoYmdIPI002,7,2) || '）';
@@ -3332,7 +3364,7 @@ BEGIN
 	ELSE
 		FOR recIPI002SELECT_04 IN curIPI002SELECT_04 LOOP
       -- 次回償還期日の８営業日前を取得
-      g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_04.SHOKAN_YMD, 8);
+      g8MaeEigyoYmdIPI002 := pkdate.getMinusDateBusiness(recIPI002SELECT_04.SHOKAN_YMD::character varying, 8::integer);
 			IF recIPI002SELECT_04.KAIJI = '1' THEN
 				IF recIPI002SELECT_04.TEIJI_SHOKAN_KNGK = 0  THEN
 					gIPI002BIKO_04 := '次回償還日の8営業日前（' || substr(g8MaeEigyoYmdIPI002,1,4) || '/' || substr(g8MaeEigyoYmdIPI002,5,2) || '/' || substr(g8MaeEigyoYmdIPI002,7,2) || '）';
