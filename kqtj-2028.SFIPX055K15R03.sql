@@ -27,7 +27,7 @@ DECLARE
 		-- システム設定分
 		SELECT
 			  KAIIN_ID
-			, CASE WHEN JIKO_DAIKO_KBN=1 THEN ''  ELSE BANK_RNM END  AS BANK_RNM
+			, CASE WHEN JIKO_DAIKO_KBN='1' THEN ''  ELSE BANK_RNM END  AS BANK_RNM
 		FROM
 			VJIKO_ITAKU;
 --==============================================================================
@@ -35,7 +35,7 @@ DECLARE
 --==============================================================================
 BEGIN
 	FOR rec IN CUR_DATA LOOP
-		gReturnCode := SFIPX055K15R03_01(rec.KAIIN_ID,rec.BANK_RNM);
+		gReturnCode := sfipx055k15r03_01(rec.KAIIN_ID,rec.BANK_RNM);
 		--対象データなしの場合、正常終了（但し、デバッグログを書き出す）
 		IF gReturnCode = pkconstant.NO_DATA_FIND() THEN
 			gReturnCode := pkconstant.success();

@@ -162,7 +162,19 @@ END $$;
             {
                 'description': 'Bond fund receipt schedule (trust fee, mid-term fee)',
                 'postgres_sql': "SELECT sfipx055k15r03();",
-                'expected': 0  # 0=RTN_FATAL (missing SFIPX055K15R03_01 procedure)
+                'expected': 0  
+            }
+        ]
+    },
+    'mrpz-9681': {
+        'name': 'SFIPX055K15R03_01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Bond fund receipt schedule detail',
+                'postgres_sql': "SELECT sfipx055k15r03_01('0005', 'TestBank');",
+                'expected': 0  
             }
         ]
     },
@@ -226,6 +238,30 @@ END $$;
             }
         ]
     },
+    'mrpz-9681': {
+        'name': 'SFIPX055K15R03_01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Bond fund receipt schedule detail processing',
+                'postgres_sql': "SELECT sfipx055k15r03_01('0005', '');",
+                'expected': 40  # 40=NO_DATA_FIND (not output day)
+            }
+        ]
+    },
+    'kqtj-2028': {
+        'name': 'SFIPX055K15R03',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Bond fund receipt schedule wrapper',
+                'postgres_sql': "SELECT sfipx055k15r03();",
+                'expected': 0  # 0=success (wrapper handles NO_DATA_FIND)
+            }
+        ]
+    },
     'heyv-2795': {
         'name': 'SFIPXB36K15R01',
         'type': 'function',
@@ -250,6 +286,18 @@ END $$;
             }
         ]
     },
+    'bagk-9790': {
+        'name': 'SFIPXB18K15R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'RTGS-XG interface data creation for principal/interest funds settlement',
+                'postgres_sql': "SELECT sfipxb18k15r01('IF001');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
     'mmzt-3752': {
         'name': 'SFCALCKICHUHENREI',
         'type': 'function',
@@ -257,8 +305,8 @@ END $$;
         'tests': [
             {
                 'description': 'Mid-term fee refund calculation',
-                'postgres_sql': "SELECT extra_param FROM sfcalckichuhenrei('01', 'MGR001', '01', '20240101', 1000, 900, 100);",
-                'expected': 0  # 0=RTN_FATAL (missing data or dependencies)
+                'postgres_sql': "SELECT extra_param FROM sfcalckichuhenrei('0005', 'S620060331876', '01', '20180101', 1000, 900, 100);",
+                'expected': 0  # 0=SUCCESS (with real data and pkIpaKichuTesuryo deployed)
             }
         ]
     },

@@ -185,25 +185,18 @@ BEGIN
 		CALL pkLog.error('ECM501', C_FUNCTION_ID, '外部IFID');
 		RETURN pkconstant.error();
 	END IF;
-	RAISE NOTICE 'Parameter check passed. IF_ID: %', l_inIfId;
-	-- 業務日付の取得
+	--業務日付の取得
 	gGyomuYmd := pkDate.getGyomuYmd();
-	RAISE NOTICE 'gGyomuYmd: %', gGyomuYmd;
 	--翌営業日の取得
 	gYokuEigyoYmd := pkDate.getPlusDateBusiness(gGyomuYmd, 1, '1');
-	RAISE NOTICE 'gYokuEigyoYmd: %', gYokuEigyoYmd;
 	-- 外部ＩＦ送受信管理登録
-	RAISE NOTICE 'Calling insGaibuIFKanri...';
-	gResult := pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd, gMakeCnt);
-	RAISE NOTICE 'insGaibuIFKanri result: %', gResult;
+	SELECT * FROM pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd) INTO STRICT gMakeCnt, gResult;
 	IF gResult <> pkconstant.success() THEN
 		RETURN gResult;
 	END IF;
-	RAISE NOTICE 'Starting cursor loop...';
 	FOR rec IN curMeisai LOOP
 		-- 初期化
 		gDataNo := gDataNo + 1;
-		RAISE NOTICE 'Processing record %, SKN_UKEWATASHI_KNGK: %', gDataNo, rec.SKN_UKEWATASHI_KNGK;
 		-- 電文通番の取得
 		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_DENBUN_NO(), gDenbunNo);
 		IF gResult <> pkconstant.success() THEN
@@ -276,7 +269,6 @@ BEGIN
 			pkconstant.BATCH_USER()
 		);
 	END LOOP;
-	RAISE NOTICE 'Loop completed. Total records: %', gDataNo;
 	-- 連携データなしの場合
 	IF gDataNo = 0 THEN
 		-- 外部IF送受信管理の連携フラグを更新する
