@@ -62,9 +62,9 @@ BEGIN
 	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 請求書出力設定テーブルから、出力期間を取得する（業務日付が出力日ではない場合、From-Toは'99999999'で返る）
 	CALL PKIPACALCTESURYO.GETBATCHSEIKYUOUTFROMTO(l_initakukaishacd,		-- 委託会社コード
-						 '1',				-- 請求書区分（１：元利金、２：手数料）
-						 gKjtFrom,			-- 戻り値１：期間From
-						 gKjtTo);
+					 '1',				-- 請求書区分（１：元利金、２：手数料）
+					 gKjtFrom,			-- 戻り値１：期間From
+					 gKjtTo);
 	-- システム設定分と個別設定分の請求書作成データを取得するためのカーソル文を作成する
 	gSQL := pkIpaKknIdo.createSQL(gGyomuYmd, gKjtFrom, gKjtTo, l_initakukaishacd, '', '', '', '', '', '1','','');
   -- カウントの初期化
@@ -152,27 +152,19 @@ BEGIN
 	END LOOP;
   -- オプションフラグ(実質記番号)取得
   gOptionFlg := pkControl.getOPTION_FLG(l_inItakuKaishaCd, 'IPP1003302010','0');
-  RAISE NOTICE '[DEBUG] gOptionFlg = %, gSeqNo = %', gOptionFlg, gSeqNo;
   -- 実質記番号管理オプションが'1''の場合
   IF gOptionFlg = '1' THEN
          -- 実質記番号管理オプション　基金異動計算・更新処理
-         RAISE NOTICE '[DEBUG] Calling SFIPX046K15R01_01_insKknIdo';
          SELECT * FROM SFIPX046K15R01_01_insKknIdo(pkconstant.BATCH_USER(), gKjtFrom, gKjtTo, l_inItakuKaishaCd, '', '', '', '', '', gREPORT_ID, '1', '1', '') INTO STRICT gSqlErrm, gReturnCode;
          IF gReturnCode <> 0 THEN
             CALL pkLog.error('ECM701', 'SFIPX046K15R01_01', 'エラーメッセージ：'|| gSqlErrm);
-            RAISE NOTICE '[DEBUG] SFIPX046K15R01_01_insKknIdo returned error: %', gReturnCode;
             RETURN gReturnCode;
          END IF;
   END IF;
 	-- 元利払基金・手数料請求書（領収書）【単票】の作成
-	RAISE NOTICE '[DEBUG] Calling SPIPX046K15R02';
-	BEGIN
-		CALL SPIPX046K15R02(pkconstant.BATCH_USER(), gGyomuYmd, pRbrYmdFrom, pRbrYmdTo, l_initakuKaishaCd, '', '', '', '', '', '', gREPORT_ID, '1', gReturnCode, gOutSqlErrM);
-	EXCEPTION
-		WHEN OTHERS THEN
-			RAISE NOTICE '[DEBUG] Error in SPIPX046K15R02: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
-			RAISE;
-	END;
+	gReturnCode := 0;
+	gOutSqlErrM := NULL;
+	CALL SPIPX046K15R02(pkconstant.BATCH_USER(), gGyomuYmd, pRbrYmdFrom, pRbrYmdTo, l_initakuKaishaCd, '', '', '', '', '', '', gREPORT_ID, '1', gReturnCode, gOutSqlErrM);
 	-- 元利払基金・手数料請求書（領収書）【単票】の作成時にエラーがあった場合
 	IF gReturnCode <> pkconstant.success() THEN
 		CALL pkLog.error('ECM701', 'SPIPX046K15R02', 'エラーコード'||gReturnCode);

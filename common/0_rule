@@ -20,19 +20,30 @@ Data example:
 '20180101'::text,       -- l_inKessaiYmdF
 '20180105'::text,       -- l_inKessaiYmdT
 
+gRiritsu				numeric
+gInvoiceTourokuNo		varchar(14)
+l_inRBKbn = '0'
+
 
 Rule:
-array.exists(cnt) => array [cnt] IS NOT NULL
-oid => ctid, rowid -> ctid
-array.COUNT => coalesce (cardinality (array), 0))
-FUNCTION xxx có INOUT nhưng return khác type record => thêm "OUT extra_param Boolean" lên parameter list, đổi return type thành "record"
-typeArray nhưng khai báo init là varA: typeArray() => varA := ARRAY[]:: typeArray
-UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ nguyên vẫn ok)
-SQLERRM(SQLCODE) => SQLERRM
-SQLCODE → SQLSTATE
-dont use CASCADE drop, just drop thing in order of dependencies
-
-When call function with OUT parameter -> select * into xxx from function(...); 
+- To convert NUMERIC, INT, etc to VARCHAR, please use pkcharacter.numeric_to_char function. This function will converted NUMERIC, INT, etc to the format that match Oracle.
+gTsukaRishiCalc := '('  trim(both gRiritsu::text)  '% × '…)
+should be gTsukaRishiCalc := '('  trim(both pkcharacter.numeric_to_char(gRiritsu))  '% × '…)
+- array.exists(cnt) => array [cnt] IS NOT NULL
+- oid => ctid, rowid -> ctid
+- array.COUNT => coalesce (cardinality (array), 0))
+- FUNCTION xxx có INOUT nhưng return khác type record => thêm "OUT extra_param Boolean" lên parameter list, đổi return type thành "record"
+- typeArray nhưng khai báo init là varA: typeArray() => varA := ARRAY[]:: typeArray
+- UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ nguyên vẫn ok)
+- SQLERRM(SQLCODE) => SQLERRM
+- SQLCODE → SQLSTATE
+- dont use CASCADE drop, just drop thing in order of dependencies
+- Refactor Oracle associative array thành PostgreSQL array với proper syntax:
+	Dùng temp_rec variable để build/update records
+	Dùng array_append() để thêm elements
+	Read-Modify-Write pattern cho updates: temp_rec := rec[i]; ... ; rec[i] := temp_rec;
+	Thay đổi loop từ 0..gRecCnt thành 1..(gRecCnt+1) (1-based indexing)
+- When call function with OUT parameter -> select * into xxx from function(...); 
 
 	SELECT f.l_outsqlcode, f.l_outsqlerrm, f.extra_param 
 	INTO l_tmpSqlCode, l_tmpSqlErrM, l_tmpExtra

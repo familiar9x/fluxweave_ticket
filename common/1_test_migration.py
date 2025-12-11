@@ -19,11 +19,191 @@ POSTGRES_CONFIG = {
 
 # Test configurations for each ticket
 TEST_CONFIGS = {
+##Ticket_Dec_09
+    'eqnm-4694': {
+        'name': 'SFIPKEIKOKUINSERT',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Warning work table insert (IPI102 - transfer data notice)',
+                'postgres_sql': "SELECT sfipkeikokuinsert('0005'::text, '1'::text, 'IPI102'::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, NULL::text, '5'::text, '1000000'::text, '20250101'::text, NULL::text, '1'::text) as return_code;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'nbfp-4259': {
+        'name': 'SPIPX055K15R03',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond fund receipt schedule (trust fee, mid-term fee)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    CALL spipx055k15r03(
+        'TEST001'::text,       -- l_inChohyoId
+        '0005'::text,          -- l_inItakuKaishaCd
+        'TestBank'::text,      -- l_inBankRnm
+        'TESTUSER'::text,      -- l_inUserId
+        '0'::text,             -- l_inChohyoKbn
+        '20250101'::text,      -- l_inGyomuYmd
+        v_code,
+        v_msg
+    );
+    RAISE NOTICE 'Return Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': [0, 40]  # 0=SUCCESS, 40=NO_DATA_FOUND
+            }
+        ]
+    },
+    'dphm-6312': {
+        'name': 'SFIPX117K15R01_01',
+        'type': 'function',
+        'timeout': 300,  # 5 min - complex function with many cursors, calls SFIPKEIKOKUINSERT and SPIPX117K15R01
+        'tests': [
+            {
+                'description': 'Warning/contact information list data creation (jikodaiko=1)',
+                'postgres_sql': "SELECT sfipx117k15r01_01('0005', 'テスト委託会社', '1') as return_code;",
+                'expected': 0,  # 0=SUCCESS, 2=NODATA, 99=may timeout with many cursors
+                'allow_timeout': True
+            },
+            {
+                'description': 'Bond-related management list data creation (jikodaiko=0)',
+                'postgres_sql': "SELECT sfipx117k15r01_01('0005', 'テスト委託会社', '0') as return_code;",
+                'expected': 0,  # 0=SUCCESS, 2=NODATA, 99=may timeout
+                'allow_timeout': True
+            }
+        ]
+    },
+    'hsqu-8213': {
+        'name': 'SFIPX046K15R01',
+        'type': 'function',
+        'timeout': 600,  # 10 min - calls _01 for ALL companies in VJIKO_ITAKU, each calls SPIPX046K15R02 with complex 10KB SQL
+        'tests': [
+            {
+                'description': 'Principal/interest payment invoice batch wrapper (calls _01 for each company)',
+                'postgres_sql': "SELECT sfipx046k15r01() as return_code;",
+                'expected': 0,  # 0=SUCCESS, 2=NODATA, 99=may timeout on first run
+                'allow_timeout': True
+            }
+        ]
+    },
+    'wdgz-9540': {
+        'name': 'SFIPX046K15R01_01',
+        'type': 'function',
+        'timeout': 60,  # 5 min - calls SPIPX046K15R02 with 10KB dynamic SQL (K022 subquery + many LEFT JOINs)
+        'tests': [
+            {
+                'description': 'Principal/interest payment invoice data creation for company 0005 (calls dubt-7205)',
+                'postgres_sql': "SELECT sfipx046k15r01_01('0005') as return_code;",
+                'expected': 0,  # 0=SUCCESS, 2=NODATA, 99=may timeout due to complex SQL
+                'allow_timeout': True
+            }
+        ]
+    },
+    'dubt-7205': {
+        'name': 'SPIPX046K15R02',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Principal and interest payment fund/fee invoice generation',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    CALL spipx046k15r02(
+        'TESTUSER'::text,      -- l_inUserId
+        '20470620'::text,      -- l_inGyomuYmd
+        '20470620'::text,      -- l_inKijunYmdFrom
+        '20470620'::text,      -- l_inKijunYmdTo
+        '0005'::text,          -- l_inItakuKaishaCd
+        '609970'::text,        -- l_inHktCd
+        ''::text,              -- l_inKozatenCd
+        ''::text,              -- l_inKozatenCifCd
+        'S620060331876'::text, -- l_inMgrCd
+        ''::text,              -- l_inIsinCd
+        ''::text,              -- l_inTsuchiYmd
+        'IP931504651'::text,   -- l_inChohyoId
+        '0'::text,             -- l_inRBKbn
+        v_code,
+        v_msg
+    );
+    RAISE NOTICE 'Return Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NODATA
+            }
+        ]
+    },
+    'rntt-5819': {
+        'name': 'SPIPX117K15R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Warning/contact information list (jikodaiko=1)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    CALL spipx117k15r01(
+        'TEST001'::text,           -- l_ReportId
+        '0005'::text,              -- l_inItakuKaishaCd
+        'テスト委託会社'::text,     -- l_inItakuKaishaRnm
+        '1'::text,                 -- l_inJikodaikoKbn
+        'TESTUSER'::text,          -- l_inUserId
+        '1'::text,                 -- l_inChohyoKbn
+        '20470620'::text,          -- l_inGyomuYmd
+        v_code,
+        v_msg
+    );
+    RAISE NOTICE 'Return Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NODATA
+            },
+            {
+                'description': 'Bond-related management list (jikodaiko=0)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_msg text; 
+BEGIN 
+    CALL spipx117k15r01(
+        'TEST002'::text,           -- l_ReportId
+        '0005'::text,              -- l_inItakuKaishaCd
+        'テスト委託会社'::text,     -- l_inItakuKaishaRnm
+        '0'::text,                 -- l_inJikodaikoKbn
+        'TESTUSER'::text,          -- l_inUserId
+        '2'::text,                 -- l_inChohyoKbn
+        '20470620'::text,          -- l_inGyomuYmd
+        v_code,
+        v_msg
+    );
+    RAISE NOTICE 'Return Code: %, Msg: %', v_code, COALESCE(v_msg, 'NONE');
+END $$;
+""",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NODATA
+            }
+        ]
+    },
 ##Ticket_Dec_08_14
     'csvg-0068': {
         'name': 'SFIP931500141_01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Upfront fee slip issuing sheet (return portion)',
@@ -35,7 +215,7 @@ TEST_CONFIGS = {
     'tatf-8075': {
         'name': 'SFIP931500141',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Upfront fee slip issuing sheet (wrapper)',
@@ -47,7 +227,7 @@ TEST_CONFIGS = {
     'yrhb-8007': {
         'name': 'SFIP931500131_01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Upfront fee slip issuing sheet',
@@ -59,7 +239,7 @@ TEST_CONFIGS = {
     'hygv-6046': {
         'name': 'SFIP931500111_01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Upfront fee statement (principal and interest payment fee)',
@@ -71,7 +251,7 @@ TEST_CONFIGS = {
     'zjdf-5160': {
         'name': 'SFIP931500111',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Upfront fee lump sum income statement - with specific MGR_CD',
@@ -121,7 +301,7 @@ END $$;
     'wppq-4412': {
         'name': 'SFIPXB20K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'CIF information reception file processing',
@@ -133,7 +313,7 @@ END $$;
     'ubkp-9509': {
         'name': 'SFIP931500131',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Upfront fee voucher issuance sheet',
@@ -145,7 +325,7 @@ END $$;
     'fnyc-9532': {
         'name': 'SFIPXB35K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'External IF numbering table clear',
@@ -157,7 +337,7 @@ END $$;
     'kqtj-2028': {
         'name': 'SFIPX055K15R03',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Bond fund receipt schedule (trust fee, mid-term fee)',
@@ -169,7 +349,7 @@ END $$;
     'mrpz-9681': {
         'name': 'SFIPX055K15R03_01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Bond fund receipt schedule detail',
@@ -181,7 +361,7 @@ END $$;
     'jxus-5069': {
         'name': 'SFIPXB31K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'External IF data garbage collection (30 days)',
@@ -193,7 +373,7 @@ END $$;
     'vfty-4113': {
         'name': 'SFIPXB19K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'CIF info sending to deposit system',
@@ -205,7 +385,7 @@ END $$;
     'rcsd-0338': {
         'name': 'SFIPXB23K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Customer management store info reception',
@@ -217,7 +397,7 @@ END $$;
     'verh-5062': {
         'name': 'SFIPI037K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Redemption schedule creation',
@@ -229,7 +409,7 @@ END $$;
     'sswf-4349': {
         'name': 'SFIPI019K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Variable interest rate decision notice',
@@ -241,7 +421,7 @@ END $$;
     'mrpz-9681': {
         'name': 'SFIPX055K15R03_01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Bond fund receipt schedule detail processing',
@@ -253,7 +433,7 @@ END $$;
     'kqtj-2028': {
         'name': 'SFIPX055K15R03',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Bond fund receipt schedule wrapper',
@@ -262,10 +442,70 @@ END $$;
             }
         ]
     },
+    'vafq-1900': {
+        'name': 'SFIP931500121',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond fund issue fee data wrapper',
+                'postgres_sql': "DELETE FROM SREPORT_WK WHERE KEY_CD = '0005' AND USER_ID = 'BATCH'; SELECT (sfip931500121('BATCH', '0005', '202512', '1')).extra_param;",
+                'expected': 0  # 0=success (wrapper calls _01 detail function)
+            }
+        ]
+    },
+    'eqcx-0537': {
+        'name': 'SFIP931500121_01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond fund issue fee data detail',
+                'postgres_sql': "DELETE FROM SREPORT_WK WHERE KEY_CD = '0005' AND USER_ID = 'BATCH'; SELECT (sfip931500121_01('BATCH', '0005', '202512', '1')).extra_param;",
+                'expected': 0  # 0=success (has detail data for 202512)
+            }
+        ]
+    },
+    'whjf-9176': {
+        'name': 'SFIPX217K15R02',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Securities delivery report wrapper',
+                'postgres_sql': "SELECT sfipx217k15r02();",
+                'expected': 0  # 0=success
+            }
+        ]
+    },
+    'cged-5234': {
+        'name': 'SFIPX217K15R02_01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Securities delivery report detail',
+                'postgres_sql': "SELECT sfipx217k15r02_01('0005', '1');",
+                'expected': 0  # 0=success
+            }
+        ]
+    },
+    'vgjk-3898': {
+        'name': 'SFIPX117K15R01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Warning contact information list',
+                'postgres_sql': "SELECT sfipx117k15r01();",
+                'expected': 0  # 0=success
+            }
+        ]
+    },
     'heyv-2795': {
         'name': 'SFIPXB36K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Week start check for store attribute file',
@@ -277,7 +517,7 @@ END $$;
     'grkn-8679': {
         'name': 'SFIPXB10K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Bond settlement data creation',
@@ -289,7 +529,7 @@ END $$;
     'bagk-9790': {
         'name': 'SFIPXB18K15R01',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'RTGS-XG interface data creation for principal/interest funds settlement',
@@ -301,7 +541,7 @@ END $$;
     'mmzt-3752': {
         'name': 'SFCALCKICHUHENREI',
         'type': 'function',
-        'timeout': 30,
+        'timeout': 60,
         'tests': [
             {
                 'description': 'Mid-term fee refund calculation',

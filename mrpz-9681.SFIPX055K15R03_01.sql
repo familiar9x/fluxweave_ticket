@@ -64,25 +64,19 @@ DECLARE
 --					メイン処理												
 --==============================================================================
 BEGIN
-	RAISE NOTICE 'DEBUG: Start sfipx055k15r03_01';
 	-- 業務日付取得
 	gGyomuYmd := pkDate.getGyomuYmd();
-	RAISE NOTICE 'DEBUG: gGyomuYmd = %', gGyomuYmd;
 	-- 請求書出力設定テーブルから、出力期間を取得する（業務日付が出力日ではない場合、From-Toは'99999999'で返る）
 	CALL PKIPACALCTESURYO.GETBATCHSEIKYUOUTFROMTO(l_initakukaishacd,		-- 委託会社コード
-						 '2',				-- 請求書区分（1：元利金、2：手数料）
-						 gKjtFrom,			-- 戻り値１：期間From
-						 gKjtTo);
-	RAISE NOTICE 'DEBUG: After GETBATCHSEIKYUOUTFROMTO, gKjtFrom=%, gKjtTo=%', gKjtFrom, gKjtTo;
+					 '2',				-- 請求書区分（1：元利金、2：手数料）
+					 gKjtFrom,			-- 戻り値１：期間From
+					 gKjtTo);
 	-- システム設定分と個別設定分の請求書作成データを取得するためのカーソル文を作成する
 	gSQL := pkIpaKichuTesuryo.createCursor(gKjtFrom, gKjtTo, l_initakukaishacd, '', '', '', '', '', '1');
-	RAISE NOTICE 'DEBUG: After createCursor, SQL length = %', length(gSQL);
         -- カウントの初期化
 	gSeqNo := 0;
 	-- カーソルオープン
-	RAISE NOTICE 'DEBUG: Opening cursor';
 	OPEN gCur FOR EXECUTE gSQL;
-	RAISE NOTICE 'DEBUG: Cursor opened, starting loop';
 	LOOP
 		FETCH gCur INTO
 			tmp_rec.ITAKU_KAISHA_CD,
@@ -162,10 +156,8 @@ BEGIN
 		END IF;
 	END LOOP;
 	gMaxSeqNo := gSeqNo2;
-	RAISE NOTICE 'DEBUG: Before SPIPX055K15R03, gMaxSeqNo=%', gMaxSeqNo;
 	-- 公社債関連資金受入予定表（信託報酬・期中手数料）の作成
 	CALL SPIPX055K15R03(gREPORT_ID, l_initakukaishacd, l_inBankRnm, pkconstant.BATCH_USER(), '1', gGyomuYmd, gReturnCode, gOutSqlErrM);
-	RAISE NOTICE 'DEBUG: After SPIPX055K15R03, gReturnCode=%', gReturnCode;
   -- 対象データなしの場合
 	IF gReturnCode = pkconstant.NO_DATA_FIND() THEN
 		CALL pkLog.debug('BATCH', 'SPIPX055K15R03', '委託会社：' || l_initakukaishacd || ' 対象データなし');
@@ -199,7 +191,6 @@ BEGIN
 		EXCEPTION
 			WHEN OTHERS THEN NULL;
 		END;
-		RAISE NOTICE 'ERROR: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 		CALL pkLog.fatal('ECM701', 'SFIPX055K15R03_01', 'エラーコード'||SQLSTATE);
 		CALL pkLog.fatal('ECM701', 'SFIPX055K15R03_01', 'エラー内容'||SQLERRM);
 		RETURN pkconstant.FATAL();

@@ -45,7 +45,7 @@ DECLARE
 	gGyomuYmd	     SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE;  -- 業務日付
 	gGetsumatuYmd	     SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE;  -- 月末営業日
 	gGessyoYmd	     SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE;  -- 月初営業日
-	gFncResult           varchar(20);                        -- 実行結果
+	gFncResult           integer;                            -- 実行結果
 	gYobi1               varchar(50) := NULL;           -- 予備１
 	gYobi2               varchar(50) := NULL;           -- 予備２
 	gHikakuKingaku       numeric;
@@ -364,11 +364,11 @@ UNION ALL
 	FROM
 		MGR_TESKIJ MG4
 		INNER JOIN MGR_KIHON_VIEW VMG1 
-			ON MG4.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD::integer
-			AND MG4.MGR_CD = VMG1.MGR_CD::integer
+			ON MG4.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+			AND MG4.MGR_CD = VMG1.MGR_CD
 	WHERE
-		    MG4.ITAKU_KAISHA_CD = trim(l_inItakuKaishaCd)::integer
-		AND (MG4.TESU_SHURUI_CD = 11 OR MG4.TESU_SHURUI_CD = 12)
+		    MG4.ITAKU_KAISHA_CD = l_inItakuKaishaCd
+		AND (MG4.TESU_SHURUI_CD = '11' OR MG4.TESU_SHURUI_CD = '12')
 		AND MG4.DISTRI_YMD IS NOT NULL
 		AND VMG1.ISIN_CD IS NOT NULL;
 /*==============================================================================*/
@@ -1997,22 +1997,19 @@ UNION
 /*==============================================================================*/
 
 BEGIN
-	RAISE NOTICE 'SFIPX117K15R01_01 START: l_inItakuKaishaCd=%, l_inItakuKaishaRnm=%, l_inJikodaikoKbn=%', l_inItakuKaishaCd, l_inItakuKaishaRnm, l_inJikodaikoKbn;
+	RAISE NOTICE '[START] Function starting with: %, %, %', l_inItakuKaishaCd, l_inItakuKaishaRnm, l_inJikodaikoKbn;
 	-- 業務日付取得
 	gGyomuYmd := pkDate.getGyomuYmd();
-	RAISE NOTICE 'gGyomuYmd=%', gGyomuYmd;
+	RAISE NOTICE '[GYOMU_YMD] Retrieved: %', gGyomuYmd;
+
 	-- 月末営業日取得
 	gGetsumatuYmd := pkDate.getGetsumatsuBusinessYmd(gGyomuYmd,0);
-	RAISE NOTICE 'gGetsumatuYmd=%', gGetsumatuYmd;
 	-- 月初営業日取得
 	gGessyoYmd := pkDate.getGesshoBusinessYmd(gGyomuYmd::character varying,'1'::character);
-	RAISE NOTICE 'gGessyoYmd=%', gGessyoYmd;
 	-- 業務日付の1営業日前取得
 	gBefGyomuYmd := pkdate.getMinusDateBusiness(gGyomuYmd::character varying,1::integer);
-	RAISE NOTICE 'gBefGyomuYmd=%', gBefGyomuYmd;
 	-- 業務日付の1営業日後取得
 	gGyomuYmd1After := pkDate.getPlusDateBusiness(gGyomuYmd::character varying,1::integer,'1'::character);
-	RAISE NOTICE 'gGyomuYmd1After=%', gGyomuYmd1After;
 	-- 業務日付の2営業日後取得
 	gGyomuYmd2After := pkDate.getPlusDateBusiness(gGyomuYmd::character varying,2::integer,'1'::character);
 	-- 業務日付の3営業日後取得
@@ -2023,10 +2020,8 @@ BEGIN
 	gGyomuYmd5After := pkDate.getPlusDateBusiness(gGyomuYmd::character varying,5::integer);
 	-- 業務日付の6営業日後取得
 	gGyomuYmd6After := pkDate.getPlusDateBusiness(gGyomuYmd::character varying,6::integer);
-	RAISE NOTICE 'All date calculations done: gGyomuYmd2After=%, gGyomuYmd3After=%, gGyomuYmd4After=%, gGyomuYmd5After=%, gGyomuYmd6After=%', gGyomuYmd2After, gGyomuYmd3After, gGyomuYmd4After, gGyomuYmd5After, gGyomuYmd6After;
 	-- 業務日付（２か月後）の年月取得
 	gGyomuYmd2MAfterYM := SUBSTR(pkdate.calcMonth(gGyomuYmd::character varying,2::integer),1,6);
-	RAISE NOTICE 'gGyomuYmd2MAfterYM=%', gGyomuYmd2MAfterYM;
 	-- レポートIDの設定
 	IF l_inJikodaikoKbn = '1' THEN
 		C_REPORT_ID := 'IP931511711';
@@ -2038,12 +2033,11 @@ BEGIN
 /* IPI102連絡データ作成(createIPI102)                                           */
 
 /*==============================================================================*/
-
+	RAISE NOTICE '[IPI102] Starting createIPI102 processing...';
 	IF l_inJikodaikoKbn = '1' THEN
-		RAISE NOTICE 'Processing IPI102... Opening cursor curIPI102SELECT';
 		BEGIN
 			FOR recIPI102SELECT IN curIPI102SELECT LOOP
-			RAISE NOTICE 'Calling SFIPKEIKOKUINSERT for IPI102: ISIN_CD=%, MGR_RNM=%, HAKKO_YMD=%', recIPI102SELECT.ISIN_CD, recIPI102SELECT.MGR_RNM, recIPI102SELECT.HAKKO_YMD;
+			RAISE NOTICE '[IPI102] Calling SFIPKEIKOKUINSERT for ISIN: %', recIPI102SELECT.ISIN_CD;
 			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
 					  		'2',
 					  		'IPI102',
@@ -2059,17 +2053,17 @@ BEGIN
 							recIPI102SELECT.kofubi,
 					  		' ',
 					  		l_inJikodaikoKbn);
-			RAISE NOTICE 'SFIPKEIKOKUINSERT returned: %', gFncResult;
 			-- エラー判定
+			RAISE NOTICE '[IPI102] SFIPKEIKOKUINSERT returned: %', gFncResult;
 			IF gFncResult != pkconstant.success() THEN
-				RAISE NOTICE 'SFIPKEIKOKUINSERT failed, returning FATAL';
+				RAISE NOTICE '[IPI102] ERROR: gFncResult != success, returning FATAL';
 				RETURN pkconstant.FATAL();
 			END IF;
 			END LOOP;
-			RAISE NOTICE 'IPI102 loop completed successfully';
+			RAISE NOTICE '[IPI102] Finished processing all records';
 		EXCEPTION
 			WHEN OTHERS THEN
-				RAISE NOTICE 'Error in IPI102 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
+				RAISE NOTICE '[IPI102] EXCEPTION: % - %', SQLSTATE, SQLERRM;
 				RETURN pkconstant.FATAL();
 		END;
 	END IF;
@@ -2079,7 +2073,6 @@ BEGIN
 
 /*==============================================================================*/
 
-	RAISE NOTICE 'Processing IPW001... Opening cursor curIPW001SELECT';
 	BEGIN
 		FOR recIPW001SELECT IN curIPW001SELECT LOOP
 			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
@@ -2102,10 +2095,8 @@ BEGIN
 				RETURN pkconstant.FATAL();
 			END IF;
 		END LOOP;
-		RAISE NOTICE 'IPW001 loop completed successfully';
 	EXCEPTION
 		WHEN OTHERS THEN
-			RAISE NOTICE 'Error in IPW001 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 			RETURN pkconstant.FATAL();
 	END;
 /*==============================================================================*/
@@ -2114,7 +2105,6 @@ BEGIN
 
 /*==============================================================================*/
 
-	RAISE NOTICE 'Processing IPI001... gGyomuYmd=%, gGetsumatuYmd=%', gGyomuYmd, gGetsumatuYmd;
 	IF gGyomuYmd = gGetsumatuYmd THEN
 		FOR recIPI001SELECT IN curIPI001SELECT LOOP
 			IF recIPI001SELECT.SHOKAN_KBN = '50' THEN
@@ -2150,7 +2140,6 @@ BEGIN
 
 /*==============================================================================*/
 
-	RAISE NOTICE 'Processing IPW002...';
 	IF gGyomuYmd = gGetsumatuYmd THEN
 		FOR recIPW002SELECT IN curIPW002SELECT LOOP
 			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
@@ -2180,7 +2169,6 @@ BEGIN
 
 /*==============================================================================*/
 
-	RAISE NOTICE 'Processing IPW003...';
 	BEGIN
 		FOR recIPW003SELECT IN curIPW003SELECT LOOP
 		gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
@@ -2203,10 +2191,8 @@ BEGIN
 				RETURN pkconstant.FATAL();
 			END IF;
 		END LOOP;
-		RAISE NOTICE 'IPW003 loop completed successfully';
 	EXCEPTION
 		WHEN OTHERS THEN
-			RAISE NOTICE 'Error in IPW003 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 			RETURN pkconstant.FATAL();
 	END;
 /*==============================================================================*/
@@ -2215,7 +2201,6 @@ BEGIN
 
 /*==============================================================================*/
 
-	RAISE NOTICE 'Processing IPW013...';
 	IF gGyomuYmd = gGetsumatuYmd THEN
 		-- 業務日付（３か月後）の年月
 		gGyomuYmd3MAfterYM := SUBSTR(pkdate.calcMonth(gGyomuYmd::character varying,3::integer),1,6);
@@ -2247,7 +2232,6 @@ BEGIN
 
 /*==============================================================================*/
 
-	RAISE NOTICE 'Processing IPW014...';
 	BEGIN
 		FOR recIPW014SELECT IN curIPW014SELECT LOOP
 		gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
@@ -2270,10 +2254,8 @@ BEGIN
 				RETURN pkconstant.FATAL();
 			END IF;
 		END LOOP;
-		RAISE NOTICE 'IPW014 loop completed successfully';
 	EXCEPTION
 		WHEN OTHERS THEN
-			RAISE NOTICE 'Error in IPW014 cursor: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 			RETURN pkconstant.FATAL();
 	END;
 /*==============================================================================*/
@@ -3515,6 +3497,7 @@ BEGIN
 -- エラー処理
 EXCEPTION
 	WHEN OTHERS THEN
+		RAISE NOTICE '[ERROR] Exception caught: % - %', SQLSTATE, SQLERRM;
 		CALL pkLog.fatal('ECM701', C_PROGRAM_ID, 'SQLCODE:' || SQLSTATE);
 		CALL pkLog.fatal('ECM701', C_PROGRAM_ID, 'SQLERRM:' || SQLERRM);
 		RETURN pkconstant.FATAL();

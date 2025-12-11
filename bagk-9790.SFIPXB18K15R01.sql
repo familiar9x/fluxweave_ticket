@@ -110,11 +110,9 @@ DECLARE
 --					メイン処理													
 --==============================================================================
 BEGIN
-	RAISE NOTICE '[DEBUG] Function start';
 	-- Initialize composite types with default values
 	gGyomuDataHdr := ROW('1','','','');
 	gGyomuDataDat := ROW('101','','03','',pkIpIF.C_KESSAI_TM_FROM(),pkIpIF.C_KESSAI_TM_TO(),'','','','','','1007','','','','');
-	RAISE NOTICE '[DEBUG] Composite types initialized';
 	
 	CALL pkLog.debug('BATCH', C_FUNCTION_ID, '***** ' || C_FUNCTION_ID || ' START *****');
 	-- 入力パラメータのチェック
@@ -126,10 +124,8 @@ BEGIN
 	END IF;
 	-- 業務日付の取得
 	gGyomuYmd := pkDate.getGyomuYmd();
-	RAISE NOTICE '[DEBUG] gGyomuYmd = %', gGyomuYmd;
 	--翌営業日の取得
 	gYokuEigyoYmd := pkDate.getPlusDateBusiness(gGyomuYmd,1,'1');
-	RAISE NOTICE '[DEBUG] gYokuEigyoYmd = %', gYokuEigyoYmd;
 	-- 外部ＩＦ送受信管理登録
 	SELECT f.l_outCnt, f.extra_param INTO gMakeCnt, gResult
 	FROM pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd) f;
@@ -231,7 +227,6 @@ BEGIN
 -- 例外処理
 EXCEPTION
 	WHEN OTHERS THEN
-		RAISE NOTICE '[DEBUG] Exception: SQLSTATE = %, SQLERRM = %', SQLSTATE, SQLERRM;
 		CALL pkLog.fatal('ECM701', C_FUNCTION_ID, 'SQLCODE:' || SQLSTATE);
 		CALL pkLog.fatal('ECM701', C_FUNCTION_ID, 'SQLERRM:' || SQLERRM);
 		-- 外部IF送受信管理テーブルへの登録処理内で例外の場合、対象レコード箇所を出力
