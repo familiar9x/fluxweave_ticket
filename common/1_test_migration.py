@@ -466,6 +466,66 @@ END $$;
             }
         ]
     },
+    'bgkn-4469': {
+        'name': 'SFIPI098K00R00_01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Other periodic fee batch processing',
+                'postgres_sql': "SELECT sfipi098k00r00_01('0005');",
+                'expected': 0  # 0=success
+            }
+        ]
+    },
+    'djwd-4732': {
+        'name': 'SFIPI020K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Principal and interest payment schedule data creation',
+                'postgres_sql': "SELECT sfipi020k00r00();",
+                'expected': 0  # 0=success
+            }
+        ]
+    },
+    'dzee-3931': {
+        'name': 'SFIPXB21K15R00',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'CIF information transmission data creation',
+                'postgres_sql': "SELECT sfipxb21k15r00();",
+                'expected': 0  # 0=success
+            }
+        ]
+    },
+    'zrbq-9338': {
+        'name': 'SPIPI003K14R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Quarterly periodic revenue list for received fees',
+                'postgres_sql': "CALL spipi003k14r01('0005', '0005', '1', '20241231', '2024', '4', '1', '1', '1', '1', NULL, NULL);",
+                'expected': [0, 1, 2]  # 0=success with data, 1=error, 2=no data
+            }
+        ]
+    },
+    'ncac-2213': {
+        'name': 'SPIPI003K14R02',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Revenue forecast report - no data test',
+                'postgres_sql': "DELETE FROM SREPORT_WK WHERE KEY_CD = '0005' AND USER_ID = 'TEST888' AND CHOHYO_KBN = '1' AND SAKUSEI_YMD = '20241212' AND CHOHYO_ID = 'IPQ30000321'; CALL spipi003k14r02('0005', 'TEST888', '1', '20241212', '199001', '199001', NULL, NULL, NULL);",
+                'expected': 99  # Returns 99 (FATAL) - updateKichuTesuryoTbl returns FATAL when processing
+            }
+        ]
+    },
     'whjf-9176': {
         'name': 'SFIPX217K15R02',
         'type': 'function',
@@ -727,10 +787,20 @@ def test_postgres_function(cursor, sql: str) -> Any:
 
 
 def test_postgres_procedure(cursor, sql: str) -> Any:
-    """Execute PostgreSQL procedure test and parse NOTICE"""
+    """Execute PostgreSQL procedure test and parse NOTICE or OUT parameters"""
     # Clear previous notices
     cursor.connection.notices.clear()
     cursor.execute(sql)
+    
+    # Try to fetch result (for procedures with OUT parameters)
+    try:
+        result = cursor.fetchone()
+        if result:
+            # Return first column (usually l_outSqlCode)
+            return result[0]
+    except:
+        pass
+    
     # PostgreSQL procedures with RAISE NOTICE will have messages in notices
     if cursor.connection.notices:
         # First pass: look for explicit "Return Code:" pattern

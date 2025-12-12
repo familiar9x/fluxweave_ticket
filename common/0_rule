@@ -1,5 +1,5 @@
 Process to migrate each file:
-0. Kiểm tra xem đã có file trong jip-ipa/db/plsql chưa, nếu có rồi thì bỏ qua
+0. Kiểm tra xem đã có file trong /home/ansible/jip-ipa/db/plsql chưa, nếu có rồi thì bỏ qua
 1. Copy file từ generated về file có tên: ticket.ten_file.sql
 2. RUN: script_convert_simple.sh    ← FIX data type
 3. Run convert_pkprint_calls.py để convert pkprint calls sang PostgreSQL syntax
@@ -26,9 +26,6 @@ l_inRBKbn = '0'
 
 
 Rule:
-- To convert NUMERIC, INT, etc to VARCHAR, please use pkcharacter.numeric_to_char function. This function will converted NUMERIC, INT, etc to the format that match Oracle.
-gTsukaRishiCalc := '('  trim(both gRiritsu::text)  '% × '…)
-should be gTsukaRishiCalc := '('  trim(both pkcharacter.numeric_to_char(gRiritsu))  '% × '…)
 - array.exists(cnt) => array [cnt] IS NOT NULL
 - oid => ctid, rowid -> ctid
 - array.COUNT => coalesce (cardinality (array), 0))
@@ -43,6 +40,10 @@ should be gTsukaRishiCalc := '('  trim(both pkcharacter.numeric_to_char(gRiritsu
 	Dùng array_append() để thêm elements
 	Read-Modify-Write pattern cho updates: temp_rec := rec[i]; ... ; rec[i] := temp_rec;
 	Thay đổi loop từ 0..gRecCnt thành 1..(gRecCnt+1) (1-based indexing)
+- Nếu data type đang là số (number, integer ...) và cần convert to text thì làm theo rule
+To convert NUMERIC, INT, etc to VARCHAR, please use pkcharacter.numeric_to_char function. This function will converted NUMERIC, INT, etc to the format that match Oracle.
+gTsukaRishiCalc := '('  trim(both gRiritsu::text)  '% × '…)
+should be gTsukaRishiCalc := '('  trim(both pkcharacter.numeric_to_char(gRiritsu))  '% × '…)
 - When call function with OUT parameter -> select * into xxx from function(...); 
 
 	SELECT f.l_outsqlcode, f.l_outsqlerrm, f.extra_param 
