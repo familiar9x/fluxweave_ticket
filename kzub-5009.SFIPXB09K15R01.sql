@@ -58,7 +58,7 @@ DECLARE
 	--					定数定義													
 	--==============================================================================
 	-- ファンクションＩＤ
-	C_FUNCTION_ID			CONSTANT	varchar(50)	;
+	C_FUNCTION_ID			CONSTANT text	;
 	--==============================================================================
 	--					変数定義													
 	--==============================================================================
@@ -134,7 +134,7 @@ BEGIN
 	-- 業務日付の取得
 	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 外部ＩＦ送受信管理登録
-	gResult := pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd, gMakeCnt);
+	SELECT l_outcnt, extra_param INTO gMakeCnt, gResult FROM pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd);
 	IF gResult <> pkconstant.success() THEN
 		RETURN gResult;
 	END IF;
@@ -142,12 +142,12 @@ BEGIN
 		-- 初期化
 		gDataNo := gDataNo + 1;
 		-- 電文通番の取得
-		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_DENBUN_NO(), gDenbunNo);
+		SELECT l_outno, extra_param INTO gDenbunNo, gResult FROM pkIpIF.getIFNum(pkIpIF.C_NUMBERING_DENBUN_NO());
 		IF gResult <> pkconstant.success() THEN
 			RETURN gResult;
 		END IF;
 		-- リファレンスＮＯの取得
-		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_REF_NO(), gRefNo);
+		SELECT l_outno, extra_param INTO gRefNo, gResult FROM pkIpIF.getIFNum(pkIpIF.C_NUMBERING_REF_NO());
 		IF gResult <> pkconstant.success() THEN
 			RETURN gResult;
 		END IF;

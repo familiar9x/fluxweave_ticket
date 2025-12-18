@@ -3,9 +3,10 @@
 
 
 
-CREATE OR REPLACE FUNCTION sfipf010k01r02 ( l_inDenbunId CHAR,								-- ＪＩＰ電文コード
- l_inItakuId nyukin_yotei.itaku_kaisha_cd%type,	-- 委託会社コード
- l_inKessaiNo nyukin_yotei.kessai_no%type 			-- 決済番号
+CREATE OR REPLACE FUNCTION sfipf010k01r02 ( 
+ l_inDenbunId TEXT,								-- ＪＩＰ電文コード
+ l_inItakuId TEXT,	-- 委託会社コード
+ l_inKessaiNo TEXT 			-- 決済番号
  ) RETURNS integer AS $body$
 DECLARE
 
@@ -31,18 +32,20 @@ DECLARE
 --                  定数定義                                                    
 --==============================================================================
 	-- ファンクションＩＤ
-	C_FUNCTION_ID			CONSTANT	varchar(50)	:= 'SFIPF010K01R02';
+	C_FUNCTION_ID			CONSTANT text	:= 'SFIPF010K01R02';
 --==============================================================================
 --                  変数定義                                                    
 --==============================================================================
 	nRtnCd			numeric;									-- リターン値
+	vKaiinId		TEXT;
 --==============================================================================
 --                  メイン処理                                                  
 --==============================================================================
 BEGIN
 	CALL pkLog.debug('BATCH', C_FUNCTION_ID, '***** ' || C_FUNCTION_ID || ' START *****');
 	nRtnCd := 0;
-	IF l_inItakuId = pkConstant.getKaiinId THEN
+	vKaiinId := pkConstant.getKaiinId();
+	IF l_inItakuId = vKaiinId THEN
 		-- （ＲＴＳＧ−ＸＧ）資金決済予定データ（新規記録）
 		nRtnCd := SFIPXB16K15R01('IF26-1', l_inItakuId, l_inKessaiNo);
 	ELSE

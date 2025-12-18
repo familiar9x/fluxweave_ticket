@@ -35,9 +35,9 @@ DECLARE
 	C_NG                    CONSTANT integer      := 1;                    -- 予期したエラー
 	C_NO_DATA               CONSTANT integer      := 2;                    -- 対象データ無し
 	C_FATAL                 CONSTANT integer      := 99;                   -- 予期せぬエラー
-	C_REPORT_ID             CONSTANT char(11)     := 'IP030007811';        -- 帳票ID
-	C_JIKO                  CONSTANT char(1)      := '1';                  -- 自行代行区分（自行）
-	C_NO_DATA_STRING        CONSTANT char(14)     := '対象データ無し';     -- 自行代行区分（自行）
+	C_REPORT_ID             CONSTANT text     := 'IP030007811';        -- 帳票ID
+	C_JIKO                  CONSTANT text      := '1';                  -- 自行代行区分（自行）
+	C_NO_DATA_STRING        CONSTANT text     := '対象データ無し';     -- 自行代行区分（自行）
 --==============================================================================
 --                  変数定義                                                    
 --==============================================================================
@@ -352,7 +352,7 @@ CREATE OR REPLACE PROCEDURE spip07811_getjikouinfo (
 	OUT p_outBankRnm VARCHAR
 ) AS $body$
 DECLARE
-	C_JIKO CONSTANT char(1) := '1';  -- 自行代行区分（自行）
+	C_JIKO CONSTANT text := '1';  -- 自行代行区分（自行）
 BEGIN
 	SELECT
 		jiko_daiko_kbn,				-- 自行代行区分

@@ -3,7 +3,9 @@
 
 
 
-CREATE OR REPLACE FUNCTION sfipi078k00r00 (l_inItakuKaishaCd SOWN_INFO.KAIIN_ID%TYPE DEFAULT NULL) RETURNS integer AS $body$
+CREATE OR REPLACE FUNCTION sfipi078k00r00 (
+    l_inItakuKaishaCd SOWN_INFO.KAIIN_ID%TYPE DEFAULT NULL
+    ) RETURNS integer AS $body$
 DECLARE
 
 --
@@ -57,9 +59,9 @@ DECLARE
 --                    定数定義
 -- *====================================================================
 	-- SP_ID 
-	SP_ID				CONSTANT varchar(30) := 'SFIPI078K00R00';
+	SP_ID				CONSTANT text := 'SFIPI078K00R00';
     -- USER_ID 
-	USER_ID				CONSTANT varchar(20) := pkconstant.BATCH_USER();
+	USER_ID				CONSTANT text := pkconstant.BATCH_USER();
     -- 帳票作成区分（日次） 
     CHOHYO_SAKUSEI_KBN_DAY      CONSTANT PRT_OK.LIST_SAKUSEI_KBN%TYPE  := pkPrtOk.LIST_SAKUSEI_KBN_DAY();
     -- 帳票作成区分（随時） 
@@ -69,27 +71,27 @@ DECLARE
     -- 帳票区分（バッチ）（夜間） 
     CHOHYO_KBN_BATCH            CONSTANT SREPORT_WK.CHOHYO_KBN%TYPE  := pkKakuninList.CHOHYO_KBN_BATCH();
     -- リターンコード（対象データ無し） 
-    RTN_NO_DATA         CONSTANT varchar(2)  := '2';
+    RTN_NO_DATA         CONSTANT text  := '2';
     -- 当日オペ件数一覧 
-    REPORT_ID_O         CONSTANT varchar(20) := 'IP030007811';
+    REPORT_ID_O         CONSTANT text := 'IP030007811';
     -- 当日送受信件数一覧 
-    REPORT_ID_S         CONSTANT varchar(20) := 'IP030007821';
+    REPORT_ID_S         CONSTANT text := 'IP030007821';
     -- 銘柄登録事前警告リスト 
-    REPORT_ID_R         CONSTANT varchar(20) := 'IP030007831';
+    REPORT_ID_R         CONSTANT text := 'IP030007831';
     -- 銘柄情報変更警告リスト 
-    REPORT_ID_C         CONSTANT varchar(20) := 'IP030007841';
+    REPORT_ID_C         CONSTANT text := 'IP030007841';
     -- 警告リスト（共通）リスト 
-    REPORT_ID_K         CONSTANT varchar(20) := 'IP030007851';
+    REPORT_ID_K         CONSTANT text := 'IP030007851';
     -- 変動利率情報送信対象リスト 
-    REPORT_ID_H         CONSTANT varchar(20) := 'IPX30007811';
+    REPORT_ID_H         CONSTANT text := 'IPX30007811';
     -- 締め処理未承認データー一覧 
-    REPORT_ID_M         CONSTANT varchar(20) := 'IP030007861';
+    REPORT_ID_M         CONSTANT text := 'IP030007861';
 	-- 締め処理未承認データー一覧オプション 
-    MISHONIN_OP			CONSTANT varchar(15) := 'IPX010064010h';
+    MISHONIN_OP			CONSTANT text := 'IPX010064010h';
     -- 作業日管理（備忘録）リスト 
-    REPORT_ID_SAGYO     CONSTANT varchar(20) := 'IPX30001911';
+    REPORT_ID_SAGYO     CONSTANT text := 'IPX30001911';
 	-- 作業日管理（備忘録）リストオプション 
-    SAGYOBIKR_OP		CONSTANT varchar(15) := 'IPX100630504';
+    SAGYOBIKR_OP		CONSTANT text := 'IPX100630504';
 --====================================================================*
 --					カーソル定義
 -- *====================================================================

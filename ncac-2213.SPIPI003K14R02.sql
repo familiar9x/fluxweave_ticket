@@ -43,9 +43,9 @@ DECLARE
     --==============================================================================
     --          定数定義                                                            
     --==============================================================================
-  C_PROCEDURE_ID      CONSTANT varchar(20) := 'SPIPI003K14R02';      -- プロシージャＩＤ
-  C_PRGRAM_NAME       CONSTANT varchar(30) := '収益予想表';           -- プロシージャ名
-  CHOHYOID            CONSTANT varchar(20) := 'IPQ30000321';         --固有の帳票ID
+  C_PROCEDURE_ID      CONSTANT text := 'SPIPI003K14R02';      -- プロシージャＩＤ
+  C_PRGRAM_NAME       CONSTANT text := '収益予想表';           -- プロシージャ名
+  CHOHYOID            CONSTANT text := 'IPQ30000321';         --固有の帳票ID
   
   --==============================================================================
     --      変数定義                               
@@ -54,7 +54,7 @@ DECLARE
   gRtnCd               numeric := pkconstant.success();            -- リターンコード
   gBaYmFrom             varchar(8) := NULL;                    --変数．基準年月日From
   gBaYmTo               varchar(8) := NULL;                    --変数．基準年月日To
-  gDeSuRoList CONSTANT char(2)[] := ARRAY['02','03','04']; --配列．発行時手数料
+  gDeSuRoList CONSTANT text[] := ARRAY['02','03','04']; --配列．発行時手数料
   gCaseCnt              numeric := 0;                                 --変数．件数
   gJudaKu               varchar(8) := NULL;                    --変数．受託
   gSQL                  varchar(10000) := NULL;                -- SQL編集
@@ -503,27 +503,31 @@ BEGIN
       gSQL := gSQL ||'AND M01.EIGYOTEN_CD = ''' || l_inEiGyouTenCd || ''' ';
   END IF;
   
-  OPEN curMeisai FOR EXECUTE gSQL;
-  LOOP
-  FETCH curMeisai INTO gItakuKaishaCd,gMgrCd,gShinuYmd;
-  EXIT WHEN NOT FOUND;/* apply on curMeisai */
-   --２−２−１−１．手数料テーブル作成処理
-    --２−２−１−１−１．配列．発行時手数料（n）＝'02’の場合   -- 当初信託報酬
-    IF gDeSuRo = '02' THEN
-        gRet :=PKIPABOSHUTESURYO.updateBoshuTesuryo(gItakuKaishaCd,gMgrCd,gDeSuRo,PKIPACALCTESURYO.C_DATA_KBN_YOTEI());
-    END IF;
-    --２−２−１−１−２．配列．発行時手数料（n）＝'03'OR　'04'の場合
-    IF gDeSuRo = '03' OR gDeSuRo = '04' THEN
-        gRet :=PKIPAZAIMUJIMUTESURYO.updateZaimuJimuTesuryoTbl(gItakuKaishaCd::character, gMgrCd::character, gDeSuRo, gShinuYmd, '0'::character);
-    END IF;
-  --２−２−１−２．戻り値判定
-  IF gRet <> 0 THEN
-      l_outSqlCode := gRet;
-      l_outSqlErrM := '手数料計算結果テーブル作成処理が失敗しました。';
-      CALL pkLog.error('ECM701',CHOHYOID,'エラーメッセージ：手数料種類コード' || gDeSuRo || '-' || l_outSqlErrM);
-      RETURN;
-  END IF;
-  END LOOP;
+  BEGIN
+    OPEN curMeisai FOR EXECUTE gSQL;
+    LOOP
+      FETCH curMeisai INTO gItakuKaishaCd,gMgrCd,gShinuYmd;
+      EXIT WHEN NOT FOUND;/* apply on curMeisai */
+       --２−２−１−１．手数料テーブル作成処理
+        --２−２−１−１−１．配列．発行時手数料（n）＝'02'の場合   -- 当初信託報酬
+        IF gDeSuRo = '02' THEN
+            gRet :=PKIPABOSHUTESURYO.updateBoshuTesuryo(gItakuKaishaCd,gMgrCd,gDeSuRo,PKIPACALCTESURYO.C_DATA_KBN_YOTEI());
+        END IF;
+        --２−２−１−１−２．配列．発行時手数料（n）＝'03'OR　'04'の場合
+        IF gDeSuRo = '03' OR gDeSuRo = '04' THEN
+            gRet :=PKIPAZAIMUJIMUTESURYO.updateZaimuJimuTesuryoTbl(gItakuKaishaCd::character, gMgrCd::character, gDeSuRo, gShinuYmd, '0'::character);
+        END IF;
+      --２−２−１−２．戻り値判定
+      IF gRet <> 0 THEN
+          l_outSqlCode := gRet;
+          l_outSqlErrM := '手数料計算結果テーブル作成処理が失敗しました。';
+          CALL pkLog.error('ECM701',CHOHYOID,'エラーメッセージ：手数料種類コード' || gDeSuRo || '-' || l_outSqlErrM);
+          RETURN;
+      END IF;
+    END LOOP;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE;
+  END;
   CLOSE curMeisai;
  END LOOP;
 --３．期中手数料作成
@@ -638,7 +642,7 @@ BEGIN
 			l_inSakuseiYmd	=> l_inGyomuYmd,
 			l_inChohyoId	=> CHOHYOID,
 			l_inSeqNo		=> 1,
-			l_inHeaderFlg	=> 1,
+			l_inHeaderFlg	=> '1',
 			l_inItem		=> v_item,
 			l_inKousinId	=> l_inUserId,
 			l_inSakuseiId	=> l_inUserId
@@ -665,7 +669,7 @@ EXCEPTION
         l_outSqlCode    := pkconstant.error();
         l_outSqlErrM    := '';
     WHEN OTHERS THEN
-        --ROLLBACK; 
+        --ROLLBACK;
         CALL pkLog.fatal('ECM701', C_PROCEDURE_ID, 'SQLCODE:' || SQLSTATE);
         CALL pkLog.fatal('ECM701', C_PROCEDURE_ID, 'SQLERRM:' || SQLERRM);
         l_outSqlCode := pkconstant.fatal();

@@ -1,0 +1,1656 @@
+
+
+
+DROP TYPE IF EXISTS spip07861_type_record CASCADE;
+CREATE TYPE spip07861_type_record AS (
+		gGroupID			char(3)	-- グループID
+		,gGroupNm			varchar(20)	-- グループ名称
+		,gUserKngn			varchar(4)	-- ユーザ権限コード
+		,gUserKngnNm		varchar(40)		-- ユーザ権限名称
+		,gLastUserId		varchar(8)	-- 最終訂正者
+		,gGamenNm			varchar(100)	-- 画面名称
+		,gItakuKaishaCd			varchar(4)	-- 委託会社コード (VJIKO_ITAKU.KAIIN_ID is varchar(4))
+		,gItakuKaishaRnm		varchar(100)	-- 委託会社略名 (VJIKO_ITAKU.BANK_RNM is varchar(100))
+		,gJikoDaikoKbn			char(1)	-- 自行代行区分 (VJIKO_ITAKU.JIKO_DAIKO_KBN is char(1))
+	);
+
+
+CREATE OR REPLACE PROCEDURE spip07861 ( l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE,				-- 委託会社コード
+ l_inUserId SREPORT_WK.USER_ID%TYPE,				-- ユーザーID
+ l_inChohyoKbn SREPORT_WK.CHOHYO_KBN%TYPE,			-- 帳票区分
+ l_inGyomuYmd SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE,	-- 業務日付
+ l_outAllCount OUT text,								-- 未承認件数
+ l_outSqlCode OUT integer,								-- リターン値
+ l_outSqlErrM OUT text,								-- エラーコメント
+ l_inCountOnlyFlg text DEFAULT '0'					-- カウントのみフラグ (moved after OUT params)
+ ) AS $body$
+DECLARE
+
+--***************************************************************************
+-- * 著作権:Copyright(c)2006
+-- * 会社名:JIP
+-- *
+-- * 概要　:未承認データ一覧を作成する
+-- *
+-- * 引数　:l_inItakuKaishaCd :委託会社コード
+-- *        l_inUserId        :ユーザーID
+-- *        l_inChohyoKbn     :帳票区分
+-- *        l_inGyomuYmd      :業務日付
+-- *        l_inCountOnlyFlg  :カウントのみフラグ(0:帳票も作成,1:カウントのみ)
+-- *        l_outAllCount     :未承認件数
+-- *        l_outSqlCode      :リターン値
+-- *        l_outSqlErrM      :エラーコメント
+-- *
+-- * 返り値: なし
+-- *
+-- * @author A_Nakamura
+-- * @version $Id: SPIP07861.sql,v 1.3 2015/11/06 00:48:33 kanakura Exp $
+-- *
+-- ***************************************************************************
+	--==============================================================================
+	--					デバッグ機能													
+	--==============================================================================
+		DEBUG	numeric(1)	:= 0;
+	--==============================================================================
+	--                  定数定義                                                    
+	--==============================================================================
+	C_PROCEDURE_ID  CONSTANT varchar(50) := 'SPIP07861';                -- プロシージャＩＤ
+	C_CHOHYO_ID     CONSTANT SREPORT_WK.CHOHYO_ID%TYPE := 'IP030007861'; -- 帳票ＩＤ
+	WK_CHOHYO_ID    CONSTANT SREPORT_WK.CHOHYO_ID%TYPE := 'WK030007861'; -- ダミー帳票ＩＤ
+	C_NO_DATA       CONSTANT SCODE.CODE_SHUBETSU%TYPE := 2;              -- データなしリターン
+	-- 画面ID
+	C_GAMEN_ID1		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100110302';		-- 銘柄情報一覧
+	C_GAMEN_ID2		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPK100110702';		-- 特例社債情報一覧
+	C_GAMEN_ID3		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100110402';		-- 副受託銘柄情報一覧
+	C_GAMEN_ID4		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100510145';		-- 新規募集情報一覧
+	C_GAMEN_ID5		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100510155';		-- 新規記録情報承認可否一覧
+	C_GAMEN_ID6		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100510165';		-- 資金振替済確認
+	C_GAMEN_ID7		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100510175';		-- 決済指図データ一覧
+	C_GAMEN_ID8		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100510185';		-- 期中銘柄情報変更一覧
+	C_GAMEN_ID9		CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP01005101B5';		-- 元利金請求内容個別入力一覧
+	C_GAMEN_ID10	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP01005101C5';		-- 機構非関与銘柄元利金請求データ
+	C_GAMEN_ID11	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP01005101D5';		-- 基金入金確認
+	C_GAMEN_ID12	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPK1005101I5';		-- 現登債基金請求一覧
+	C_GAMEN_ID13	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP01005101E5';		-- 差押設定／解除一覧
+	C_GAMEN_ID14	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP01005101F5';		-- 期中手数料補正一覧
+	C_GAMEN_ID15	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPH1025101J5';		-- 会計区分別発行額データ一覧　承認？
+	C_GAMEN_ID16	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPX1005101M5';		-- グロスアップ銘柄税率データ一覧
+	C_GAMEN_ID17	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IP0100320202';		-- デフォルト情報一覧
+	C_GAMEN_ID18	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPX1005101N5';		-- 変動利率０時の利金手数料（元金）請求一覧
+	C_GAMEN_ID19	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPW100111502';		-- 銘柄情報（ＣＢ）一覧
+	C_GAMEN_ID20	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPW100512245';		-- 期中銘柄情報（ＣＢ）変更一覧
+	C_GAMEN_ID21	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPW100512225';		-- 新規募集情報（ＣＢ）一覧
+	C_GAMEN_ID22	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPW100512255';		-- 元利金請求内容個別入力（ＣＢ）一覧
+	C_GAMEN_ID23	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPW100512235';		-- 新規記録結果情報（ＣＢ）一覧
+	C_GAMEN_ID24	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100719015';		-- 発行体マスタ
+	C_GAMEN_ID25	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100719025';		-- 金融機関マスタ
+	C_GAMEN_ID26	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100719035';		-- 金融機関支店マスタ
+	C_GAMEN_ID27	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100719045';		-- 部店マスタ
+	C_GAMEN_ID28	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100719075';		-- 税務署マスタ
+	C_GAMEN_ID29	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100719085';		-- 税区分マスタ
+	C_GAMEN_ID30	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100719095';		-- 消費税マスタ
+	C_GAMEN_ID31	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM01007190B5';		-- 国マスタ
+	C_GAMEN_ID32	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM01007190C5';		-- 通貨マスタ
+	C_GAMEN_ID33	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM01007190D5';		-- 元号マスタ
+	C_GAMEN_ID34	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CMH1027190F5';		-- 会計区分マスタ
+	C_GAMEN_ID35	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100819015';		-- ロールマスタ（画面/帳票/代行）
+	C_GAMEN_ID38	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100819025';		-- グループマスタ
+	C_GAMEN_ID39	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CM0100819035';		-- ユーザマスタ
+	C_GAMEN_ID40	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'CMJ100059015';		-- 委託会社マスタ
+	C_GAMEN_ID41	CONSTANT SSCREEN.GAMEN_ID%TYPE := 'IPX100510105';		-- 銘柄情報登録テンプレートマスタ
+	C_GAMEN_IDDUMMY	CONSTANT SSCREEN.GAMEN_ID%TYPE := '999999999999';		-- ダミー画面ID
+	-- 1 銘柄情報一覧
+	C_SQL1	CONSTANT varchar(2000)	:=	'SELECT MG0.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,MG0.LAST_TEISEI_ID,MG0.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN '' '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MGR_STS MG0
+										  INNER JOIN MGR_KIHON MG1 ON MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD AND MG0.MGR_CD = MG1.MGR_CD
+										  LEFT JOIN SGROUP SC08 ON MG0.GROUP_ID = SC08.GROUP_ID
+										  LEFT JOIN VJIKO_ITAKU VJ ON MG0.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										  LEFT JOIN (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1 ON MG0.LAST_TEISEI_ID = S1.USER_ID
+										 WHERE MG1.TOKUREI_SHASAI_FLG != ''Y''
+										   AND MG1.SAIKEN_SHURUI NOT IN (''80'',''89'')
+										   AND (MG0.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''' )
+										   AND MG0.MASSHO_FLG =''0''
+										   AND MG0.MGR_STAT_KBN IN (''0'')
+										   AND MG1.JTK_KBN !=''2''';
+	-- 2 特例社債情報一覧
+	C_SQL2	CONSTANT varchar(2000)	:=	'SELECT MG0.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,MG0.LAST_TEISEI_ID,MG0.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN '' '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MGR_STS MG0
+										  INNER JOIN MGR_KIHON MG1 ON MG1.ITAKU_KAISHA_CD = MG0.ITAKU_KAISHA_CD AND MG1.MGR_CD = MG0.MGR_CD
+										  LEFT JOIN SGROUP SC08 ON MG0.GROUP_ID = SC08.GROUP_ID
+										  LEFT JOIN VJIKO_ITAKU VJ ON MG0.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										  LEFT JOIN (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+											  FROM SUSER SC05,SCODE MCD1
+											 WHERE MCD1.CODE_SHUBETSU = ''902''
+											   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											 ) S1 ON MG0.LAST_TEISEI_ID = S1.USER_ID
+										 WHERE MG0.MASSHO_FLG = ''0''
+										   AND MG1.JTK_KBN != ''2''
+										   AND MG1.TOKUREI_SHASAI_FLG = ''Y''
+										   AND MG1.SAIKEN_SHURUI NOT IN (''80'',''89'')
+										   AND (MG0.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND MG0.MGR_STAT_KBN IN (''0'')'; 
+	-- 3 副受託銘柄情報一覧
+	C_SQL3	CONSTANT varchar(2000)	:=	'SELECT MG0.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,MG0.LAST_TEISEI_ID,MG0.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN '' '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MGR_STS MG0
+										  INNER JOIN MGR_KIHON MG1 ON MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD AND MG0.MGR_CD = MG1.MGR_CD
+										  LEFT JOIN SGROUP SC08 ON MG0.GROUP_ID = SC08.GROUP_ID
+										  LEFT JOIN VJIKO_ITAKU VJ ON MG0.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										  LEFT JOIN (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+											  FROM SUSER SC05,SCODE MCD1
+											 WHERE MCD1.CODE_SHUBETSU = ''902''
+											   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											 ) S1 ON MG0.LAST_TEISEI_ID = S1.USER_ID
+										 WHERE MG1.JTK_KBN = ''2''
+										   AND (MG0.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND MG0.MGR_STAT_KBN IN(''0'')';
+	-- 4 新規募集情報一覧
+	C_SQL4	CONSTANT varchar(2000)	:=	'SELECT B01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,B01.LAST_TEISEI_ID,B01.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN '' '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM SHINKIBOSHU B01
+										  INNER JOIN MGR_KIHON MG1 ON B01.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD AND B01.MGR_CD = MG1.MGR_CD
+										  INNER JOIN MGR_STS MG0 ON MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD AND MG0.MGR_CD = MG1.MGR_CD
+										  LEFT JOIN SGROUP SC08 ON B01.GROUP_ID = SC08.GROUP_ID
+										  LEFT JOIN VJIKO_ITAKU VJ ON B01.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										  LEFT JOIN (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1 ON B01.LAST_TEISEI_ID = S1.USER_ID
+										 WHERE TRIM(MG1.ISIN_CD) IS NOT NULL
+								           AND B01.MGR_MEISAI_NO = (SELECT MAX(MGR_MEISAI_NO) FROM SHINKIBOSHU WHERE B01.ITAKU_KAISHA_CD = ITAKU_KAISHA_CD AND B01.MGR_CD = MGR_CD AND B01.SHORI_KBN = SHORI_KBN)
+								           AND MG0.MASSHO_FLG = ''0''
+										   AND CONCAT(B01.KK_PHASE, B01.KK_STAT) != (''H500'')
+										   AND MG1.SAIKEN_SHURUI != ''80''
+										   AND MG1.SAIKEN_SHURUI != ''89''
+										   AND (B01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''')  
+										   AND B01.SHORI_DATA_KBN <>''3''
+										   AND B01.SHORI_KBN =''0''';
+	-- 5 新規記録情報承認可否一覧
+	C_SQL5	CONSTANT varchar(2000)	:=	'SELECT B04a.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,B04a.LAST_TEISEI_ID,B04a.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MGR_STS MG0,
+											   MGR_KIHON MG1,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											-- 承認対象となるメインテーブル
+											(SELECT
+												B04.ITAKU_KAISHA_CD,
+												B04.ISIN_CD,
+												B04.SHONIN_STAT_CD,
+												B04.GROUP_ID,
+												SUM(B04.HKUK_KNGK) AS HKUK_KNGK,
+												COUNT(B04.ROWID) AS MEISAI_COUNT,
+												TO_CHAR(MAX(B04.KOUSIN_DT),''YYYY-MM-DD HH24:MI:SS.FF6'') AS KOUSIN_DT,
+												MAX(B04.LAST_TEISEI_ID) LAST_TEISEI_ID
+											FROM
+												SHINKIKIROKU B04
+											WHERE
+												B04.SHONIN_STAT_CD IN(''AFFI'',''DAFI'')
+												AND B04.MASSHO_FLG = ''0''
+												AND B04.SHORI_KBN = ''0''
+												AND B04.KK_PHASE = ''H1''
+												AND	B04.KK_STAT = ''01''
+												AND (B04.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''')  
+												AND B04.KESSAI_YMD >= ''' || l_inGyomuYmd || '''
+											GROUP BY
+												B04.ITAKU_KAISHA_CD,
+												B04.ISIN_CD,
+												B04.SHONIN_STAT_CD,
+												B04.GROUP_ID) B04a,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										WHERE
+											MG1.ITAKU_KAISHA_CD = MG0.ITAKU_KAISHA_CD
+											AND MG1.MGR_CD = MG0.MGR_CD
+											AND MG0.MASSHO_FLG = ''0''
+											AND B04a.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+											AND B04a.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD
+											AND B04a.ISIN_CD = MG1.ISIN_CD
+											AND B04a.GROUP_ID = SC08.GROUP_ID
+										   AND B04a.LAST_TEISEI_ID = S1.USER_ID';
+	-- 6 資金振替済確認
+	C_SQL6	CONSTANT varchar(4000)	:=	'SELECT UA1.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,UA1.LAST_TEISEI_ID,UA1.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+											FROM (SELECT /*+ RULE */													B03.KESSAI_YMD,
+													B03.ISIN_CD,
+													B03.KESSAI_NO,
+													B03.KESSAI_KNGK,
+													TO_CHAR(B03.KOUSIN_DT,''YYYY-MM-DD HH24:MI:SS.FF6'') AS KOUSIN_DT,
+													B03.MGR_CD,
+													0 AS MGR_MEISAI_NO,
+													B03.DAIRI_MOTION_FLG,
+													B03.ITAKU_KAISHA_CD,
+													B03.SKN_SHRNIN_BCD || B03.SKN_SHRNIN_SCD AS SKN_KESSAI_CD,
+													B03.AITE_KKMEMBER_FS_KBN,
+													B03.AITE_KKMEMBER_BCD,
+													B03.FURI_STS_KBN,
+													B03.GROUP_ID,
+													B03.SHORI_KBN,
+													B03.LAST_TEISEI_ID,
+													B03.ROWID AS rowNo
+												FROM
+													NYUKIN_YOTEI B03, SHINKIKIROKU B04
+												WHERE
+													 B03.ITAKU_KAISHA_CD = B04.ITAKU_KAISHA_CD
+												 AND B03.KESSAI_NO = B04.KESSAI_NO
+												 AND B03.FURI_STS_KBN = ''1''
+												 AND B03.DVP_KBN = ''0''
+												 AND B03.DAIRI_MOTION_FLG = ''0''
+												 AND B03.SHORI_KBN = ''0''
+												 AND B04.MASSHO_FLG = ''0''
+												 AND B04.KK_PHASE = ''H6''
+												 AND B04.KK_STAT = ''01''
+												 AND B03.KESSAI_YMD = ''' || l_inGyomuYmd || '''
+												UNION ALL
+												SELECT
+													B03.KESSAI_YMD,
+													B03.ISIN_CD,
+													B03.KESSAI_NO,
+													B03.KESSAI_KNGK,
+													TO_CHAR(B03.KOUSIN_DT,''YYYY-MM-DD HH24:MI:SS.FF6'') AS KOUSIN_DT,
+													B03.MGR_CD,
+													B01.MGR_MEISAI_NO,
+													B03.DAIRI_MOTION_FLG,
+													B03.ITAKU_KAISHA_CD,
+													B03.SKN_SHRNIN_BCD || B03.SKN_SHRNIN_SCD AS SKN_KESSAI_CD,
+													B03.AITE_KKMEMBER_FS_KBN,
+													B03.AITE_KKMEMBER_BCD,
+													B03.FURI_STS_KBN,
+													B03.GROUP_ID,
+													B03.SHORI_KBN,
+													B03.LAST_TEISEI_ID,
+													B03.ROWID AS rowNo
+												FROM
+													NYUKIN_YOTEI B03, SHINKIBOSHU B01
+												WHERE
+												     B03.DVP_KBN = ''0''
+												 AND B03.ITAKU_KAISHA_CD = B01.ITAKU_KAISHA_CD
+												 AND B03.KESSAI_NO = B01.KESSAI_NO
+												 AND B03.KESSAI_YMD = ''' || l_inGyomuYmd || '''
+												 AND (
+														(
+															B03.FURI_STS_KBN         = ''1''
+															AND B03.DAIRI_MOTION_FLG = ''1''
+															AND B03.SHORI_KBN        = ''0''
+															AND B01.MASSHO_FLG       = ''0''
+															AND B01.KK_PHASE         = ''H6''
+															AND B01.KK_STAT          = ''01''
+														)
+														OR
+														(
+															B01.KK_PHASE             = ''C2''
+															AND B01.KK_STAT          = ''02''
+														)
+													)
+												) UA1,
+												MGR_KIHON_VIEW VMG1,
+									    		MBANK M022,
+									    		MTSUKA M64,
+									    		SGROUP SC08,
+											VJIKO_ITAKU VJ,
+												(SELECT * FROM SCODE WHERE CODE_SHUBETSU=''108'') SC04,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+											WHERE UA1.AITE_KKMEMBER_FS_KBN = M022.FINANCIAL_SECURITIES_KBN
+											AND UA1.AITE_KKMEMBER_BCD = M022.BANK_CD
+											AND UA1.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+											AND UA1.MGR_CD = VMG1.MGR_CD
+											AND VMG1.MGR_STAT_KBN = ''1''
+											AND VMG1.SAIKEN_SHURUI NOT IN (''80'',''89'')
+											AND UA1.FURI_STS_KBN = SC04.CODE_VALUE
+											AND VMG1.HAKKO_TSUKA_CD = M64.TSUKA_CD
+											AND (UA1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+											AND UA1.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+											AND UA1.GROUP_ID = SC08.GROUP_ID
+										   AND UA1.LAST_TEISEI_ID = S1.USER_ID';
+	-- 7 決済指図データ一覧
+	C_SQL7	CONSTANT varchar(2000)	:=	'SELECT B02.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,B02.LAST_TEISEI_ID,B02.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN,'' ''
+										  FROM KESSAISASHIZU B02,
+											   SHINKIKIROKU B04,
+											   MGR_KIHON_VIEW VMG1,
+											   MBANK M02,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 where B02.ITAKU_KAISHA_CD = B04.ITAKU_KAISHA_CD
+										   and B02.KESSAI_NO = B04.KESSAI_NO
+										   and B02.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+										   and B02.MGR_CD = VMG1.MGR_CD
+										   and VMG1.MGR_STAT_KBN = ''1''
+										   and B02.KAITE_CD = M02.FINANCIAL_SECURITIES_KBN || M02.BANK_CD
+										   and B04.MASSHO_FLG = ''0''
+										   and B04.KK_STAT = ''01''
+										   and (B02.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   and B02.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   and B02.SHORI_KBN = ''0''
+										   AND B02.GROUP_ID = SC08.GROUP_ID
+										   AND B02.LAST_TEISEI_ID = S1.USER_ID';
+	-- 8 期中銘柄情報変更一覧
+	C_SQL8	CONSTANT varchar(4500)	:=	'SELECT V.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,V.LAST_TEISEI_ID,V.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+											FROM
+											    (SELECT
+											        ''4'' AS KICHU_KBN,                   -- 画面のNoリンクを動的に出すための値
+											        MG21.ITAKU_KAISHA_CD,
+											        MG21.MGR_CD,
+											        MG21.SHR_KJT,
+											        MG21.MGR_HENKO_KBN,
+											        (SELECT CODE_NM FROM SCODE WHERE CODE_SHUBETSU = ''127'' AND CODE_VALUE = MG21.MGR_HENKO_KBN) AS MGR_HENKO_KBN_NM,
+											        MG21.SHORI_KBN,
+											        MG21.LAST_TEISEI_DT,
+											        MG21.LAST_TEISEI_ID,
+											        MG21.SHONIN_DT,
+											        MG21.SHONIN_ID,
+											        MG21.KOUSIN_DT,
+											        MG21.KOUSIN_ID,
+											        MG21.SAKUSEI_DT,
+											        MG21.SAKUSEI_ID,
+											        MG21.GROUP_ID,
+											        MG21.ROWID AS rowNo,
+											        (SELECT CODE_SORT FROM SCODE WHERE CODE_SHUBETSU = ''127'' AND CODE_VALUE = MG21.MGR_HENKO_KBN) AS CODE_SORT
+											    FROM
+											        UPD_MGR_KHN MG21
+											    WHERE
+											        (MG21.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+											    AND MG21.SHORI_KBN = ''0''
+											    UNION ALL
+											    SELECT
+											        ''3'' AS KICHU_KBN,
+											        MG22.ITAKU_KAISHA_CD,
+											        MG22.MGR_CD,
+											        MG22.SHR_KJT,
+											        MG22.MGR_HENKO_KBN,
+											        (SELECT CODE_NM FROM SCODE WHERE CODE_SHUBETSU = ''127'' AND CODE_VALUE = MG22.MGR_HENKO_KBN) AS MGR_HENKO_KBN_NM,
+											        MG22.SHORI_KBN,
+											        MG22.LAST_TEISEI_DT,
+											        MG22.LAST_TEISEI_ID,
+											        MG22.SHONIN_DT,
+											        MG22.SHONIN_ID,
+											        MG22.KOUSIN_DT,
+											        MG22.KOUSIN_ID,
+											        MG22.SAKUSEI_DT,
+											        MG22.SAKUSEI_ID,
+											        MG22.GROUP_ID,
+											        MG22.ROWID AS rowNo,
+											        (SELECT CODE_SORT FROM SCODE WHERE CODE_SHUBETSU = ''127'' AND CODE_VALUE = MG22.MGR_HENKO_KBN) AS CODE_SORT
+											    FROM
+											        UPD_MGR_RBR MG22
+											    WHERE
+											        (MG22.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+											    AND MG22.SHORI_KBN = ''0''
+											    UNION ALL
+											    SELECT
+											        ''2'' AS KICHU_KBN,
+											        MG23.ITAKU_KAISHA_CD,
+											        MG23.MGR_CD,
+											        MG23.SHR_KJT,
+											        MG23.MGR_HENKO_KBN,
+											        (SELECT CODE_NM FROM SCODE WHERE CODE_SHUBETSU = ''127'' AND CODE_VALUE = MG23.MGR_HENKO_KBN) AS MGR_HENKO_KBN_NM,
+											        MG23.SHORI_KBN,
+											        MG23.LAST_TEISEI_DT,
+											        MG23.LAST_TEISEI_ID,
+											        MG23.SHONIN_DT,
+											        MG23.SHONIN_ID,
+											        MG23.KOUSIN_DT,
+											        MG23.KOUSIN_ID,
+											        MG23.SAKUSEI_DT,
+											        MG23.SAKUSEI_ID,
+											        MG23.GROUP_ID,
+											        MG23.ROWID AS rowNo,
+											        (SELECT CODE_SORT FROM SCODE WHERE CODE_SHUBETSU = ''714'' AND CODE_VALUE = MG23.MGR_HENKO_KBN) AS CODE_SORT
+											    FROM
+											        UPD_MGR_SHN MG23
+											    WHERE
+											        (MG23.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+											    AND MG23.SHORI_KBN = ''0'') V,
+											    SGROUP SC08,
+											    MGR_KIHON_VIEW MG1,
+											    VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+											WHERE V.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD
+											 AND V.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+											 AND V.MGR_CD = MG1.MGR_CD
+											 AND MG1.SAIKEN_SHURUI IN (''10'', ''20'', ''21'', ''29'', ''30'', ''40'', ''50'', ''60'', ''69'', ''70'', ''99'')
+											 AND MG1.MGR_STAT_KBN = ''1''
+											 AND V.GROUP_ID = SC08.GROUP_ID
+										     AND V.LAST_TEISEI_ID = S1.USER_ID ';
+	-- 9 元利金請求内容個別入力一覧
+	C_SQL9	CONSTANT varchar(2000)	:=	'SELECT K07.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,K07.LAST_TEISEI_ID,K07.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM (SELECT K07.*,
+													MG1.MGR_CD,
+													MG1.MGR_RNM
+											 FROM	GANRI_SEIKYU K07,
+													MGR_KIHON	MG1
+											 WHERE	MG1.ITAKU_KAISHA_CD = K07.ITAKU_KAISHA_CD
+											 AND	K07.ISIN_CD = MG1.ISIN_CD) K07,
+											 MGR_KIHON_VIEW MG1,
+											 SGROUP SC08,
+											 VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										WHERE 	MG1.ITAKU_KAISHA_CD = K07.ITAKU_KAISHA_CD
+										AND	MG1.ISIN_CD = K07.ISIN_CD
+										AND	MG1.MGR_STAT_KBN = ''1''
+										AND	MG1.KK_KANYO_FLG = ''1''
+										AND K07.SYS_GNRBARAI_YMD = pkDate.getYokuBusinessYmd( ''' || l_inGyomuYmd || ''')
+										AND (K07.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										AND K07.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										AND K07.SHORI_KBN = ''0''
+										AND K07.HENKO_KBN =''Y''
+										AND K07.GROUP_ID = SC08.GROUP_ID
+										AND K07.LAST_TEISEI_ID = S1.USER_ID';
+	-- 10機構非関与銘柄元利金請求データ
+	C_SQL10	CONSTANT varchar(2500)	:=	'SELECT SK01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,SK01.LAST_TEISEI_ID,SK01.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM
+											(SELECT
+												K01.ITAKU_KAISHA_CD,
+												K01.MGR_CD,
+												K01.SHR_YMD,
+												K01.GROUP_ID,
+												MAX(K01.TSUKA_CD) AS TSUKA_CD,
+												MAX(K01.FINANCIAL_SECURITIES_KBN) AS FINANCIAL_SECURITIES_KBN,
+												MAX(K01.BANK_CD) AS BANK_CD,
+												MAX(K01.KOZA_KBN) AS KOZA_KBN,
+												MAX(K01.TAX_KBN) AS TAX_KBN,
+												SUM(COALESCE(K01.GNR_ZNDK, 0)) AS GNR_ZNDK,
+												SUM(COALESCE(K01.GNR_JISSHITSU_ZNDK, 0)) AS GNR_JISSHITSU_ZNDK,
+												SUM(COALESCE(K01.GZEIHIKI_BEF_CHOKYU_KNGK, 0)) AS GZEIHIKI_BEF_CHOKYU_KNGK,
+												SUM(COALESCE(K01.GZEI_KNGK, 0)) AS GZEI_KNGK,
+												SUM(COALESCE(K01.GZEIHIKI_AFT_CHOKYU_KNGK, 0)) AS GZEIHIKI_AFT_CHOKYU_KNGK,
+												SUM(COALESCE(K01.SHOKAN_SEIKYU_KNGK,0)) AS SHOKAN_SEIKYU_KNGK,
+												MAX(K01.KOUSIN_DT) AS KOUSIN_DT,
+												MAX(K01.LAST_TEISEI_ID) LAST_TEISEI_ID
+											 FROM
+											 	KIKIN_SEIKYU K01
+											 WHERE	(ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+											   AND	SHORI_KBN = ''0''
+											   AND	KK_KANYO_UMU_FLG in (''0'', ''2'')
+											 GROUP BY
+												K01.ITAKU_KAISHA_CD,
+												K01.MGR_CD,
+												K01.SHR_YMD,
+												K01.GROUP_ID
+											) SK01,
+											SGROUP SC08,
+											MGR_KIHON_VIEW VMG1,
+											VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										WHERE
+											SK01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+										AND     SK01.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										AND	SK01.MGR_CD = VMG1.MGR_CD
+										AND VMG1.MGR_STAT_KBN = ''1''
+										AND SK01.GROUP_ID = SC08.GROUP_ID
+											AND SK01.LAST_TEISEI_ID = S1.USER_ID';
+	-- 11 基金入金確認
+	C_SQL11	CONSTANT varchar(2500)	:=	'SELECT VK08.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,VK08.LAST_TEISEI_ID,VK08.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										FROM(
+											SELECT
+												VK08.ITAKU_KAISHA_CD,
+												VK08.SHORI_KBN,
+												VK08.GROUP_ID,
+												VK08.LAST_TEISEI_ID,
+												VK08.IDO_YMD AS idoYmd,
+												VK08.NYUKIN_STS_KBN_NM AS nyukinStsKbnNm,
+												VK08.ISIN_CD AS isinCd,
+												VK08.MGR_CD AS mgrCd,
+												VK08.MGR_RNM AS mgrRnm,
+												VK08.RBR_YMD AS rbrYmd,
+												VK08.RBR_KJT AS rbrKjt,
+												MAX(TO_CHAR(VK08.KOUSIN_DT,''YYYY-MM-DD HH24:MI:SS.FF6'')) AS kousinDt,
+												SUM(VK08.GANKIN) AS gankin,
+												SUM(VK08.RIKIN) AS rkn,
+												SUM(VK08.GNK_TESURYO_KNGK) AS gnknShrTesuKngk,
+												SUM(VK08.RNK_TESURYO_KNGK) AS rknShrTesuKngk,
+												SUM(VK08.GANKIN) + SUM(VK08.RIKIN) + SUM(VK08.GNK_TESURYO_KNGK)
+												+ SUM(VK08.RNK_TESURYO_KNGK) + SUM(VK08.GNK_TESURYO_KNGK_SZEI) + SUM(VK08.RNK_TESURYO_KNGK_SZEI) AS seikyuKngk,
+												SUM(VK08.GNK_TESURYO_KNGK_SZEI) + SUM(VK08.RNK_TESURYO_KNGK_SZEI) AS szei,
+												VK08.KOZA_FURI_KBN AS kozaFuriKbn
+											FROM
+												VKIKIN_NYUKIN_KAKUNIN VK08
+
+											WHERE 	VK08.NYUKIN_STS_KBN = ''1''
+											GROUP BY
+												VK08.ITAKU_KAISHA_CD,
+												VK08.SHORI_KBN,
+												VK08.GROUP_ID,
+												VK08.LAST_TEISEI_ID,
+												VK08.MGR_CD,
+												VK08.RBR_YMD,
+												VK08.TSUKA_CD,
+												VK08.IDO_YMD,
+												VK08.NYUKIN_STS_KBN_NM,
+												VK08.ISIN_CD,
+												VK08.MGR_RNM,
+												VK08.RBR_KJT,
+												VK08.KOZA_FURI_KBN
+											) VK08,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+												  ) S1
+								WHERE (VK08.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+								AND VK08.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+								AND VK08.SHORI_KBN = ''0''
+								AND VK08.GROUP_ID = SC08.GROUP_ID
+								AND VK08.LAST_TEISEI_ID = S1.USER_ID';
+	-- 12 現登債基金請求一覧
+	C_SQL12	CONSTANT varchar(1000)	:=	'SELECT KK22.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,KK22.LAST_TEISEI_ID,KK22.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM GNT_KIKIN_SEIKYU KK22,
+											   MGR_KIHON_VIEW VMG1,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE KK22.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+										   AND KK22.MGR_CD = VMG1.MGR_CD
+										   AND VMG1.MGR_STAT_KBN = ''1''
+										   AND (KK22.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND KK22.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND KK22.SHORI_KBN =''0''
+										   AND KK22.GROUP_ID = SC08.GROUP_ID
+										   AND KK22.LAST_TEISEI_ID = S1.USER_ID';
+	-- 13 差押設定／解除一覧
+	C_SQL13	CONSTANT varchar(1000)	:=	'SELECT K04.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,K04.LAST_TEISEI_ID,K04.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM SASHIOSAE K04,
+											   MGR_KIHON_VIEW VMG1,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										WHERE K04.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+										  AND K04.MGR_CD = VMG1.MGR_CD
+										  AND (K04.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										  AND K04.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										  AND K04.SHORI_KBN =''0''
+										  AND K04.GROUP_ID = SC08.GROUP_ID
+										  AND K04.LAST_TEISEI_ID = S1.USER_ID';
+	-- 14 期中手数料補正一覧
+	C_SQL14	CONSTANT varchar(1000)	:=	'SELECT VT01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,VT01.LAST_TEISEI_ID,VT01.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM VTESURYO VT01
+											   LEFT JOIN SGROUP SC08 ON VT01.GROUP_ID = SC08.GROUP_ID
+										        LEFT JOIN VJIKO_ITAKU VJ ON VT01.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+											   LEFT JOIN (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1 ON VT01.LAST_TEISEI_ID = S1.USER_ID
+										 WHERE VT01.DATA_SAKUSEI_KBN = ''2''
+										   AND (VT01.ITAKU_KAISHA_CD = ''' ||  l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND VT01.SHORI_KBN =''0''';
+	-- 15 会計区分別発行額データ一覧
+	C_SQL15	CONSTANT varchar(1500)	:=	'SELECT SH02.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,SH02.LAST_TEISEI_ID,SH02.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM (SELECT
+													H02.ITAKU_KAISHA_CD,
+													H02.MGR_CD,
+													H02.GROUP_ID,
+													SUM(H02.KAIKEI_KBN_ANBUN_KNGK) AS KAIKEI_KBN_ANBUN_KNGK,
+													MAX(H02.KOUSIN_DT) AS KOUSIN_DT,
+													MAX(H02.LAST_TEISEI_ID) AS LAST_TEISEI_ID
+												 FROM
+													KAIKEI_ANBUN H02
+												 WHERE (H02.ITAKU_KAISHA_CD = ''' ||  l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+												  AND H02.SHORI_KBN = ''0''
+												GROUP BY
+													H02.ITAKU_KAISHA_CD,
+													H02.MGR_CD,
+													H02.GROUP_ID) SH02,
+											   SGROUP SC08,
+											   MGR_KIHON_VIEW VMG1,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE SH02.ITAKU_KAISHA_CD=VMG1.ITAKU_KAISHA_CD
+										   AND SH02.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND SH02.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND SH02.MGR_CD=VMG1.MGR_CD
+										   AND SH02.GROUP_ID = SC08.GROUP_ID
+										   AND SH02.LAST_TEISEI_ID = S1.USER_ID';
+	-- 16 グロスアップ銘柄税率データ一覧
+	C_SQL16	CONSTANT varchar(1500)	:=	'SELECT X01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,X01.LAST_TEISEI_ID,VMG1.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM GROSSUP_MGR_TAX X01,
+											   MGR_KIHON_VIEW VMG1,
+											   MGR_RBRKIJ MG2,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE X01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+										   AND X01.MGR_CD = VMG1.MGR_CD
+										   AND MG2.ITAKU_KAISHA_CD = X01.ITAKU_KAISHA_CD
+										   AND MG2.MGR_CD = X01.MGR_CD
+										   AND MG2.RBR_KJT = X01.TEKIYO_RBR_KJT
+										   AND (VMG1.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND VMG1.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND X01.SHORI_KBN = ''0''
+										   AND X01.GROUP_ID = SC08.GROUP_ID
+										   AND X01.LAST_TEISEI_ID = S1.USER_ID';
+	-- 17 デフォルト情報一覧
+	C_SQL17	CONSTANT varchar(2000)	:=	'SELECT DE01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,DE01.LAST_TEISEI_ID,DE01.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM DEFAULT_INFO       DE01,
+											   DEFAULT_RIYU_KANRI DE02,
+											   MGR_KIHON          MG1,
+											   MGR_STS            MG0,
+											   MHAKKOTAI          M01,
+											   SGROUP             SC08,
+											   VJIKO_ITAKU        VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE DE01.ITAKU_KAISHA_CD = DE02.ITAKU_KAISHA_CD
+										   AND DE01.DEFAULT_RIYU    = DE02.DEFAULT_RIYU
+										   AND DE01.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD
+										   AND DE01.MGR_CD          = MG1.MGR_CD
+										   AND MG1.ITAKU_KAISHA_CD  = MG0.ITAKU_KAISHA_CD
+										   AND MG1.MGR_CD           = MG0.MGR_CD
+										   AND MG1.ITAKU_KAISHA_CD  = M01.ITAKU_KAISHA_CD
+										   AND MG1.HKT_CD           = M01.HKT_CD
+										   AND MG1.JTK_KBN         != ''2''
+										   AND MG1.JTK_KBN         != ''5''
+										   AND MG0.MASSHO_FLG       = ''0''
+										   AND (DE01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND DE01.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND DE01.SHORI_KBN = ''0''
+										   AND MG0.MGR_STAT_KBN =''9''
+										   AND DE01.GROUP_ID = SC08.GROUP_ID
+										   AND DE01.LAST_TEISEI_ID = S1.USER_ID';
+	-- 18変動利率０時の利金手数料（元金）請求一覧
+	C_SQL18	CONSTANT varchar(1500)	:=	'SELECT X02.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,X02.LAST_TEISEI_ID,X02.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM	(SELECT	X02.ITAKU_KAISHA_CD,
+															X02.MGR_CD,
+															TRIM(MAX(X02.SHORI_KBN)) AS SHORI_KBN,
+															TRIM(MAX(X02.GROUP_ID)) AS GROUP_ID,
+															TRIM(MAX(X02.LAST_TEISEI_ID)) AS LAST_TEISEI_ID,
+															TRIM(TO_CHAR(MAX(X02.KOUSIN_DT), ''YYYY-MM-DD HH24:MI:SS.FF6'')) AS KOUSIN_DT
+													FROM	RKN0_RKNTES_G X02
+													GROUP BY
+															X02.ITAKU_KAISHA_CD,
+															X02.MGR_CD) X02,
+													MGR_KIHON_VIEW VMG1,
+													SGROUP SC08,
+													VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										  WHERE X02.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+											AND	X02.MGR_CD = VMG1.MGR_CD
+											AND (X02.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+											AND X02.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   	AND X02.SHORI_KBN = ''0''
+											AND X02.GROUP_ID = SC08.GROUP_ID
+											AND X02.LAST_TEISEI_ID = S1.USER_ID';
+	-- 19 銘柄情報（ＣＢ）一覧
+	C_SQL19	CONSTANT varchar(1500)	:=	'SELECT MG0.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,MG0.LAST_TEISEI_ID,MG0.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MGR_STS MG0,
+											   MGR_KIHON MG1,
+											   CB_MGR_KIHON WMG1,
+											   MHAKKOTAI M01,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE MG0.ITAKU_KAISHA_CD = MG1.ITAKU_KAISHA_CD
+										   AND MG0.MGR_CD = MG1.MGR_CD
+										   AND MG1.ITAKU_KAISHA_CD = WMG1.ITAKU_KAISHA_CD
+										   AND MG1.MGR_CD = WMG1.MGR_CD
+										   AND MG1.ITAKU_KAISHA_CD = M01.ITAKU_KAISHA_CD
+										   AND MG1.HKT_CD = M01.HKT_CD
+										   AND MG0.MASSHO_FLG = ''0''
+										   AND MG1.SAIKEN_SHURUI IN (''80'', ''89'')
+										   AND (MG0.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND MG0.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND MG0.MGR_STAT_KBN IN (''0'')
+										   AND MG1.JTK_KBN !=''2''
+										   AND MG0.GROUP_ID = SC08.GROUP_ID
+										   AND MG0.LAST_TEISEI_ID = S1.USER_ID';
+	-- 20期中銘柄情報（ＣＢ）変更一覧
+	C_SQL20	CONSTANT varchar(3500)	:=	'SELECT V.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,V.LAST_TEISEI_ID,V.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM
+										(SELECT
+										''4'' AS KICHU_KBN,
+										WMG12.ITAKU_KAISHA_CD,
+										WMG12.MGR_CD,
+										WMG12.TEKIYOST_YMD AS SHR_KJT,
+										''01'' AS MGR_HENKO_KBN,
+										WMG12.SHORI_KBN,
+										WMG12.LAST_TEISEI_DT,
+										WMG12.LAST_TEISEI_ID,
+										WMG12.SHONIN_DT,
+										WMG12.SHONIN_ID,
+										WMG12.KOUSIN_DT,
+										WMG12.KOUSIN_ID,
+										WMG12.SAKUSEI_DT,
+										WMG12.SAKUSEI_ID,
+										WMG12.SHANAI_KOMOKU1,
+										WMG12.GROUP_ID,
+										WMG12.ROWID AS rowNo
+										FROM
+											CB_MGR_KHN_RUISEKI WMG12
+										WHERE
+											(WMG12.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										AND WMG12.SHORI_KBN = ''0''
+										UNION ALL
+										SELECT
+											''3'' AS KICHU_KBN,
+											MG22.ITAKU_KAISHA_CD,
+											MG22.MGR_CD,
+											MG22.SHR_KJT,
+											MG22.MGR_HENKO_KBN,
+											MG22.SHORI_KBN,
+											MG22.LAST_TEISEI_DT,
+											MG22.LAST_TEISEI_ID,
+											MG22.SHONIN_DT,
+											MG22.SHONIN_ID,
+											MG22.KOUSIN_DT,
+											MG22.KOUSIN_ID,
+											MG22.SAKUSEI_DT,
+											MG22.SAKUSEI_ID,
+											NULL AS SHANAI_KOMOKU1,
+											MG22.GROUP_ID,
+											MG22.ROWID AS rowNo
+										FROM
+											UPD_MGR_RBR MG22
+										WHERE
+											(MG22.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										AND MG22.SHORI_KBN = ''0''
+										UNION ALL
+										SELECT
+											''2'' AS KICHU_KBN,
+											MG23.ITAKU_KAISHA_CD,
+											MG23.MGR_CD,
+											MG23.SHR_KJT,
+											MG23.MGR_HENKO_KBN,
+											MG23.SHORI_KBN,
+											MG23.LAST_TEISEI_DT,
+											MG23.LAST_TEISEI_ID,
+											MG23.SHONIN_DT,
+											MG23.SHONIN_ID,
+											MG23.KOUSIN_DT,
+											MG23.KOUSIN_ID,
+											MG23.SAKUSEI_DT,
+											MG23.SAKUSEI_ID,
+											NULL AS SHANAI_KOMOKU1,
+											MG23.GROUP_ID,
+											MG23.ROWID AS rowNo
+										FROM
+											UPD_MGR_SHN MG23
+										WHERE
+											(MG23.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										AND MG23.SHORI_KBN = ''0'') V,
+										MGR_KIHON_VIEW VMG1,
+										CB_MGR_KIHON WMG1,
+										SGROUP SC08,
+										VJIKO_ITAKU VJ,
+										   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+											  FROM SUSER SC05,SCODE MCD1
+											 WHERE MCD1.CODE_SHUBETSU = ''902''
+											   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+										   ) S1
+									WHERE
+										V.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+									AND V.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+									AND V.MGR_CD = VMG1.MGR_CD
+									AND VMG1.ITAKU_KAISHA_CD = WMG1.ITAKU_KAISHA_CD
+									AND VMG1.MGR_CD = WMG1.MGR_CD
+									AND VMG1.JTK_KBN != ''2''
+									AND VMG1.SAIKEN_SHURUI IN (''80'', ''89'')
+									AND VMG1.MGR_STAT_KBN =''1''
+									AND V.GROUP_ID = SC08.GROUP_ID
+									AND V.LAST_TEISEI_ID = S1.USER_ID';
+	-- 21 新規募集情報（ＣＢ）一覧
+	C_SQL21	CONSTANT varchar(2000)	:=	'SELECT B01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,B01.LAST_TEISEI_ID,B01.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM
+											MGR_KIHON_VIEW VMG1,
+											CB_MGR_KIHON   WMG1,
+											SGROUP SC08,
+											VJIKO_ITAKU VJ,
+											-- 対象は承認可データのみ
+											(
+												SELECT
+													B011.ITAKU_KAISHA_CD,
+													B011.MGR_CD,
+													B011.GROUP_ID,
+													MAX(B011.LAST_TEISEI_ID) LAST_TEISEI_ID
+												FROM
+													SHINKIBOSHU B011
+												WHERE
+													B011.SHORI_KBN      = ''0''
+												GROUP BY
+													B011.ITAKU_KAISHA_CD,
+													B011.MGR_CD,
+													B011.GROUP_ID
+											)              B01,
+										   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+											  FROM SUSER SC05,SCODE MCD1
+											 WHERE MCD1.CODE_SHUBETSU = ''902''
+											   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+										   ) S1
+										WHERE B01.ITAKU_KAISHA_CD = VMG1.ITAKU_KAISHA_CD
+										AND   B01.MGR_CD          = VMG1.MGR_CD
+										AND   B01.ITAKU_KAISHA_CD = WMG1.ITAKU_KAISHA_CD
+										AND   B01.MGR_CD          = WMG1.MGR_CD
+										AND   TRIM(VMG1.ISIN_CD)  IS NOT NULL
+										AND   (B01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										AND   B01.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										AND   B01.GROUP_ID = SC08.GROUP_ID
+										AND   B01.LAST_TEISEI_ID = S1.USER_ID';
+	-- 22 元利金請求内容個別入力（ＣＢ）一覧
+	C_SQL22	CONSTANT varchar(2000)	:=	'SELECT WK07.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,WK07.LAST_TEISEI_ID,WK07.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM CB_GANRI_SEIKYU WK07,
+											   MGR_KIHON_VIEW  VMG1,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											(
+												SELECT
+													ITAKU_KAISHA_CD,
+													MGR_CD,
+													RBR_YMD,
+													MIN(NYUKIN_STS_KBN) AS NYUKIN_STS_KBN
+												FROM
+													KIKIN_IDO K02
+												WHERE KKN_IDO_KBN IN (''11'', ''21'')
+												GROUP BY
+													ITAKU_KAISHA_CD,
+													MGR_CD,
+													RBR_YMD
+											)               K02,
+										   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+											  FROM SUSER SC05,SCODE MCD1
+											 WHERE MCD1.CODE_SHUBETSU = ''902''
+											   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+										   ) S1
+										WHERE WK07.ITAKU_KAISHA_CD  = VMG1.ITAKU_KAISHA_CD
+										  AND WK07.MGR_CD           = VMG1.MGR_CD
+										  AND WK07.ITAKU_KAISHA_CD  = K02.ITAKU_KAISHA_CD
+										  AND WK07.MGR_CD           = K02.MGR_CD
+										  AND WK07.SYS_GNRBARAI_YMD = K02.RBR_YMD
+										  AND VMG1.MGR_STAT_KBN     = ''1''
+										  AND VMG1.KK_KANYO_FLG     = ''1''
+										  AND (WK07.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										  AND WK07.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										  AND WK07.HENKO_KBN =''Y''
+										  AND WK07.SHORI_KBN =''0''
+										  AND WK07.GROUP_ID = SC08.GROUP_ID
+										  AND WK07.LAST_TEISEI_ID = S1.USER_ID';
+	-- 23 新規記録結果情報（ＣＢ）一覧
+	C_SQL23	CONSTANT varchar(1500)	:=	'SELECT WB05.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,WB05.LAST_TEISEI_ID,B01.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM SHINKIBOSHU           B01,
+										  	   CB_SHNKKIROKU_KEKKA   WB05,
+											   MGR_KIHON_VIEW        VMG1,
+											   CB_MGR_KIHON          WMG1,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+										   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+											  FROM SUSER SC05,SCODE MCD1
+											 WHERE MCD1.CODE_SHUBETSU = ''902''
+											   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+										   ) S1
+										 WHERE B01.ITAKU_KAISHA_CD     =  WB05.ITAKU_KAISHA_CD
+										   AND B01.MGR_CD              =  WB05.MGR_CD
+										   AND B01.MGR_MEISAI_NO       =  WB05.MGR_MEISAI_NO
+										   AND　B01.ITAKU_KAISHA_CD     =  VMG1.ITAKU_KAISHA_CD
+										   AND B01.MGR_CD              =  VMG1.MGR_CD
+										   AND B01.ITAKU_KAISHA_CD     =  WMG1.ITAKU_KAISHA_CD
+										   AND B01.MGR_CD              =  WMG1.MGR_CD
+										   AND (B01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND B01.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND B01.KK_PHASE =''C2''
+										   AND B01.KK_STAT = ''01''
+										   AND WB05.SHORI_KBN =''0''
+										   AND WB05.GROUP_ID = SC08.GROUP_ID
+										   AND WB05.LAST_TEISEI_ID = S1.USER_ID';
+	-- 24 発行体マスタ
+	C_SQL24	CONSTANT varchar(1500)	:=	'SELECT M01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M01.LAST_TEISEI_ID,M01.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MHAKKOTAI M01,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M01.SHORI_KBN IN (''0'',''2'')
+										   AND (M01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND M01.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND M01.GROUP_ID = SC08.GROUP_ID
+										   AND M01.LAST_TEISEI_ID = S1.USER_ID';
+	-- 25金融機関マスタ
+	C_SQL25	CONSTANT varchar(1500)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M02.LAST_TEISEI_ID,M08.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MBANK M02, MBANK_ZOKUSEI M08, SCODE SC04, VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M02.FINANCIAL_SECURITIES_KBN = SC04.CODE_VALUE
+										   AND SC04.CODE_SHUBETSU = ''507''
+										   AND M02.FINANCIAL_SECURITIES_KBN = M08.FINANCIAL_SECURITIES_KBN
+										   AND M02.BANK_CD = M08.BANK_CD
+										   AND M08.SHORI_KBN IN (''0'',''2'')
+										   AND (M08.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND M08.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND M02.LAST_TEISEI_ID = S1.USER_ID  ';
+	-- 26 金融機関支店マスタ
+	C_SQL26	CONSTANT varchar(1500)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M03.LAST_TEISEI_ID,M10.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MBANK_SHITEN M03,
+											   MBANK M02,
+											   MBANK_SHITEN_ZOKUSEI M10,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M03.FINANCIAL_SECURITIES_KBN = M02.FINANCIAL_SECURITIES_KBN AND
+											   M10.FINANCIAL_SECURITIES_KBN = M02.FINANCIAL_SECURITIES_KBN AND
+											   M03.BANK_CD = M02.BANK_CD AND
+											   M10.BANK_CD = M02.BANK_CD AND
+											   M10.SHITEN_CD = M03.SHITEN_CD
+											   AND M10.SHORI_KBN IN (''0'',''2'')
+											   AND (M10.ITAKU_KAISHA_CD =　''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+											   AND M10.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+											   AND M03.LAST_TEISEI_ID = S1.USER_ID  ';
+	-- 27 部店マスタ
+	C_SQL27	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M04.LAST_TEISEI_ID,M04.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MBUTEN M04, VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M04.SHORI_KBN IN (''0'',''2'')
+										   AND (M04.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   AND M04.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND M04.LAST_TEISEI_ID = S1.USER_ID  ';
+	-- 28 税務署マスタ
+	C_SQL28	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M41.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MZEIMUSHO M41,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M41.SHORI_KBN IN (''0'',''2'')
+										   AND VJ.JIKO_DAIKO_KBN = ''1''
+										     ';
+	-- 29 税区分マスタ
+	C_SQL29	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M42.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										   FROM
+											   MTAX M42,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										  WHERE M42.SHORI_KBN IN (''0'',''2'')
+											AND VJ.JIKO_DAIKO_KBN = ''1''
+											  ';
+	-- 30 消費税マスタ
+	C_SQL30	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M43.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MSHOHIZEI M43,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M43.SHORI_KBN IN (''0'',''2'')
+										   AND VJ.JIKO_DAIKO_KBN = ''1''
+										     ';
+	-- 31 国マスタ
+	C_SQL31	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M63.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM
+											MCOUNTRY M63,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										WHERE M63.SHORI_KBN IN (''0'',''2'')
+										  AND VJ.JIKO_DAIKO_KBN = ''1''
+										    ';
+	-- 32 通貨マスタ
+	C_SQL32	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M64.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MTSUKA M64,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M64.SHORI_KBN IN (''0'',''2'')
+										   AND VJ.JIKO_DAIKO_KBN = ''1''
+										     ';
+	-- 33 元号マスタ
+	C_SQL33	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,M65.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MGENGO M65,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE M65.SHORI_KBN IN (''0'',''2'')
+										   AND VJ.JIKO_DAIKO_KBN = ''1''
+										     ';
+	-- 34 会計区分マスタ
+	C_SQL34	CONSTANT varchar(1500)	:=	'SELECT W.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,W.LAST_TEISEI_ID,W.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM (SELECT H01.HKT_CD ,
+													   H01.GROUP_ID,
+													   MAX(LAST_TEISEI_ID) LAST_TEISEI_ID,
+													   H01.ITAKU_KAISHA_CD
+										  		  FROM  KAIKEI_KBN H01
+										 		 WHERE (H01.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+										   		   AND H01.SHORI_KBN != ''1''
+									  		  GROUP BY H01.ITAKU_KAISHA_CD,
+													   H01.GROUP_ID,
+											  		   H01.HKT_CD,
+													   H01.ITAKU_KAISHA_CD) W,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE W.GROUP_ID = SC08.GROUP_ID
+										   AND W.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND W.LAST_TEISEI_ID = S1.USER_ID  ';
+	-- 35 ロールマスタ（画面）
+	C_SQL35	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,SC09.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM SROLE SC09,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE SC09.ROLE_ID LIKE ''1%''
+										   AND SC09.SHORI_KBN IN (''0'',''2'')
+										   AND VJ.JIKO_DAIKO_KBN = ''1''
+										     ';
+	-- 36 ロールマスタ（帳票）
+	C_SQL36	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,SC09.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+											FROM SROLE SC09,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+											WHERE SC09.ROLE_ID LIKE ''2%''
+											  AND SC09.SHORI_KBN IN (''0'',''2'')
+											  AND VJ.JIKO_DAIKO_KBN = ''1''
+											    ';
+	-- 37 ロールマスタ（代行）
+	C_SQL37	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,SC09.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										   FROM SROLE SC09,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										  WHERE SC09.ROLE_ID LIKE ''3%''
+											AND SC09.SHORI_KBN IN (''0'',''2'')
+											AND VJ.JIKO_DAIKO_KBN = ''1''
+											  ';
+	-- 38 グループマスタ
+	C_SQL38	CONSTANT varchar(1000)	:=	'SELECT '' '' AS GROUP_ID,''　'' AS GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,SC08.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM SGROUP SC08,VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE SC08.SHORI_KBN IN (''0'',''2'')
+										   AND VJ.JIKO_DAIKO_KBN = ''1''
+										     ';
+	-- 39 ユーザマスタ
+	C_SQL39	CONSTANT varchar(1000)	:=	'SELECT SC05.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,SC05.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM SUSER SC05,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE SC05.SHORI_KBN IN (''0'',''2'')
+										   
+										   AND VJ.JIKO_DAIKO_KBN = ''1''
+										     ';
+	-- 40 委託会社マスタ
+	C_SQL40	CONSTANT varchar(1000)	:=	'SELECT JM01.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,JM01.LAST_TEISEI_ID,VJ.KAIIN_ID AS ITAKU_KAISHA_CD,'' '' AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' '' 
+										  FROM MITAKU_KAISHA JM01,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+									     WHERE JM01.SHORI_KBN IN (''0'',''2'')
+									       
+									       AND VJ.JIKO_DAIKO_KBN = ''1''
+									         ';
+	-- 41 銘柄情報登録テンプレートマスタ
+	C_SQL41	CONSTANT varchar(1000)	:=	'SELECT X03.GROUP_ID,SC08.GROUP_NM,S1.CODE_VALUE,S1.CODE_NM,X03.LAST_TEISEI_ID,X03.ITAKU_KAISHA_CD,CASE WHEN VJ.JIKO_DAIKO_KBN=''1'' THEN ''  '' ELSE VJ.BANK_RNM END AS BANK_RNM,VJ.JIKO_DAIKO_KBN, '' ''
+										  FROM MGR_KIHON_TEMPLATE X03,
+											   SGROUP SC08,
+											   VJIKO_ITAKU VJ,
+											   (SELECT SC05.USER_ID USER_ID,MCD1.CODE_VALUE CODE_VALUE,MCD1.CODE_NM CODE_NM
+												  FROM SUSER SC05,SCODE MCD1
+												 WHERE MCD1.CODE_SHUBETSU = ''902''
+												   AND SC05.USER_KNGN_CD = MCD1.CODE_VALUE
+											   ) S1
+										 WHERE (X03.ITAKU_KAISHA_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''')
+										   AND X03.ITAKU_KAISHA_CD = VJ.KAIIN_ID
+										   AND X03.SHORI_KBN IN (''0'')
+										   AND X03.GROUP_ID = SC08.GROUP_ID
+										   AND X03.LAST_TEISEI_ID = S1.USER_ID';
+	C_SQLSORT CONSTANT varchar(2000)	:= 'SELECT ITEM006, ITEM007, ITEM008, ITEM009, ITEM010, ITEM016, ITEM001, ITEM015, ITEM005 
+											 FROM SREPORT_WK
+											 WHERE  (KEY_CD = ''' || l_inItakuKaishaCd || ''' OR ''' || l_inItakuKaishaCd || ''' = ''' || pkconstant.DAIKO_KEY_CD() || ''') 
+        									  AND USER_ID = ''' || l_inUserId || '''
+        									  AND CHOHYO_KBN = ''' || l_inChohyoKbn || '''
+        									  AND SAKUSEI_YMD = ''' || l_inGyomuYmd || '''
+        									  AND CHOHYO_ID = ''' || WK_CHOHYO_ID || '''
+        								 ORDER BY ITEM015, ITEM016, COALESCE(ITEM006,0), ITEM008 DESC, ITEM004, ITEM010';
+	--==============================================================================
+	--                  変数定義                                                    
+	--==============================================================================
+	gSeqNo          		integer;                 -- シーケンス
+	gItakuKaishaRnm 		SOWN_INFO.BANK_RNM%TYPE; -- 委託会社略名
+	gSakuseiYmd				varchar(8);
+	gRecCnt					integer := 0;		-- カウンター
+	gresult					integer := 0;		-- 戻り値
+	gOnlyCnt				integer := 0;		-- カウンター(件数のみカウント)
+	-- カーソル
+	cur REFCURSOR;
+	--カーソルのタイプ - PostgreSQL uses array instead of INDEX BY table
+	rec spip07861_type_record[];
+--==============================================================================
+--                  メイン処理                                                  
+--==============================================================================
+BEGIN
+    IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, C_PROCEDURE_ID||' START');	END IF;
+    -- 入力パラメータチェック
+    IF coalesce(l_inItakuKaishaCd::text, '') = ''  -- 委託会社コード
+    OR coalesce(l_inUserId::text, '') = ''         -- ユーザーID
+    OR coalesce(l_inChohyoKbn::text, '') = '' THEN  -- 帳票区分
+        -- ログ書込み
+        CALL pkLog.fatal('ECM701', C_PROCEDURE_ID, 'パラメータエラー');
+        l_outSqlCode := pkconstant.FATAL();
+        l_outSqlErrM := '';
+        RETURN;
+    END IF;
+	IF DEBUG = 1 THEN
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '引数');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '委託会社コード:"' 	|| l_inItakuKaishaCd ||'"');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, 'ユーザーＩＤ:"' 	|| l_inUserId ||'"');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '帳票区分:"' 		|| l_inChohyoKbn ||'"');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '業務日付:"' 		|| l_inGyomuYmd ||'"');
+	END IF;
+    -- シーケンス初期化
+    gSeqNo := 1;
+	-- 委託会社略名取得
+	BEGIN
+		SELECT	CASE WHEN JIKO_DAIKO_KBN='1' THEN  ' '  ELSE BANK_RNM END
+		INTO STRICT	gItakuKaishaRnm
+		FROM	VJIKO_ITAKU
+		WHERE	KAIIN_ID = l_inItakuKaishaCd;
+	EXCEPTION
+		WHEN no_data_found THEN
+			gItakuKaishaRnm := ' ';
+	END;
+    -- 帳票ワークテーブル削除処理
+    DELETE FROM SREPORT_WK
+        WHERE KEY_CD = l_inItakuKaishaCd
+        AND USER_ID = l_inUserId
+        AND CHOHYO_KBN = l_inChohyoKbn
+        AND SAKUSEI_YMD = l_inGyomuYmd
+        AND CHOHYO_ID IN (C_CHOHYO_ID,WK_CHOHYO_ID);
+	IF DEBUG = 1 THEN
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '削除条件');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '識別コード:"' || l_inItakuKaishaCd ||'"');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, 'ユーザーＩＤ:"' || l_inUserId ||'"');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '帳票区分:"' || l_inChohyoKbn ||'"');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '作成日付:"' || l_inGyomuYmd ||'"');
+	    CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, '帳票ＩＤ:"' || C_CHOHYO_ID ||'"');
+	END IF;
+	-- 夜間バッチで作成する場合にはデータ基準日を出力する。
+	IF (l_inChohyoKbn = pkKakuninList.CHOHYO_KBN_BATCH()) THEN
+		gSakuseiYmd := l_inGyomuYmd;
+	ELSE
+		gSakuseiYmd := NULL;
+	END IF;
+	    -- 件数カウントのみの場合
+    IF l_inCountOnlyFlg = '1' THEN
+	    -- 1 銘柄情報一覧
+	    RAISE NOTICE 'Testing C_SQL1...';
+		gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL1);
+		RAISE NOTICE 'C_SQL1 OK, count=%', gOnlyCnt;
+		-- 2 特例社債情報一覧
+		RAISE NOTICE 'Testing C_SQL2...';
+		gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL2);
+		RAISE NOTICE 'C_SQL2 OK, count=%', gOnlyCnt;
+	    -- 3 副受託銘柄情報一覧
+	    RAISE NOTICE 'Testing C_SQL3...';
+		gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL3);
+		RAISE NOTICE 'C_SQL3 OK, count=%', gOnlyCnt;
+	    -- 4 新規募集情報一覧
+	    RAISE NOTICE 'Testing C_SQL4...';
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL4);
+	    RAISE NOTICE 'C_SQL4 OK, count=%', gOnlyCnt;
+	    -- 5 新規記録情報承認可否一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL5);
+	    -- 6 資金振替済確認
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL6);
+	    -- 7 決済指図データ一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL7);
+	    -- 8 期中銘柄情報変更一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL8);
+	    -- 9 元利金請求内容個別入力一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL9);
+	    -- 10機構非関与銘柄元利金請求データ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL10);
+	    -- 11 基金入金確認
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL11);
+	    -- 12 現登債基金請求一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL12);
+	    -- 13 差押設定／解除一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL13);
+	    -- 14 期中手数料補正一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL14);
+	    -- 15 会計区分別発行額データ一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL15);
+	    -- 16 グロスアップ銘柄税率データ一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL16);
+	    -- 17 デフォルト情報一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL17);
+	    -- 18変動利率０時の利金手数料（元金）請求一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL18);
+	    -- 19 銘柄情報（ＣＢ）一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL19);
+	    -- 20期中銘柄情報（ＣＢ）変更一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL20);
+	    -- 21 新規募集情報（ＣＢ）一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL21);
+	    -- 22 元利金請求内容個別入力（ＣＢ）一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL22);
+	    -- 23 新規記録結果情報（ＣＢ）一覧
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL23);
+	    -- 24 発行体マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL24);
+	    -- 25金融機関マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL25);
+	    -- 26 金融機関支店マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL26);
+	    -- 27 部店マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL27);
+	IF l_inItakuKaishaCd <> pkconstant.DAIKO_KEY_CD() THEN
+	    -- 28 税務署マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL28);
+	    -- 29 税区分マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL29);
+	    -- 30 消費税マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL30);
+	    -- 31 国マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL31);
+	    -- 32 通貨マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL32);
+	    -- 33 元号マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL33);
+	END IF;
+	    -- 34 会計区分マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL34);
+	    -- 35 ロールマスタ（画面）
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL35);
+	    -- 36 ロールマスタ（帳票）
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL36);
+	    -- 37 ロールマスタ（代行）
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL37);
+	    -- 38 グループマスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL38);
+	    -- 39 ユーザマスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL39);
+	    -- 40 委託会社マスタ
+	    gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL40);
+		-- 41 銘柄情報登録テンプレートマスタ
+		gOnlyCnt := gOnlyCnt + SPIP07861_countData(C_SQL41);
+		l_outAllCount := gOnlyCnt::text;
+    	RETURN;
+    END IF;
+	-- ダミーデータ作成 
+    -- 1 銘柄情報一覧
+	CALL SPIP07861_insertData(C_GAMEN_ID1, C_SQL1, WK_CHOHYO_ID, '01', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+	-- 2 特例社債情報一覧
+	CALL SPIP07861_insertData(C_GAMEN_ID2, C_SQL2, WK_CHOHYO_ID, '02', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 3 副受託銘柄情報一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID3, C_SQL3, WK_CHOHYO_ID, '03', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 4 新規募集情報一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID4, C_SQL4, WK_CHOHYO_ID, '04', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 5 新規記録情報承認可否一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID5, C_SQL5, WK_CHOHYO_ID, '05', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 6 資金振替済確認
+    CALL SPIP07861_insertData(C_GAMEN_ID6, C_SQL6, WK_CHOHYO_ID, '06', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 7 決済指図データ一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID7, C_SQL7, WK_CHOHYO_ID, '07', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 8 期中銘柄情報変更一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID8, C_SQL8, WK_CHOHYO_ID, '08', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 9 元利金請求内容個別入力一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID9, C_SQL9, WK_CHOHYO_ID, '09', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 10機構非関与銘柄元利金請求データ
+    CALL SPIP07861_insertData(C_GAMEN_ID10, C_SQL10, WK_CHOHYO_ID, '10', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 11 基金入金確認
+    CALL SPIP07861_insertData(C_GAMEN_ID11, C_SQL11, WK_CHOHYO_ID, '11', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 12 現登債基金請求一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID12, C_SQL12, WK_CHOHYO_ID, '12', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 13 差押設定／解除一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID13, C_SQL13, WK_CHOHYO_ID, '13', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 14 期中手数料補正一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID14, C_SQL14, WK_CHOHYO_ID, '14', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 15 会計区分別発行額データ一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID15, C_SQL15, WK_CHOHYO_ID, '15', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 16 グロスアップ銘柄税率データ一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID16, C_SQL16, WK_CHOHYO_ID, '16', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 17 デフォルト情報一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID17, C_SQL17, WK_CHOHYO_ID, '17', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 18変動利率０時の利金手数料（元金）請求一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID18, C_SQL18, WK_CHOHYO_ID, '18', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 19 銘柄情報（ＣＢ）一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID19, C_SQL19, WK_CHOHYO_ID, '19', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 20期中銘柄情報（ＣＢ）変更一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID20, C_SQL20, WK_CHOHYO_ID, '20', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 21 新規募集情報（ＣＢ）一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID21, C_SQL21, WK_CHOHYO_ID, '21', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 22 元利金請求内容個別入力（ＣＢ）一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID22, C_SQL22, WK_CHOHYO_ID, '22', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 23 新規記録結果情報（ＣＢ）一覧
+    CALL SPIP07861_insertData(C_GAMEN_ID23, C_SQL23, WK_CHOHYO_ID, '23', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 24 発行体マスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID24, C_SQL24, WK_CHOHYO_ID, '24', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 25金融機関マスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID25, C_SQL25, WK_CHOHYO_ID, '25', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 26 金融機関支店マスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID26, C_SQL26, WK_CHOHYO_ID, '26', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 27 部店マスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID27, C_SQL27, WK_CHOHYO_ID, '27', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    IF l_inItakuKaishaCd <> pkconstant.DAIKO_KEY_CD() THEN
+	    -- 28 税務署マスタ
+	    CALL SPIP07861_insertData(C_GAMEN_ID28, C_SQL28, WK_CHOHYO_ID, '28', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+	    -- 29 税区分マスタ
+	    CALL SPIP07861_insertData(C_GAMEN_ID29, C_SQL29, WK_CHOHYO_ID, '29', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+	    -- 30 消費税マスタ
+	    CALL SPIP07861_insertData(C_GAMEN_ID30, C_SQL30, WK_CHOHYO_ID, '30', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+	    -- 31 国マスタ
+	    CALL SPIP07861_insertData(C_GAMEN_ID31, C_SQL31, WK_CHOHYO_ID, '31', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+	    -- 32 通貨マスタ
+	    CALL SPIP07861_insertData(C_GAMEN_ID32, C_SQL32, WK_CHOHYO_ID, '32', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+	    -- 33 元号マスタ
+	    CALL SPIP07861_insertData(C_GAMEN_ID33, C_SQL33, WK_CHOHYO_ID, '33', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    END IF;
+    -- 34 会計区分マスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID34, C_SQL34, WK_CHOHYO_ID, '34', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 35 ロールマスタ（画面）
+    CALL SPIP07861_insertData(C_GAMEN_ID35, C_SQL35, WK_CHOHYO_ID, '35', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 36 ロールマスタ（帳票）
+    CALL SPIP07861_insertData(C_GAMEN_ID35, C_SQL36, WK_CHOHYO_ID, '36', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 37 ロールマスタ（代行）
+    CALL SPIP07861_insertData(C_GAMEN_ID35, C_SQL37, WK_CHOHYO_ID, '37', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 38 グループマスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID38, C_SQL38, WK_CHOHYO_ID, '38', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 39 ユーザマスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID39, C_SQL39, WK_CHOHYO_ID, '39', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 40 委託会社マスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID40, C_SQL40, WK_CHOHYO_ID, '40', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- 41 銘柄情報登録テンプレートマスタ
+    CALL SPIP07861_insertData(C_GAMEN_ID41, C_SQL41, WK_CHOHYO_ID, '41', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+    -- シーケンス初期化
+    gSeqNo := 1;
+    -- ソート済みデータ登録 
+    CALL SPIP07861_insertData(C_GAMEN_IDDUMMY, C_SQLSORT, C_CHOHYO_ID, '1', l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, gRecCnt, gSeqNo, rec, gSakuseiYmd);
+     -- ダミーデータ削除処理
+     gresult := SPIP07861_deleteDummy();
+    IF gSeqNo = 1 THEN
+        -- ヘッダレコードを追加
+        CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, C_CHOHYO_ID);
+        -- 対象データなし
+        CALL pkPrint.SPIP07861_insertData(
+            l_inKeyCd      => l_inItakuKaishaCd,        -- 識別コード
+            l_inUserId     => l_inUserId,               -- ユーザＩＤ
+            l_inChohyoKbn  => l_inChohyoKbn,            -- 帳票区分
+            l_inSakuseiYmd => l_inGyomuYmd,             -- 業務日付
+            l_inChohyoId   => C_CHOHYO_ID,              -- 帳票ＩＤ
+            l_inSeqNo      => gSeqNo,                   -- 連番
+            l_inHeaderFlg  => '1',                      -- ヘッダフラグ
+			l_inItem001    => gItakuKaishaRnm,          -- 委託会社略名
+			l_inItem011    => l_inUserId,               -- ユーザＩＤ
+			l_inItem012    => C_CHOHYO_ID,              -- 帳票ＩＤ
+			l_inItem013    => '対象データなし',         -- 対象データなし
+            l_inKousinId   => l_inUserId,               -- 更新者
+            l_inSakuseiId  => l_inUserId                 -- 作成者
+        );
+        l_outSqlCode := C_NO_DATA;
+        l_outSqlErrM := '';
+    ELSE
+        -- ヘッダレコードを追加
+        CALL pkPrint.insertHeader(l_inItakuKaishaCd, l_inUserId, l_inChohyoKbn, l_inGyomuYmd, C_CHOHYO_ID);
+        -- 正常終了
+        l_outSqlCode := pkconstant.success();
+        l_outSqlErrM := '';
+    END IF;
+    IF DEBUG = 1 THEN	CALL pkLog.debug(l_inUserId, C_PROCEDURE_ID, C_PROCEDURE_ID ||' END');	END IF;
+-- エラー処理
+EXCEPTION
+    WHEN OTHERS THEN
+        CALL pkLog.fatal('ECM701', C_PROCEDURE_ID, 'SQLCODE:' || SQLSTATE);
+        CALL pkLog.fatal('ECM701', C_PROCEDURE_ID, 'SQLERRM:' || SQLERRM);
+        l_outSqlCode := pkconstant.FATAL();
+        l_outSqlErrM := SQLSTATE || SQLERRM;
+END;
+$body$
+LANGUAGE PLPGSQL
+;
+-- REVOKE ALL ON PROCEDURE spip07861 ( l_inItakuKaishaCd SREPORT_WK.KEY_CD%TYPE, l_inUserId SREPORT_WK.USER_ID%TYPE, l_inChohyoKbn SREPORT_WK.CHOHYO_KBN%TYPE, l_inGyomuYmd SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE, l_inCountOnlyFlg text DEFAULT '0', l_outAllCount OUT text, l_outSqlCode OUT numeric, l_outSqlErrM OUT text ) FROM PUBLIC;
+
+
+
+
+
+CREATE OR REPLACE FUNCTION spip07861_countdata ( l_ingSQL text ) RETURNS integer AS $body$
+DECLARE
+
+	sql1    varchar(4500);
+	result  integer;
+
+BEGIN
+	sql1 := 'SELECT COUNT(*) FROM ( ' || l_ingSQL || ')';
+	EXECUTE sql1
+		INTO STRICT result;
+	RETURN result;  -- Return the count, let caller accumulate into gOnlyCnt
+END;
+$body$
+LANGUAGE PLPGSQL
+;
+-- REVOKE ALL ON FUNCTION spip07861_countdata ( l_ingSQL text ) FROM PUBLIC;
+
+
+
+
+
+CREATE OR REPLACE FUNCTION spip07861_deletedummy () RETURNS integer AS $body$
+BEGIN
+    -- ダミーデータ削除処理
+    DELETE FROM SREPORT_WK
+        WHERE KEY_CD = l_inItakuKaishaCd
+        AND USER_ID = l_inUserId
+        AND CHOHYO_KBN = l_inChohyoKbn
+        AND SAKUSEI_YMD = l_inGyomuYmd
+        AND CHOHYO_ID = WK_CHOHYO_ID;
+	RETURN pkconstant.success();
+END;
+$body$
+LANGUAGE PLPGSQL
+;
+-- REVOKE ALL ON FUNCTION spip07861_deletedummy () FROM PUBLIC;
+
+
+
+
+
+CREATE OR REPLACE FUNCTION spip07861_getgamennm ( in_gamenId TEXT ) RETURNS varchar AS $body$
+DECLARE
+
+	gamenNm				varchar(100);
+
+BEGIN
+	SELECT GAMEN_NM
+	  INTO STRICT gamenNm
+	  FROM SSCREEN
+	 WHERE GAMEN_ID = in_gamenId;
+	RETURN gamenNm;
+EXCEPTION
+	WHEN no_data_found THEN
+		gamenNm := ' ';
+		RETURN gamenNm;
+END;
+$body$
+LANGUAGE PLPGSQL
+;
+-- REVOKE ALL ON FUNCTION spip07861_getgamennm ( in_gamenId TEXT ) FROM PUBLIC;
+
+
+
+
+
+CREATE OR REPLACE PROCEDURE spip07861_insertdata ( 
+	l_inGamenId text, 
+	l_ingSQL text, 
+	l_inCHOHYOId TEXT, 
+	l_inGamenSort TEXT,
+	l_inItakuKaishaCd text,
+	l_inUserId text,
+	l_inChohyoKbn text,
+	l_inGyomuYmd text,
+	INOUT gRecCnt integer,
+	INOUT gSeqNo integer,
+	INOUT rec spip07861_type_record[],
+	gSakuseiYmd varchar
+) AS $body$
+DECLARE
+
+	cur REFCURSOR;  -- Cursor for dynamic SQL
+	gamenNm				varchar(100);
+	temp_rec			spip07861_type_record;  -- Temporary record for FETCH
+
+BEGIN
+	-- 初期化
+	gamenNm := '0';
+	OPEN cur FOR EXECUTE l_ingSQL;
+	-- カウンターの初期化
+	gRecCnt := 0;
+	LOOP
+		FETCH cur INTO
+			temp_rec.gGroupID,
+			temp_rec.gGroupNm,
+			temp_rec.gUserKngn,
+			temp_rec.gUserKngnNm,
+			temp_rec.gLastUserId,
+			temp_rec.gItakuKaishaCd,
+			temp_rec.gItakuKaishaRnm,
+			temp_rec.gJikoDaikoKbn,
+			temp_rec.gGamenNm;
+		EXIT WHEN NOT FOUND;/* apply on cur */
+		
+		-- Store into array (PostgreSQL arrays are 1-based, but we use gRecCnt+1)
+		gRecCnt := gRecCnt + 1;
+		rec[gRecCnt] := temp_rec;
+		
+		-- 画面名称取得
+		IF l_inGamenId = '999999999999' OR gamenNm = '0' THEN
+			IF rec[gRecCnt].gGamenNm = ' ' THEN
+				gamenNm := SPIP07861_getGamenNm(l_inGamenId);
+			ELSE
+				gamenNm := rec[gRecCnt].gGamenNm;
+			END IF;
+		END IF;
+        -- 明細レコード追加
+        CALL pkPrint.SPIP07861_insertData(
+            l_inKeyCd      => l_inItakuKaishaCd,        -- 識別コード
+            l_inUserId     => l_inUserId,               -- ユーザＩＤ
+            l_inChohyoKbn  => l_inChohyoKbn,            -- 帳票区分
+            l_inSakuseiYmd => l_inGyomuYmd,             -- 業務日付
+            l_inChohyoId   => l_inCHOHYOId,              -- 帳票ＩＤ
+            l_inSeqNo      => gSeqNo,                   -- 連番
+            l_inHeaderFlg  => '1',                      -- ヘッダフラグ
+            l_inItem001    => rec[gRecCnt].gItakuKaishaRnm,          -- 委託会社略名
+            l_inItem002    => l_inGyomuYmd,             -- 業務日付
+            l_inItem003    => LPAD(pkcharacter.numeric_to_char(gSeqNo), 3, '0'), -- №
+            l_inItem004    => l_inGamenSort,       		-- 画面ソート順
+            l_inItem005    => gamenNm,        			-- 画面名称
+            l_inItem006    => rec[gRecCnt].gGroupID,    -- グループID
+            l_inItem007    => rec[gRecCnt].gGroupNm,    -- グループ名称
+            l_inItem008    => rec[gRecCnt].gUserKngn,   -- ユーザー権限
+			l_inItem009    => rec[gRecCnt].gUserKngnNm, -- ユーザー権限名称
+			l_inItem010    => rec[gRecCnt].gLastUserId, -- 最終訂正者ID
+			l_inItem011    => l_inUserId,              	-- ユーザーID
+			l_inItem012    => l_inCHOHYOId,             -- 帳票ＩＤ
+	    		l_inItem014    => gSakuseiYmd,              -- 作成日
+	    l_inItem015    => rec[gRecCnt].gJikoDaikoKbn,           -- 自行代行区分
+	    l_inItem016    => rec[gRecCnt].gItakuKaishaCd,        -- 委託会社コード
+            l_inKousinId   => l_inUserId,               -- 更新者
+            l_inSakuseiId  => l_inUserId                 -- 作成者
+        );
+        gSeqNo := gSeqNo + 1;
+        -- gRecCnt already incremented after FETCH
+        END LOOP;
+	CLOSE cur;
+	-- Success - INOUT parameters automatically updated
+EXCEPTION
+    WHEN OTHERS THEN
+    	-- Error - but INOUT parameters still retain their values
+    	NULL;
+END;
+$body$
+LANGUAGE PLPGSQL
+;
+-- REVOKE ALL ON FUNCTION spip07861_insertdata ( l_inGamenId text, l_ingSQL text, l_inCHOHYOId TEXT, l_inGamenSort TEXT ) FROM PUBLIC;

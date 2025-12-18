@@ -65,7 +65,7 @@ DECLARE
 	gKjtFrom	MGR_TESKIJ.CHOKYU_KJT%TYPE;		 	 -- 基準日Ｆｒｏｍ
 	gKjtTo		MGR_TESKIJ.CHOKYU_KJT%TYPE;		 	 -- 基準日Ｔｏ
 	gOptionFlg	MOPTION_KANRI.OPTION_FLG%TYPE;			 -- オプションフラグ
-	gREPORT_ID	CONSTANT char(11) := 'IP931504661';		 -- レポートＩＤ
+	gREPORT_ID	CONSTANT text := 'IP931504661';		 -- レポートＩＤ
 	gCur refcursor;			 -- カーソル
 	-- レコード
 	rec spipx046k15r03_type_record[];

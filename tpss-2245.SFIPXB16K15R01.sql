@@ -60,7 +60,7 @@ DECLARE
 	--					定数定義													
 	--==============================================================================
 	-- ファンクションＩＤ
-	C_FUNCTION_ID			CONSTANT	varchar(50)	:= 'SFIPXB16K15R01';
+	C_FUNCTION_ID			CONSTANT text	:= 'SFIPXB16K15R01';
 	--==============================================================================
 	--					変数定義													
 	--==============================================================================
@@ -130,7 +130,7 @@ BEGIN
 	-- 業務日付の取得
 	gGyomuYmd := pkDate.getGyomuYmd();
 	-- 外部ＩＦ送受信管理登録
-	gResult := pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd, gMakeCnt);
+	SELECT l_outcnt, extra_param INTO gMakeCnt, gResult FROM pkIpIF.insGaibuIFKanri(l_inIfId, gGyomuYmd);
 	IF gResult <> pkconstant.success() THEN
 		RETURN gResult;
 	END IF;
@@ -158,17 +158,17 @@ BEGIN
 		gGyomuDataDat.daikoKbn := '1';
 		gGyomuDataDat.blank3 := REPEAT(' ', 45);
 		-- 電文通番の取得
-		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_DENBUN_NO_RTGS_XG(), gDenbunNo);
+		SELECT l_outno, extra_param INTO gDenbunNo, gResult FROM pkIpIF.getIFNum(pkIpIF.C_NUMBERING_DENBUN_NO_RTGS_XG());
 		IF gResult <> pkconstant.success() THEN
 			RETURN gResult;
 		END IF;
 		-- 業務通番の取得
-		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_GYOMU_NO(), gGyomuNo);
+		SELECT l_outno, extra_param INTO gGyomuNo, gResult FROM pkIpIF.getIFNum(pkIpIF.C_NUMBERING_GYOMU_NO());
 		IF gResult <> pkconstant.success() THEN
 			RETURN gResult;
 		END IF;
 		-- 業務通番（新規記録）の取得
-		gResult := pkIpIF.getIFNum(pkIpIF.C_NUMBERING_GYOMU_NO_SHINKI(), gGyomuNoShinkikiroku);
+		SELECT l_outno, extra_param INTO gGyomuNoShinkikiroku, gResult FROM pkIpIF.getIFNum(pkIpIF.C_NUMBERING_GYOMU_NO_SHINKI());
 		IF gResult <> pkconstant.success() THEN
 			RETURN gResult;
 		END IF;

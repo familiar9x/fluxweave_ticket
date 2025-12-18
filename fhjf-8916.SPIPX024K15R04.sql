@@ -8,7 +8,7 @@ CREATE OR REPLACE PROCEDURE spipx024k15r04 ( l_inUserId SUSER.USER_ID%TYPE,     
  l_inKijunYmdFrom KIKIN_SEIKYU.SHR_YMD%TYPE,          -- 基準日
  l_inChohyoKbn text,                            -- 帳票区分
  l_inGyomuYmd TEXT,                               -- 業務日付
- l_outSqlCode OUT numeric,                            -- リターン値
+ l_outSqlCode OUT integer,                            -- リターン値
  l_outSqlErrM OUT text                           -- エラーコメント
  ) AS $body$
 DECLARE
@@ -35,15 +35,15 @@ DECLARE
 --==============================================================================
 --                定数定義                                                      
 --==============================================================================
-	C_PROCEDURE_ID  CONSTANT varchar(50) := 'SPIPX024K15R04';	-- プロシージャＩＤ
-	C_REPORT_ID     CONSTANT varchar(50) := 'IP931502931';		-- 勘定起票明細表
+	C_PROCEDURE_ID  CONSTANT text := 'SPIPX024K15R04';	-- プロシージャＩＤ
+	C_REPORT_ID     CONSTANT text := 'IP931502931';		-- 勘定起票明細表
 	-- 勘定区分
-	C_KNJKBN_DAIKO				CONSTANT char(2) := '02';	-- 決済代行
-	C_KNJKBN_CUSTODY			CONSTANT char(2) := '03';	-- カストディ
-	C_KNJKBN_KABU				CONSTANT char(2) := '04';	-- 株式クリアリング
-	C_KNJKBN_HOYU				CONSTANT char(2) := '05';	-- 自行 保有分
-	C_KNJKBN_MADOHAN			CONSTANT char(2) := '06';	-- 自行 窓販分
-	C_KNJKBN_SHINTAKU			CONSTANT char(2) := '07';	-- 自行 信託口
+	C_KNJKBN_DAIKO				CONSTANT text := '02';	-- 決済代行
+	C_KNJKBN_CUSTODY			CONSTANT text := '03';	-- カストディ
+	C_KNJKBN_KABU				CONSTANT text := '04';	-- 株式クリアリング
+	C_KNJKBN_HOYU				CONSTANT text := '05';	-- 自行 保有分
+	C_KNJKBN_MADOHAN			CONSTANT text := '06';	-- 自行 窓販分
+	C_KNJKBN_SHINTAKU			CONSTANT text := '07';	-- 自行 信託口
 --==============================================================================
 --                変数定義                                                      
 --==============================================================================
@@ -948,7 +948,7 @@ BEGIN
 		AND VMG1.MGR_STAT_KBN = '0';
 	IF gERRCOUNT_MGR > 0 THEN
 		-- エラー
-		l_outSqlCode := '4';
+		l_outSqlCode := 4;
 		l_outSqlErrM := '';
 		RETURN;
 	END IF;
@@ -966,7 +966,7 @@ BEGIN
 			AND K01.SHORI_KBN ='0');
 	IF gERRCOUNT_KIKIN > 0 THEN
 		-- エラー
-		l_outSqlCode := '3';
+		l_outSqlCode := 3;
 		l_outSqlErrM := '';
 		RETURN;
 	END IF;

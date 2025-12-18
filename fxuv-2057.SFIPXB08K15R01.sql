@@ -41,8 +41,8 @@ DECLARE
 	/*==============================================================================*/
 
 	-- ファンクションＩＤ
-	C_FUNCTION_ID			CONSTANT	varchar(50)	:= 'SFIPXB08K15R01';
-	tSPACE					CONSTANT	char(1)			:= ' ';
+	C_FUNCTION_ID			CONSTANT text	:= 'SFIPXB08K15R01';
+	tSPACE					CONSTANT text			:= ' ';
 	/*==============================================================================*/
 
 	/*					変数定義													*/

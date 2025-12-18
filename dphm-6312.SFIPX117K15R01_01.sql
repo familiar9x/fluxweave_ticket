@@ -35,7 +35,7 @@ DECLARE
 
 /*==============================================================================*/
 
-	C_PROGRAM_ID         CONSTANT varchar(50) := 'SPIPX055K15R03';    --プログラムID
+	C_PROGRAM_ID         CONSTANT text := 'SPIPX055K15R03';    --プログラムID
 /*==============================================================================*/
 
 /*                変数定義                                                      */
@@ -62,7 +62,7 @@ DECLARE
 	gDenbunGensaiKngk    numeric(16);                         -- 保振の減債金額
 	C_REPORT_ID          varchar(50) := NULL;          --帳票ID
 	gRtnCd               integer := pkconstant.success();
-	gSqlErrM             varchar(200) := NULL;
+	gSqlErrM             text := NULL;
 	gOpFlg               varchar(20);
 	gYokuEigyoYmd        SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE;  -- 翌営業日
 	gIPW006ItakuKaishaCd MITAKU_KAISHA.ITAKU_KAISHA_CD%TYPE;
@@ -1563,7 +1563,7 @@ UNION
 			AND MG2.KAIJI <> 1
 			AND MG2.KAIJI <> 0
 			AND (trim(both VMG2.KIJUN_KINRI_CD1) IS NOT NULL AND (trim(both VMG2.KIJUN_KINRI_CD1))::text <> '')
-			AND trim(both VMG2.KIJUN_KINRI_CD1) <> 700
+			AND trim(both VMG2.KIJUN_KINRI_CD1) <> '700'
 			AND MG2.RIRITSU_KETTEI_YMD <= gGyomuYmd1After
 			AND MG2.RBR_YMD >= gGyomuYmd1After
 			AND NOT EXISTS ( SELECT * FROM UPD_MGR_RBR MG22 where MG22.ITAKU_KAISHA_CD = MG2.ITAKU_KAISHA_CD
@@ -1997,10 +1997,8 @@ UNION
 /*==============================================================================*/
 
 BEGIN
-	RAISE NOTICE '[START] Function starting with: %, %, %', l_inItakuKaishaCd, l_inItakuKaishaRnm, l_inJikodaikoKbn;
 	-- 業務日付取得
 	gGyomuYmd := pkDate.getGyomuYmd();
-	RAISE NOTICE '[GYOMU_YMD] Retrieved: %', gGyomuYmd;
 
 	-- 月末営業日取得
 	gGetsumatuYmd := pkDate.getGetsumatsuBusinessYmd(gGyomuYmd,0);
@@ -2033,11 +2031,9 @@ BEGIN
 /* IPI102連絡データ作成(createIPI102)                                           */
 
 /*==============================================================================*/
-	RAISE NOTICE '[IPI102] Starting createIPI102 processing...';
 	IF l_inJikodaikoKbn = '1' THEN
 		BEGIN
 			FOR recIPI102SELECT IN curIPI102SELECT LOOP
-			RAISE NOTICE '[IPI102] Calling SFIPKEIKOKUINSERT for ISIN: %', recIPI102SELECT.ISIN_CD;
 			gFncResult := SFIPKEIKOKUINSERT(l_inItakuKaishaCd,
 					  		'2',
 					  		'IPI102',
@@ -2048,22 +2044,18 @@ BEGIN
 					  		recIPI102SELECT.MGR_RNM,
 					  		'発行日',
 							recIPI102SELECT.HAKKO_YMD,
-					  		recIPI102SELECT.kensu,
+					  		pkcharacter.numeric_to_char(recIPI102SELECT.kensu),
 					  		recIPI102SELECT.SHASAI_TOTAL,
 							recIPI102SELECT.kofubi,
 					  		' ',
 					  		l_inJikodaikoKbn);
 			-- エラー判定
-			RAISE NOTICE '[IPI102] SFIPKEIKOKUINSERT returned: %', gFncResult;
 			IF gFncResult != pkconstant.success() THEN
-				RAISE NOTICE '[IPI102] ERROR: gFncResult != success, returning FATAL';
 				RETURN pkconstant.FATAL();
 			END IF;
 			END LOOP;
-			RAISE NOTICE '[IPI102] Finished processing all records';
 		EXCEPTION
 			WHEN OTHERS THEN
-				RAISE NOTICE '[IPI102] EXCEPTION: % - %', SQLSTATE, SQLERRM;
 				RETURN pkconstant.FATAL();
 		END;
 	END IF;
@@ -2277,7 +2269,7 @@ BEGIN
 						  	' ',
 						  	' ',
 						  	gGyomuYmd,
-						  	recIPI103SELECT.kensu,
+						  	pkcharacter.numeric_to_char(recIPI103SELECT.kensu),
 						  	' ',
 						  	' ',
 						  	l_inJikodaikoKbn);
@@ -3093,7 +3085,7 @@ BEGIN
 							recIPI104SELECT.MGR_RNM,
 							'利率決定日',
 							recIPI104SELECT.RIRITSU_KETTEI_YMD,
-							recIPI104SELECT.kensu,
+							pkcharacter.numeric_to_char(recIPI104SELECT.kensu),
 							gIPI104SELECTBIKO1,
 							gIPI104SELECTBIKO2,
 							gIPI104SELECTBIKO3,
@@ -3482,7 +3474,7 @@ BEGIN
 			gGyomuYmd,
 			gRtnCd,
 			gSqlErrM);
-	IF gRtnCd = pkconstant.success() OR gRtnCd = '2'  THEN
+	IF gRtnCd = pkconstant.success() OR gRtnCd = 2  THEN
 		       CALL pkPrtOk.insertPrtOk('BATCH',
 					   l_inItakuKaishaCd,
 					   gGyomuYmd,
@@ -3497,7 +3489,6 @@ BEGIN
 -- エラー処理
 EXCEPTION
 	WHEN OTHERS THEN
-		RAISE NOTICE '[ERROR] Exception caught: % - %', SQLSTATE, SQLERRM;
 		CALL pkLog.fatal('ECM701', C_PROGRAM_ID, 'SQLCODE:' || SQLSTATE);
 		CALL pkLog.fatal('ECM701', C_PROGRAM_ID, 'SQLERRM:' || SQLERRM);
 		RETURN pkconstant.FATAL();

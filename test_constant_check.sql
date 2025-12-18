@@ -28,18 +28,18 @@ DECLARE
 -- *        期中信託報酬
 -- *        期中管理手数料
 -- *
--- * 引数　:l_inItakuKaishaCd IN VARCHAR2,     委託会社コード
--- *       l_inUserId           IN VARCHAR2,     ユーザーID
--- *       l_inChohyoKbn        IN VARCHAR2,   帳票区分
--- *       l_inGyomuYmd         IN VARCHAR2,     業務日付
--- *       l_inBaYmd         IN VARCHAR2,    基準年度
--- *       l_inPaCls         IN VARCHAR2,    期別区分
--- *       l_inMiShuFlg      IN VARCHAR2,      未収手数料・無担保
--- *       l_inMiShuFlg1     IN VARCHAR2,      未収手数料・担保附
--- *       l_inMiKeikaFlg    IN VARCHAR2,      未経過手数料・無担保
--- *       l_inMiKeikaFlg1   IN VARCHAR2,      未経過手数料・担保附
--- *       l_outSqlCode         OUT NUMBER,          リターン値
--- *       l_outSqlErrM         OUT VARCHAR2     エラーコメント
+-- * 引数　:l_inItakuKaishaCd IN VARCHAR,     委託会社コード
+-- *       l_inUserId           IN VARCHAR,     ユーザーID
+-- *       l_inChohyoKbn        IN VARCHAR,   帳票区分
+-- *       l_inGyomuYmd         IN VARCHAR,     業務日付
+-- *       l_inBaYmd         IN VARCHAR,    基準年度
+-- *       l_inPaCls         IN VARCHAR,    期別区分
+-- *       l_inMiShuFlg      IN VARCHAR,      未収手数料・無担保
+-- *       l_inMiShuFlg1     IN VARCHAR,      未収手数料・担保附
+-- *       l_inMiKeikaFlg    IN VARCHAR,      未経過手数料・無担保
+-- *       l_inMiKeikaFlg1   IN VARCHAR,      未経過手数料・担保附
+-- *       l_outSqlCode         OUT NUMERIC,          リターン値
+-- *       l_outSqlErrM         OUT VARCHAR     エラーコメント
 -- *
 -- * 返り値: なし
 -- *
@@ -50,9 +50,9 @@ DECLARE
     --==============================================================================
     --          定数定義                                                            
     --==============================================================================
-  C_PROCEDURE_ID      CONSTANT text := 'SPIPI003K14R01';         -- プロシージャＩＤ
-  C_PRGRAM_NAME       CONSTANT text := '受入手数料期間対応収益一覧'; -- プロシージャ名
-  CHOHYOID            CONSTANT text := 'IPQ30000311';            --固定値．帳票ID
+  C_PROCEDURE_ID      CONSTANT varchar(20) := 'SPIPI003K14R01';         -- プロシージャＩＤ
+  C_PRGRAM_NAME       CONSTANT varchar(30) := '受入手数料期間対応収益一覧'; -- プロシージャ名
+  CHOHYOID            CONSTANT char(20) := 'IPQ30000311';            --固定値．帳票ID
   
   --==============================================================================
     --      変数定義                               

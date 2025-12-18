@@ -1,3 +1,5 @@
+drop function if exists pkIpIF.gKanriRec;
+drop function if exists pkIpIF.gCommonBodyRec;
 drop type if exists pkIpIF.tKanriRec CASCADE;
 drop type if exists pkIpIF.tCommonBodyRec CASCADE;
 
@@ -32,7 +34,7 @@ DECLARE
 	--					定数定義													
 	--==============================================================================
 		-- プログラムID
-		PGM_ID			CONSTANT varchar(30)			:= 'pkIpIF.insGaibuIFKanri()';
+		PGM_ID			CONSTANT text			:= 'pkIpIF.insGaibuIFKanri()';
 		-- タイムアウト
 		C_RET_TIMEOUT	CONSTANT integer				:= 2;
 
@@ -86,8 +88,9 @@ BEGIN
 			FOR UPDATE;					-- Row lock
 		END IF;
 
-		-- 最大作成回数取得SELECT --
-		SELECT * FROM pkIpIF.getRenkeiFlg(l_inIfId, l_inGyomuDate) INTO STRICT pMakeCnt, pRenkeiFlg;
+	-- 最大作成回数取得SELECT --
+	SELECT r.l_outcnt, r.l_outrenkeiflg, r.extra_param INTO pMakeCnt, pRenkeiFlg, pResult 
+	FROM pkIpIF.getRenkeiFlg(l_inIfId, l_inGyomuDate) r;
 		IF pResult <> pkconstant.success() THEN
 			extra_param := pResult;
 			RETURN;
@@ -114,24 +117,24 @@ BEGIN
 
 		l_outCnt := pMakeCnt;
 
-		CALL pkLog.debug('BATCH', PGM_ID, '***** END *****');
-		extra_param := pkconstant.success();
+	CALL pkLog.debug('BATCH', PGM_ID, '***** END *****');
+	extra_param := pkconstant.success();
+	RETURN;
+
+-- エラー処理
+EXCEPTION
+	WHEN lock_not_available THEN
+		CALL pkLog.error('EIP555', PGM_ID, pParam);
+		extra_param := C_RET_TIMEOUT;
 		RETURN;
 
-	-- エラー処理
-	EXCEPTION
-		WHEN lock_not_available THEN
-			CALL pkLog.error('EIP555', PGM_ID, pParam);
-			extra_param := C_RET_TIMEOUT;
-			RETURN;
-
-		WHEN OTHERS THEN
-			CALL pkLog.fatal('ECM701', PGM_ID, pParam);
-			CALL pkLog.fatal('ECM701', PGM_ID, 'SQLCODE:' || SQLSTATE);
-			CALL pkLog.fatal('ECM701', PGM_ID, 'SQLERRM:' || SQLERRM);
-			extra_param := pkconstant.FATAL();
-			RETURN;
-	END;
+	WHEN OTHERS THEN
+		CALL pkLog.fatal('ECM701', PGM_ID, pParam);
+		CALL pkLog.fatal('ECM701', PGM_ID, 'SQLCODE:' || SQLSTATE);
+		CALL pkLog.fatal('ECM701', PGM_ID, 'SQLERRM:' || SQLERRM);
+		extra_param := pkconstant.FATAL();
+		RETURN;
+END;
 $body$
 LANGUAGE PLPGSQL
 ;
@@ -153,7 +156,7 @@ DECLARE
 	--					定数定義													
 	--==============================================================================
 		-- プログラムID
-		PGM_ID			CONSTANT varchar(30)		:= 'pkIpIF.updRenkeiFlg()';
+		PGM_ID			CONSTANT text		:= 'pkIpIF.updRenkeiFlg()';
 
 	--==============================================================================
 	--					変数定義													
@@ -268,7 +271,7 @@ DECLARE
 	--					定数定義													
 	--==============================================================================
 		-- プログラムID
-		PGM_ID			CONSTANT varchar(30)				:= 'pkIpIF.getRenkeiFlg()';
+		PGM_ID			CONSTANT text				:= 'pkIpIF.getRenkeiFlg()';
 
 	--==============================================================================
 	--					変数定義													
@@ -366,7 +369,7 @@ DECLARE
 	--					定数定義													
 	--==============================================================================
 		-- プログラムID
-		PGM_ID		CONSTANT varchar(30)		:= 'pkIpIF.getIFNum()';
+		PGM_ID		CONSTANT text		:= 'pkIpIF.getIFNum()';
 		-- タイムアウト
 		C_RET_TIMEOUT	CONSTANT integer				:= 2;
 
@@ -468,10 +471,16 @@ BEGIN
 			l_inIfId,
 			IF_MAKE_DT,
 			IF_MAKE_CNT,
-			ROW_NUMBER() OVER (ORDER BY
-					substr(IF_DATA, INSTRB(IF_DATA, pkIpIF.C_DELIMITER(), 1, 10) + 1,
-					INSTRB(IF_DATA, pkIpIF.C_DELIMITER(), 1, 11) - INSTRB(IF_DATA, pkIpIF.C_DELIMITER(), 1, 10) -1),	-- 業務任意キー
-					IF_DATA_NO) + l_inDataNo,																		-- 外部IFデータ番号
+			ROW_NUMBER() OVER (
+				ORDER BY
+					CASE WHEN (regexp_instr(IF_DATA, pkIpIF.C_DELIMITER(), 1, 11) - regexp_instr(IF_DATA, pkIpIF.C_DELIMITER(), 1, 10)) > 0
+						THEN substr(
+							IF_DATA,
+							regexp_instr(IF_DATA, pkIpIF.C_DELIMITER(), 1, 10) + 1,
+							regexp_instr(IF_DATA, pkIpIF.C_DELIMITER(), 1, 11) - regexp_instr(IF_DATA, pkIpIF.C_DELIMITER(), 1, 10) -1)
+						END,	-- 業務任意キー
+					IF_DATA_NO
+				) + 0 AS row_no,																	-- 外部IFデータ番号
 			IF_DATA,
 			KOUSIN_ID,
 			SAKUSEI_ID
@@ -534,6 +543,25 @@ CREATE TYPE pkIpIF.tKanriRec AS (
 	programId		varchar(8) 
 );
 
+CREATE OR REPLACE FUNCTION pkIpIF.gKanriRec()
+RETURNS pkIpIF.tKanriRec
+AS $body$
+DECLARE
+	gKanriRec pkIpIF.tKanriRec;
+BEGIN
+	gKanriRec.recKbn := '2';
+	gKanriRec.sakuseiYmd := '';
+	gKanriRec.systemId := '10';
+	gKanriRec.recDistinction := '0';
+	gKanriRec.chohyoNo := '';
+	gKanriRec.programId := '';
+
+	RETURN gKanriRec;
+END;
+$body$
+LANGUAGE PLPGSQL
+;
+
 CREATE TYPE pkIpIF.tCommonBodyRec AS (
 	kangenKozatenCd		varchar(4), 
 	tantoCd		varchar(1), 
@@ -555,5 +583,37 @@ CREATE TYPE pkIpIF.tCommonBodyRec AS (
 	kozatenCd		varchar(4), 
 	maruSign		varchar(1) 
 );
+
+CREATE OR REPLACE FUNCTION pkIpIF.gCommonBodyRec()
+RETURNS pkIpIF.tCommonBodyRec
+AS $body$
+DECLARE
+	gCommonBodyRec pkIpIF.tCommonBodyRec;
+BEGIN
+	gCommonBodyRec.kangenKozatenCd := '';
+	gCommonBodyRec.tantoCd := '';
+	gCommonBodyRec.recKbn := '2';
+	gCommonBodyRec.kozatenCifCd := '';
+	gCommonBodyRec.mailComment := '6878アドミニストレーション室';
+	gCommonBodyRec.customerAddress := '';
+	gCommonBodyRec.recDistinction := '1';
+	gCommonBodyRec.sendKbn := '';
+	gCommonBodyRec.chohyoNo := '';
+	gCommonBodyRec.gyomutsushinKbn := '';
+	gCommonBodyRec.sakuseiYmd := '';
+	gCommonBodyRec.gyomuKey := '';
+	gCommonBodyRec.postNo := '';
+	gCommonBodyRec.dispatchKbn := '';
+	gCommonBodyRec.customerKbn := '1';
+	gCommonBodyRec.kaipageSign := '';
+	gCommonBodyRec.customerName := '';
+	gCommonBodyRec.kozatenCd := '';
+	gCommonBodyRec.maruSign := '';
+
+	RETURN gCommonBodyRec;
+END;
+$body$
+LANGUAGE PLPGSQL
+;
 
 

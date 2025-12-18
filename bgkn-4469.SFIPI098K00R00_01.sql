@@ -24,9 +24,9 @@ DECLARE
 --==============================================================================
 --					変数定義													
 --==============================================================================
-	c_ICHIRAN				CONSTANT varchar(11)	:= 'IP030010111';	-- 一覧表
-	c_SEIKYU				CONSTANT varchar(11)	:= 'IP030009811';	-- 請求書
-	c_SHIHARAI_TESURYO		CONSTANT char(2)		 := '91';			-- その他期中手数料１
+	c_ICHIRAN				CONSTANT text	:= 'IP030010111';	-- 一覧表
+	c_SEIKYU				CONSTANT text	:= 'IP030009811';	-- 請求書
+	c_SHIHARAI_TESURYO		CONSTANT text		 := '91';			-- その他期中手数料１
 	gReturnCode				integer := 0;
 	gGyomuYmd				SSYSTEM_MANAGEMENT.GYOMU_YMD%TYPE;
 	gKjtFrom				MGR_TESKIJ.CHOKYU_KJT%TYPE;

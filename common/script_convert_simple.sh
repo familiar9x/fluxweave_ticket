@@ -29,6 +29,7 @@ check_oracle_incompat() {
     echo "  - l_outSqlCode OUT nên là integer, l_outSqlErrM OUT nên là text"
     echo "  - Cú pháp Oracle array-style: aryXxx(0) → PostgreSQL: aryXxx[1]"
     echo "  - Sub-procedure / sub-function lồng trong function/procedure/package (PostgreSQL không hỗ trợ nested)"
+    echo "  - CONSTANT với varchar(n)/char(n) → PostgreSQL nên dùng text (tránh truncation bug)"
     echo
 
     # Mỗi entry dạng: "LABEL|REGEX"
@@ -74,6 +75,9 @@ check_oracle_incompat() {
 
         # OID usage
         "OID_USAGE|\\boid\\b"
+
+        # CONSTANT với varchar/char(length) - nên dùng text
+        "CONSTANT_VARCHAR_CHAR|CONSTANT[[:space:]]+(varchar|char|VARCHAR2|NVARCHAR2)[[:space:]]*\\([0-9]+\\)"
     )
 
     local has_any=0

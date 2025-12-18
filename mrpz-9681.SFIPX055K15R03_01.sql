@@ -18,7 +18,9 @@ CREATE TYPE sfipx055k15r03_01_type_record AS (
 	);
 
 
-CREATE OR REPLACE FUNCTION sfipx055k15r03_01 ( l_initakuKaishaCd MITAKU_KAISHA.ITAKU_KAISHA_CD%TYPE , l_inBankRnm VJIKO_ITAKU.BANK_RNM%TYPE ) RETURNS integer AS $body$
+CREATE OR REPLACE FUNCTION sfipx055k15r03_01 ( 
+	l_initakuKaishaCd MITAKU_KAISHA.ITAKU_KAISHA_CD%TYPE , 
+	l_inBankRnm VJIKO_ITAKU.BANK_RNM%TYPE ) RETURNS integer AS $body$
 DECLARE
 
 --*
@@ -50,7 +52,7 @@ DECLARE
 	gSeqNo2				integer := 0;
 	gMaxSeqNo			integer := 0;
 	gSQL				text := NULL;		-- SQL格納用変数
-	gREPORT_ID			CONSTANT char(11) := 'IP931505531';	-- レポートＩＤ
+	gREPORT_ID			CONSTANT text := 'IP931505531';	-- レポートＩＤ
 	wkChohyoId			SREPORT_WK.CHOHYO_ID%TYPE;		-- ワーク帳票ＩＤ
 	gAlltesukngk			integer := 0;
 	gChokyuYmdFrom			char(8)	:=	'99999999';		--	徴求日	From	(抽出した徴求日との大小関係を比較するため、初期値は最大値)

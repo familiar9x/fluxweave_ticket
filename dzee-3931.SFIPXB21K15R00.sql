@@ -28,7 +28,7 @@ DECLARE
 	--==============================================================================
 	--                  定数定義                                                    
 	--==============================================================================
-	C_FUNCTION_ID CONSTANT varchar(50) := 'SFIPXB21K15R00'; -- ファンクションＩＤ
+	C_FUNCTION_ID CONSTANT text := 'SFIPXB21K15R00'; -- ファンクションＩＤ
 	C_SHONIN_ZUMI   CONSTANT MHAKKOTAI.SHORI_KBN%TYPE        := '1'; -- 処理区分(承認済)
 	C_HIRENDO_DENAI CONSTANT MHAKKOTAI2.CIF_HIRENDO_FLG%TYPE := '0'; -- ＣＩＦ非連動フラグ(非連動でない)
 	C_MESSAGE_ID CONSTANT MSG_KANRI.MSG_NM%TYPE := 'IIP015';
