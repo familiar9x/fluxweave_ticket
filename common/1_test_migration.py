@@ -189,6 +189,69 @@ END $$;
             }
         ]
     },
+    'eudm-1296': {
+        'name': 'SPIP07861',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Unapproved data list (未承認データ一覧) - data insertion mode',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_count text;
+    v_code integer;
+    v_err text; 
+BEGIN 
+    -- Clean up test data first
+    DELETE FROM sreport_wk 
+    WHERE key_cd = '0005' 
+      AND user_id = 'TESTUSER' 
+      AND chohyo_kbn = '0'
+      AND sakusei_ymd = '20251104';
+    
+    -- Call procedure
+    CALL spip07861(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'TESTUSER',
+        l_inChohyoKbn := '0',
+        l_inGyomuYmd := '20251104',
+        l_outAllCount := v_count,
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err,
+        l_inCountOnlyFlg := '0'  -- Data insertion mode
+    );
+    RAISE NOTICE 'Return Code: %, Count: %, Error: %', v_code, COALESCE(v_count, 'NULL'), COALESCE(v_err, 'NONE');
+END $$;
+""",
+                'expected': 0  # 0=SUCCESS (inserts 2060 records: 1 header + 2059 data)
+            },
+            {
+                'description': 'Unapproved data list - count only mode',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_count text;
+    v_code integer;
+    v_err text; 
+BEGIN 
+    CALL spip07861(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'TESTUSER',
+        l_inChohyoKbn := '0',
+        l_inGyomuYmd := '20251104',
+        l_outAllCount := v_count,
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err,
+        l_inCountOnlyFlg := '1'  -- Count only mode
+    );
+    RAISE NOTICE 'Return Code: %, Count: %', COALESCE(v_code, 0), COALESCE(v_count, 'NULL');
+END $$;
+""",
+                'expected': [0, None]  # 0=SUCCESS or NULL (count mode doesn't set return code)
+            }
+        ]
+    },
 ##Ticket_Dec_08_14
     'wppq-4412': {
         'name': 'SFIPXB20K15R01',
