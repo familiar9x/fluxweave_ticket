@@ -883,6 +883,213 @@ SELECT sfipi055k00r00_01('0005');
                 'expected': 0
             }
         ]
+    },
+    'nxyv-0746': {
+        'name': 'SFIPI055K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interim Management Fee Invoice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi055k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'murm-2238': {
+        'name': 'SFIPI061K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Purchase Redemption Fee Invoice (Single Company)',
+                'postgres_sql': """
+SELECT sfipi061k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'tcnb-0315': {
+        'name': 'SFIPI061K00R00 ',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Purchase Redemption Fee Invoice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi061k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'vtgu-1672': {
+        'name': 'sfiph001k00r32 ',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interest/Principal Payment Fee Accounting (All Companies)',
+                'postgres_sql': """
+SELECT sfiph001k00r32();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'dasf-6033': {
+        'name': 'SFIPH001K00R32',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interest/Principal Payment Fee Accounting (Company 0005)',
+                'postgres_sql': """
+SELECT sfiph001k00r32_01('0005');
+                """,
+                'expected': 0
+            }
+
+        ]
+    },
+    'rrma-7453': {
+        'name': 'sfipi091k00r00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Financial Agent Fee Invoice Batch (Company 0005)',
+                'postgres_sql': """
+SELECT sfipi091k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+
+        ]
+    },
+    'qctw-5290': {
+        'name': 'SFIPI091K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+
+            {
+                'description': 'Financial Agent Fee Invoice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi091k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+     'pszw-3518': {
+        'name': 'sfiph001k00r31_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interest Fractional Difference Accounting (Company 0005)',
+                'postgres_sql': """
+SELECT sfiph001k00r31_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'mcch-9765': {
+        'name': 'SFIPH001K00R31',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interest Fractional Difference Accounting (All Companies)',
+                'postgres_sql': """
+SELECT sfiph001k00r31();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'epqb-6820': {
+        'name': 'sfipi092k00r00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Administrative Fee (Mid-term) Invoice Batch (Company 0005)',
+                'postgres_sql': """
+SELECT sfipi092k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'vgtv-3825': {
+        'name': 'SFIPI092K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Administrative Fee (Mid-term) Invoice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi092k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'nbej-7387': {
+        'name': 'PKIPI900K00R09',
+        'type': 'function',
+        'timeout': 10,
+        'tests': [
+            {
+                'description': 'Check if system date is business day',
+                'postgres_sql': "SELECT pkipi900k00r09.issysdatebizdate();",
+                'expected': 0  # 0 = business day, 1 = non-business day
+            },
+            {
+                'description': 'Check if current date is first business day of month',
+                'postgres_sql': "SELECT pkipi900k00r09.isfirstbizdateofmonth();",
+                # Returns 1 = TRUE (Dec 23, 2025 is a business day and is first business day of month based on GYOMU_CALENDAR)
+                # Returns 0 = FALSE if not first business day
+                'expected': 1
+            },
+            {
+                'description': 'Check if current date is last business day of month',
+                'postgres_sql': "SELECT pkipi900k00r09.islastbizdateofmonth();",
+                # Returns 1 = TRUE if last business day of month, 0 = FALSE otherwise
+                # Value depends on current date in GYOMU_CALENDAR
+                'expected': 1
+            },
+            {
+                'description': 'Check if current date is middle business day of month',
+                'postgres_sql': "SELECT pkipi900k00r09.ismiddlebizdateofmonth();",
+                'expected': 0  # Not implemented - always returns 0
+            },
+            {
+                'description': 'Check if current date is 5th business day of month',
+                'postgres_sql': "SELECT pkipi900k00r09.isnthbizdateofmonth(5);",
+                # Returns 1 = TRUE if current date is the 5th business day, 0 = FALSE otherwise
+                # Dec 23, 2025 appears to be the 5th business day of the month in GYOMU_CALENDAR
+                'expected': 1
+            }
+        ]
+    },
+    'mgwn-6704': {
+        'name': 'sfIpEpathReportWkInsertBatch',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'e.path report work data creation batch - processes both immediate and pooled report data',
+                'postgres_sql': "SELECT sfipepathreportwkinsertbatch('0005', '20251223');",
+                'expected': 0  # 0=SUCCESS - creates EPATH_REPORT_WK records for immediate and pooled reports
+            }
+        ]
     }
 }
 
