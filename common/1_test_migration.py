@@ -799,6 +799,90 @@ END $$;
                 'expected': 0
             }
         ]
+    },
+    'ykse-1832': {
+        'name': 'SFIPI051K00R01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Principal/Interest Payment Fund Return Calculation Processing',
+                'postgres_sql': """
+SELECT sfipi051k00r01('0005', 'TESTUSER', '1', '20250101');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'zqhb-0870': {
+        'name': 'SFIPI051K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Principal/Interest Payment Fund Return Notice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi051k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'wray-5679': {
+        'name': 'SFIPI051K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Principal/Interest Payment Fund Return Notice Batch (Single Company)',
+                'postgres_sql': """
+SELECT sfipi051k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'atqn-8360': {
+        'name': 'SFIPI097K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Payment Agent Fee Invoice Batch',
+                'postgres_sql': """
+SELECT sfipi097k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'btxm-5300': {
+        'name': 'SFIPI051K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Payment Agent Fee Invoice (Single Company)',
+                'postgres_sql': """
+SELECT sfipi097k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'fnvg-5758': {
+        'name': 'SFIPI055K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interim Management Fee Invoice Batch (Single Company)',
+                'postgres_sql': """
+SELECT sfipi055k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
     }
 }
 
