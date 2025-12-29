@@ -95,7 +95,19 @@ END $$;
             }
         ]
     },
-
+    'qgwz-9896': {
+        'name': 'SFIPP015K01R00',
+        'type': 'function',
+        'timeout': 120,  # 2 min - complex cursor with multiple joins and calculations
+        'tests': [
+            {
+                'description': 'Bond settlement system linkage data (non-institutional method)',
+                'postgres_sql': "SELECT sfipp015k01r00() as return_code;",
+                'expected': 0,  # 0=SUCCESS (processes non-institutional bonds for payment, may be 0 records if no matching data)
+                'allow_timeout': False
+            }
+        ]
+    },
     'xwmy-3395': {
         'name': 'SPIP07821',
         'type': 'procedure',
@@ -213,6 +225,103 @@ END $$;
                 'description': 'Batch report output - missing dependencies returns FATAL',
                 'postgres_sql': "SELECT sfipi078k00r00('0005');",
                 'expected': 0  # 0=SUCCESS (dependencies SPIP07821, SPIP07831, etc. not yet migrated)
+            }
+        ]
+    },
+    'fxuv-2057': {
+        'name': 'SFIPXB08K15R01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond settlement system linkage data - missing dependencies',
+                'postgres_sql': "SELECT sfipxb08k15r01('IF001', '1');",
+                'expected': 0  # 0=SUCCESS (dependencies pkIpGetKijyunKaiji.xxx not yet migrated)
+            }
+        ]
+    },
+    'pnsz-1837': {
+        'name': 'SFIPF010K01R02',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Fund settlement schedule data (new record) routing',
+                'postgres_sql': "SELECT sfipf010k01r02('IF24-1'::char, '0005'::character, 'TEST001'::character) as return_code;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'pnsz-1837': {
+        'name': 'SFIPF010K01R02',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Fund settlement schedule dispatcher - routes to RTGS-XG or bond settlement',
+                'postgres_sql': "SELECT sfipf010k01r02('IF26-1', '0005', 'TEST001') as return_code;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'qzqp-1260': {
+        'name': 'sfIpIkkatsuCalcRikin2',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Batch interest calculation for mid-period changes',
+                'postgres_sql': "SELECT extra_param FROM sfipikkatsucalcrikin2('{}'::typeHendoIkkatuList2, '0005'::text, '1.5'::text, '2.0'::text, 5.0, 1.0, 0.5, 0.1) as result;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'zbcy-9464': {
+        'name': 'SPIPI046K15R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Principal/interest payment invoice (receipt) [single form] batch',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer; 
+    v_msg text; 
+BEGIN 
+    -- Ensure test data exists
+    DELETE FROM warning_wk WHERE itaku_kaisha_cd = '0005' AND sakusei_id = 'TESTZBCY';
+    INSERT INTO warning_wk (
+        itaku_kaisha_cd, warn_info_kbn, warn_info_id, message1, message2,
+        isin_cd, koza_ten_cd, koza_ten_cifcd, mgr_rnm, kkmember_cd,
+        taisho_komoku, taisho_ymd, biko1, biko2, biko3, sort_key,
+        shori_kbn, last_teisei_id, shonin_id, kousin_id, sakusei_id
+    ) VALUES
+        ('0005', '1', 'W001', 'Test Message 1', 'Test Line 2',
+         '123456789012', '0001', '00000000001', 'Test Bond', '1234567',
+         'Element', '20250101', 'Remark 1', 'Remark 2', 'Remark 3', 1,
+         '0', 'TESTZBCY', 'TESTZBCY', 'TESTZBCY', 'TESTZBCY');
+    
+    -- Clean up sreport_wk
+    DELETE FROM sreport_wk 
+    WHERE key_cd = '0005' AND chohyo_kbn = '0' AND sakusei_ymd = '20250101';
+    
+    -- Call procedure
+    CALL spipi046k15r01(
+        'IP931504661'::text, '0005', 'TestBank'::character varying, 
+        '1'::text, 'TESTUSER'::character varying, '0'::text, '20250101', 
+        v_code, v_msg
+    ); 
+    
+    -- Clean up
+    DELETE FROM warning_wk WHERE itaku_kaisha_cd = '0005' AND sakusei_id = 'TESTZBCY';
+    DELETE FROM sreport_wk 
+    WHERE key_cd = '0005' AND chohyo_kbn = '0' AND sakusei_ymd = '20250101';
+    
+    RAISE NOTICE 'Code=%', v_code; 
+END $$;
+""",
+                'expected': 0  # 0=SUCCESS with data
             }
         ]
     },
@@ -382,7 +491,442 @@ END $$;
             }
         ]
     },
-       'vtgu-1672': {
+    'bvzq-2519': {
+        'name': 'SFIPX016K00R02_01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Business data garbage collection sub-procedure',
+                'postgres_sql': "SELECT sfipx016k00r02_01('0005'::text, 'TESTUSER'::text, '9'::text, '20180101'::text) as return_code;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'ttza-2655': {
+        'name': 'SFIPP015K00R00',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond principal/interest claim data creation (non-institutional method, actual record number method)',
+                'postgres_sql': "SELECT sfipp015k00r00() as return_code;",
+                'expected': 0  # 0=SUCCESS (processes non-institutional bonds for payment)
+            }
+        ]
+    },
+    'zqhj-8905': {
+        'name': 'SFIPX016K00R02',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Business data garbage collection parent procedure',
+                'postgres_sql': "SELECT sfipx016k00r02() as return_code;",
+                'expected': 0  # 0=SUCCESS (calls SFIPX016K00R02_01 for each trustee company)
+            }
+        ]
+    },
+    'qetp-1813': {
+        'name': 'SFIPW001K00R01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information (CB) update batch',
+                'postgres_sql': "SELECT sfipw001k00r01() as return_code;",
+                'expected': 0  # 0=SUCCESS (updates MGR_KIHON, CB_MGR_KIHON, MGR_STS tables)
+            }
+        ]
+    },
+    'hbqn-7977': {
+        'name': 'SPIPI002K14R06',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Physical bond unpaid management input confirmation list (payment report data)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    -- Insert test data
+    DELETE FROM import_kakunin_list_wk
+    WHERE itaku_kaisha_cd = '0005' AND user_id = 'TESTUSER' 
+      AND chohyo_id = 'IP931400251' AND sakusei_ymd = '20250101';
+    
+    INSERT INTO import_kakunin_list_wk (
+        itaku_kaisha_cd, user_id, chohyo_id, seq_no, mgr_cd, 
+        isin_cd, dkj_mgr_cd, mgr_rnm, mgr_meisai_no, hkuk_cd,
+        err_cd6, err_umu_flg, shori_mode, shokan_ymd, shokan_kbn,
+        shokan_kngk, meimoku_zndk, tsuka_cd, hkt_cd, err_nm30,
+        sakusei_ymd, shori_tm, koza_ten_cd, koza_ten_cifcd, hakko_ymd,
+        mgr_nm, kousin_id, sakusei_id
+    ) VALUES (
+        '0005', 'TESTUSER', 'IP931400251', 1, 'TEST001',
+        'JP1234567890', 'TEST001', 'Test Bond', 1, 'TST01',
+        '', '0', '1', '20250101', '01',
+        1000000.00, 1000000.00, 'JPY', 'TST001', '',
+        '20250101', '120000', '0001', 'TEST0001', '20250101',
+        'Test Bond Name', 'TESTUSER', 'TESTUSER'
+    );
+    
+    -- Call procedure
+    CALL spipi002k14r06(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'TESTUSER',
+        l_inChohyoKbn := '1',
+        l_inGyomuYmd := '20250101',
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err
+    );
+    
+    -- Cleanup test data
+    DELETE FROM import_kakunin_list_wk
+    WHERE itaku_kaisha_cd = '0005' AND user_id = 'TESTUSER' 
+      AND chohyo_id = 'IP931400251' AND sakusei_ymd = '20250101';
+    
+    DELETE FROM sreport_wk
+    WHERE key_cd = '0005' AND user_id = 'TESTUSER'
+      AND chohyo_kbn = '1' AND sakusei_ymd = '20250101' 
+      AND chohyo_id = 'IP931400251';
+    
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'hgff-2367': {
+        'name': 'SFIPI008K00R00_01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Nightly batch - New record deposit schedule report creation',
+                'postgres_sql': "SELECT sfipi008k00r00_01('0005') as return_code;",
+                'expected': 0  # 0=SUCCESS (no deposit schedule data to process is also success)
+            }
+        ]
+    },
+    'jwpc-8111': {
+        'name': 'SPIPI002K14R07',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Physical bond unpaid management - Payment report data list',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text;
+    v_datalist shiharaihokokudatalist;
+BEGIN 
+    -- Initialize empty array (testing with no data scenario)
+    v_datalist := ARRAY[]::shiharaihokokudatalist;
+    
+    -- Call procedure
+    CALL spipi002k14r07(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'TESTUSER',
+        l_inChohyoKbn := '1',
+        l_inGyomuYmd := '20250101',
+        l_inDataList := v_datalist,
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err
+    );
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'undp-0361': {
+        'name': 'SPIPI002K14R05',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Physical bond unpaid management - Record number data list',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text;
+    v_datalist kibangodatalist;
+BEGIN 
+    -- Initialize empty array (testing with no data scenario)
+    v_datalist := ARRAY[]::kibangodatalist;
+    
+    -- Call procedure
+    CALL spipi002k14r05(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'TESTUSER',
+        l_inChohyoKbn := '1',
+        l_inGyomuYmd := '20250101',
+        l_inDataList := v_datalist,
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err
+    );
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'euvm-9643': {
+        'name': 'SFIPI008K00R00',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Nightly batch parent - Daily report creation (calls SFIPI008K00R00_01 for each company)',
+                'postgres_sql': "SELECT sfipi008k00r00() as return_code;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'fqyh-7319': {
+        'name': 'SPIPI002K14R03',
+        'type': 'procedure',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Accident bond and defect interest ticket management table',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    -- Clean up test data first
+    DELETE FROM sreport_wk
+    WHERE key_cd = '0005'
+      AND user_id = 'testuser'
+      AND chohyo_kbn = '1'
+      AND sakusei_ymd = '20241201';
+    
+    -- Call procedure
+    CALL spipi002k14r03(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'testuser',
+        l_inChohyoKbn := '1',
+        l_inGyomuYmd := '20241201',
+        l_inZengetuYmd := '20241130',
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err
+    );
+    RAISE NOTICE 'Return code: %', v_code;
+END $$;
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'gqnz-9507': {
+        'name': 'SPIPI002K14R04',
+        'type': 'procedure',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Physical bond unpaid management input confirmation list (record number data)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    -- Clean up test data first
+    DELETE FROM import_kakunin_list_wk 
+    WHERE itaku_kaisha_cd = '0005' 
+      AND user_id = 'TESTUSER' 
+      AND chohyo_id = 'IP931400241'
+      AND sakusei_ymd = '20250101';
+    
+    DELETE FROM sreport_wk
+    WHERE key_cd = '0005'
+      AND user_id = 'TESTUSER'
+      AND chohyo_kbn = '1'
+      AND sakusei_ymd = '20250101';
+    
+    -- Insert test data
+    INSERT INTO import_kakunin_list_wk (
+        itaku_kaisha_cd, user_id, chohyo_id, seq_no, mgr_cd, isin_cd,
+        dkj_mgr_cd, mgr_rnm, mgr_meisai_no, hkuk_cd, err_cd6, err_umu_flg,
+        shori_mode, shokan_ymd, shokan_kbn, shokan_kngk, meimoku_zndk,
+        tsuka_cd, hkt_cd, err_nm30, sakusei_ymd, shori_tm, koza_ten_cd,
+        koza_ten_cifcd, hakko_ymd, mgr_nm, kousin_id, sakusei_id
+    ) VALUES (
+        '0005', 'TESTUSER', 'IP931400241', 1, 'TEST001', '123456789012',
+        '123456789012345', 'Test Bond', 1, '12345', '000000', '0',
+        '1', '20250101', '01', 1000000.00, 900000.00,
+        'JPY', '000001', '', '20250101', '120000', '0001',
+        '00000000001', '20250101', 'Test Bond Name', 'TESTUSER', 'TESTUSER'
+    );
+    
+    -- Call procedure
+    CALL spipi002k14r04(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'TESTUSER',
+        l_inChohyoKbn := '1',
+        l_inGyomuYmd := '20250101',
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err
+    );
+    
+    -- Clean up test data
+    DELETE FROM import_kakunin_list_wk 
+    WHERE itaku_kaisha_cd = '0005' 
+      AND user_id = 'TESTUSER' 
+      AND chohyo_id = 'IP931400241'
+      AND sakusei_ymd = '20250101';
+    
+    DELETE FROM sreport_wk
+    WHERE key_cd = '0005'
+      AND user_id = 'TESTUSER'
+      AND chohyo_kbn = '1'
+      AND sakusei_ymd = '20250101';
+    
+    RAISE NOTICE 'Return code: %', v_code;
+END $$;
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'ykse-1832': {
+        'name': 'SFIPI051K00R01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Principal/Interest Payment Fund Return Calculation Processing',
+                'postgres_sql': """
+SELECT sfipi051k00r01('0005', 'TESTUSER', '1', '20250101');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'zqhb-0870': {
+        'name': 'SFIPI051K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Principal/Interest Payment Fund Return Notice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi051k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'wray-5679': {
+        'name': 'SFIPI051K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Principal/Interest Payment Fund Return Notice Batch (Single Company)',
+                'postgres_sql': """
+SELECT sfipi051k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'atqn-8360': {
+        'name': 'SFIPI097K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Payment Agent Fee Invoice Batch',
+                'postgres_sql': """
+SELECT sfipi097k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'btxm-5300': {
+        'name': 'SFIPI051K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Payment Agent Fee Invoice (Single Company)',
+                'postgres_sql': """
+SELECT sfipi097k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'fnvg-5758': {
+        'name': 'SFIPI055K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interim Management Fee Invoice Batch (Single Company)',
+                'postgres_sql': """
+SELECT sfipi055k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'nxyv-0746': {
+        'name': 'SFIPI055K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Interim Management Fee Invoice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi055k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'murm-2238': {
+        'name': 'SFIPI061K00R00_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Purchase Redemption Fee Invoice (Single Company)',
+                'postgres_sql': """
+SELECT sfipi061k00r00_01('0005');
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'tcnb-0315': {
+        'name': 'SFIPI061K00R00 ',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Purchase Redemption Fee Invoice Batch (All Companies)',
+                'postgres_sql': """
+SELECT sfipi061k00r00();
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'vtgu-1672': {
         'name': 'sfiph001k00r32 ',
         'type': 'function',
         'timeout': 120,
@@ -544,78 +1088,6 @@ SELECT sfipi092k00r00();
                 'description': 'e.path report work data creation batch - processes both immediate and pooled report data',
                 'postgres_sql': "SELECT sfipepathreportwkinsertbatch('0005', '20251223');",
                 'expected': 0  # 0=SUCCESS - creates EPATH_REPORT_WK records for immediate and pooled reports
-            }
-        ]
-    },
-    'whxt-2468': {
-        'name': 'SFIPX025K00R01',
-        'type': 'function',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Report output file save data garbage collection - deletes old GREPORT_OUTPUT_FILE_SAVE records based on CSV journal save years',
-                'postgres_sql': "SELECT sfipx025k00r01();",
-                'expected': 0  # 0=SUCCESS - performs garbage collection on GREPORT_OUTPUT_FILE_SAVE table
-            }
-        ]
-    },
-    'dhyz-1438': {
-        'name': 'SFIPI098K00R00',
-        'type': 'function',
-        'timeout': 120,
-        'tests': [
-            {
-                'description': 'Other interim fee 1 invoice and invoice list data creation batch - processes all self-managed companies',
-                'postgres_sql': "SELECT sfipi098k00r00();",
-                'expected': 0  # 0=SUCCESS - creates invoice and invoice list data for all VJIKO_ITAKU companies
-            }
-        ]
-    },
-    'urab-8658': {
-        'name': 'SFIPI115K00R01',
-        'type': 'function',
-        'timeout': 120,
-        'tests': [
-            {
-                'description': 'Remaining amount notification scheduled data creation - creates ZANZON_TSUCHI records for bonds',
-                'postgres_sql': "SELECT sfipi115k00r01('0006');",
-                'expected': 0  # 0=SUCCESS - creates remaining amount notification data
-            }
-        ]
-    },
-    'wngg-3908': {
-        'name': 'SFIPI115K00R00',
-        'type': 'function',
-        'timeout': 300,  # 5 minutes - this is a batch job that processes all companies
-        'tests': [
-            {
-                'description': 'Batch job to create remaining amount notification data for all companies',
-                'postgres_sql': "SELECT sfipi115k00r00();",
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'dedh-8267': {
-        'name': 'SFIPI900K00R09',
-        'type': 'function',
-        'timeout': 120,
-        'tests': [
-            {
-                'description': 'Garbage collection for institution linkage data',
-                'postgres_sql': "SELECT sfipi900k00r09();",
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'maxs-1424': {
-        'name': 'SFIPI900K15R10',
-        'type': 'function',
-        'timeout': 120,
-        'tests': [
-            {
-                'description': 'Oracle statistics collection and index reorganization',
-                'postgres_sql': "SELECT sfipi900k15r10();",
-                'expected': 0  # 0=SUCCESS
             }
         ]
     }

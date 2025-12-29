@@ -76,6 +76,7 @@ should be gTsukaRishiCalc := '('  trim(both pkcharacter.numeric_to_char(gRiritsu
 
 gRiritsu				numeric
 gInvoiceTourokuNo		varchar(14)
+gOutflg integer
 
 ko bao h cast text sang kieu khac
 CREATE OR REPLACE PROCEDURE spipf001k00r01 (
