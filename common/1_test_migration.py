@@ -618,6 +618,169 @@ SELECT sfipi092k00r00();
                 'expected': 0  # 0=SUCCESS
             }
         ]
+    },
+    'yekh-0625': {
+        'name': 'SFIPP005K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Payment method principal/interest payment list (practical number method) creation batch - main',
+                'postgres_sql': "SELECT sfipp005k00r00();",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA (if no companies have the option flag set)
+            }
+        ]
+    },
+    'qxzv-3074': {
+        'name': 'SFIPP006K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Counterparty principal/interest transfer list creation batch - main',
+                'postgres_sql': "SELECT sfipp006k00r00();",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA (if no companies have the option flag set)
+            }
+        ]
+    },
+    'errm-8810': {
+        'name': 'SFIPP002K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Bond register (practical number method) creation batch - main',
+                'postgres_sql': "SELECT sfipp002k00r00();",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA (only runs on month-end business day)
+            }
+        ]
+    },
+    'nsxb-9729': {
+        'name': 'SFIPP004K00R00',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Transfer notice (practical number method) creation batch - main',
+                'postgres_sql': "SELECT sfipp004k00r00();",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA (if no companies have the option flag set)
+            }
+        ]
+    },
+    'eyen-4155': {
+        'name': 'SFIPP014K00R12',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Practical number management redemption cycle update',
+                'postgres_sql': "SELECT sfipp014k00r12();",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA
+            }
+        ]
+    },
+    'abux-4123': {
+        'name': 'SFIPP014K00R02',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Calendar correction bond date adjustment (practical number management redemption cycle)',
+                'postgres_sql': "SELECT sfipp014k00r02();",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA
+            }
+        ]
+    },
+    'ahwd-5935': {
+        'name': 'SFIPP014K00R02_01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Practical number management redemption cycle adjustment information table creation',
+                'postgres_sql': "SELECT sfipp014k00r02_01('0005');",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA
+            }
+        ]
+    },
+    'pzbd-5791': {
+        'name': 'SFIPP013K00R01',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Purchase cancellation data auto-creation (practical number)',
+                'postgres_sql': "SELECT sfipp013k00r01();",
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO_DATA
+            }
+        ]
+    },
+    'najt-9345': {
+        'name': 'SFADI001S15110',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information registration data transmission (status update) - send status',
+                'postgres_sql': "SELECT sfadi001s15110(KK_SAKUSEI_DT::varchar(20), DENBUN_MEISAI_NO::numeric) FROM KK_RENKEI LIMIT 1;",
+                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND (may return 99 if SFADI001S1511COMMON not exists)
+            }
+        ]
+    },
+    'ngaa-6008': {
+        'name': 'SFADI001S15111',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information registration data transmission (status update) - send status (with status table update)',
+                'postgres_sql': "SELECT sfadi001s15111(KK_SAKUSEI_DT::varchar(20), DENBUN_MEISAI_NO::numeric) FROM KK_RENKEI LIMIT 1;",
+                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND
+            }
+        ]
+    },
+    'bbcp-7616': {
+        'name': 'SFADI001S15119',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information registration data transmission (status update) - approval status',
+                'postgres_sql': """
+DO $$
+DECLARE
+    v_result integer;
+    v_kk_sakusei_dt timestamp;
+    v_denbun_meisai_no numeric;
+BEGIN
+    SELECT KK_SAKUSEI_DT, DENBUN_MEISAI_NO 
+    INTO v_kk_sakusei_dt, v_denbun_meisai_no
+    FROM KK_RENKEI 
+    LIMIT 1;
+    
+    IF v_kk_sakusei_dt IS NOT NULL THEN
+        v_result := sfadi001s15119(v_kk_sakusei_dt, v_denbun_meisai_no);
+        RAISE NOTICE 'Return Code: %', v_result;
+    ELSE
+        RAISE NOTICE 'Return Code: 2';
+    END IF;
+END $$;
+""",
+                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND
+            }
+        ]
+    },
+    'zdgc-7973': {
+        'name': 'SFADI001S1511COMMON',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information registration data transmission (status update) - common function',
+                'postgres_sql': "SELECT sfadi001s1511common(KK_SAKUSEI_DT::varchar(20), DENBUN_MEISAI_NO::numeric, pkKkNotice.MGR_KKSTAT_SEND()::char(2)) FROM KK_RENKEI LIMIT 1;",
+                'expected': [0, 2, 40, 60]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND, 60=CAN_NOT_CANC_KKSTAT
+            }
+        ]
     }
 }
 
