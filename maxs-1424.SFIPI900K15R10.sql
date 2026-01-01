@@ -41,42 +41,33 @@ DECLARE
         where schemaname = current_schema();
 BEGIN
     -- dbms_application_info.set_module not available in PostgreSQL
-    RAISE NOTICE 'Starting SFIPI900K15R10';
     message := 'ユーザ(' || current_user || ')の行断片化情報収集、行断片化解消、索引再構成を行います。';
     CALL pkLog.info(current_user, null, message);
-    RAISE NOTICE 'After first pkLog.info';
     --表領域名称取得
-    RAISE NOTICE 'Getting tablespace name';
     select DISTINCT tablespace into tablespacename from pg_tables where schemaname = current_schema() and tablespace is not null LIMIT 1;
-    RAISE NOTICE 'Tablespace: %', tablespacename;
     -- 索引再構成
     for r_indexes in c_indexes loop
         -- 索引の分析を行い、分析結果から判定する。
         -- chain_cntが１件でも発生している場合、テーブルの表領域移動と索引再構成を実施する。
         begin
-            RAISE NOTICE 'Processing table: %, index: %', r_indexes.table_name, r_indexes.index_name;
             stmt := 'ANALYZE "'||r_indexes.table_name||'"';
             EXECUTE stmt;
-            RAISE NOTICE 'ANALYZE completed for: %', r_indexes.table_name;
             -- PostgreSQL equivalent: Check dead tuples instead of chain_cnt
             -- Dead tuples indicate fragmentation/bloat similar to Oracle's row chaining
             select COALESCE(n_dead_tup, 0)
-                into count_chain_stats
+               into count_chain_stats
                 from pg_stat_user_tables
                 WHERE schemaname = current_schema() 
                   AND relname = r_indexes.table_name;
-            if count_chain_stats > 0 then
-                   -- PostgreSQL: VACUUM FULL reclaims space and eliminates bloat
-                   -- (equivalent to Oracle's ALTER TABLE MOVE)
-                   stmt := 'VACUUM FULL "' || r_indexes.table_name || '"';
-                   EXECUTE stmt;
-                   -- PostgreSQL: REINDEX rebuilds the index
-                   -- (equivalent to Oracle's ALTER INDEX REBUILD ONLINE, but locks table)
-                   stmt := 'REINDEX INDEX "' || r_indexes.index_name || '"';
-                   EXECUTE stmt;
-                   stmt := 'ANALYZE "' || r_indexes.index_name || '"';
-                   EXECUTE stmt;
-            end if;
+            IF count_chain_stats > 0 THEN
+                -- Rebuild index (NOT ONLINE)
+                stmt := 'REINDEX INDEX "' || r_indexes.index_name || '"';
+                EXECUTE stmt;
+
+                -- Analyze table (updates index statistics as well)
+                stmt := 'ANALYZE "' || r_indexes.table_name || '"';
+                EXECUTE stmt;
+            END IF;
         exception
             when others then
             message := '索引(' || current_user || '.' || r_indexes.index_name ||

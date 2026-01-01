@@ -721,9 +721,10 @@ SELECT sfipi092k00r00();
         'timeout': 60,
         'tests': [
             {
-                'description': 'Bond information registration data transmission (status update) - send status',
-                'postgres_sql': "SELECT sfadi001s15110(KK_SAKUSEI_DT::varchar(20), DENBUN_MEISAI_NO::numeric) FROM KK_RENKEI LIMIT 1;",
-                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND (may return 99 if SFADI001S1511COMMON not exists)
+                'description': 'Bond information registration data transmission (status update) - send status with reset',
+                'setup_postgres': "UPDATE MGR_STS SET KK_STAT = '02' WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = '0005S25030002' AND SHORI_KBN = '1' AND KK_PHASE = 'M1';",
+                'postgres_sql': "SELECT sfadi001s15110('20241007112027623198', 3);",
+                'expected': 0  # 0=SUCCESS (updates MGR_STS from '02' to '03')
             }
         ]
     },
@@ -734,8 +735,9 @@ SELECT sfipi092k00r00();
         'tests': [
             {
                 'description': 'Bond information registration data transmission (status update) - send status (with status table update)',
-                'postgres_sql': "SELECT sfadi001s15111(KK_SAKUSEI_DT::varchar(20), DENBUN_MEISAI_NO::numeric) FROM KK_RENKEI LIMIT 1;",
-                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND
+                'setup_postgres': "UPDATE MGR_STS SET KK_STAT = '02' WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = '0005S25030002' AND SHORI_KBN = '1' AND KK_PHASE = 'M1';",
+                'postgres_sql': "SELECT sfadi001s15111('20241007112027623198', 3);",
+                'expected': 0  # 0=SUCCESS (updates MGR_STS from '02' to '03')
             }
         ]
     },
@@ -746,27 +748,8 @@ SELECT sfipi092k00r00();
         'tests': [
             {
                 'description': 'Bond information registration data transmission (status update) - approval status',
-                'postgres_sql': """
-DO $$
-DECLARE
-    v_result integer;
-    v_kk_sakusei_dt timestamp;
-    v_denbun_meisai_no numeric;
-BEGIN
-    SELECT KK_SAKUSEI_DT, DENBUN_MEISAI_NO 
-    INTO v_kk_sakusei_dt, v_denbun_meisai_no
-    FROM KK_RENKEI 
-    LIMIT 1;
-    
-    IF v_kk_sakusei_dt IS NOT NULL THEN
-        v_result := sfadi001s15119(v_kk_sakusei_dt, v_denbun_meisai_no);
-        RAISE NOTICE 'Return Code: %', v_result;
-    ELSE
-        RAISE NOTICE 'Return Code: 2';
-    END IF;
-END $$;
-""",
-                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND
+                'postgres_sql': "SELECT sfadi001s15119('20241007112027623198', 3);",
+                'expected': 0  # 0=SUCCESS (updates SHONIN_KAIJO_YOKUSEI_FLG)
             }
         ]
     },
@@ -776,9 +759,10 @@ END $$;
         'timeout': 60,
         'tests': [
             {
-                'description': 'Bond information registration data transmission (status update) - common function',
-                'postgres_sql': "SELECT sfadi001s1511common(KK_SAKUSEI_DT::varchar(20), DENBUN_MEISAI_NO::numeric, pkKkNotice.MGR_KKSTAT_SEND()::char(2)) FROM KK_RENKEI LIMIT 1;",
-                'expected': [0, 2, 40, 60]  # 0=SUCCESS, 2=NO_DATA, 40=NO_DATA_FIND, 60=CAN_NOT_CANC_KKSTAT
+                'description': 'Bond information registration data transmission (status update) - reset data and test with success',
+                'setup_postgres': "UPDATE MGR_STS SET KK_STAT = '02' WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = '0005S25030002' AND SHORI_KBN = '1' AND KK_PHASE = 'M1';",
+                'postgres_sql': "SELECT sfadi001s1511common('20241007112027623198', 3, '03');",
+                'expected': 0  # 0=SUCCESS (updates MGR_STS from '02' to '03')
             }
         ]
     }

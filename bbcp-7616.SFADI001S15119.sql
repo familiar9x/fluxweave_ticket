@@ -43,7 +43,7 @@ DECLARE
 BEGIN
 	result := pkconstant.FATAL();
 	IF DEBUG = 1 THEN	CALL pkLog.debug(USER_ID, REPORT_ID, SP_ID || ' START');	END IF;
-    -- 銘柄情報登録データ 送信処理（ステータス更新）共通ＳＰをＣＡＬＬ   
+    -- 銘柄情報登録デート 送信処理（ステータス更新）共通ＳＰをＣＡＬＬ   
     result := SFADI001S1511COMMON(l_inKkSakuseiDt,l_inDenbunMeisaiNo,UPDATE_KK_STAT);
 	IF DEBUG = 1 THEN	CALL pkLog.debug(USER_ID, REPORT_ID, 'ステータス更新SP  result = ' || result);	END IF;
 	RETURN result;
