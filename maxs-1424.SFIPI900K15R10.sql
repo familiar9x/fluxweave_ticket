@@ -60,14 +60,10 @@ BEGIN
                 WHERE schemaname = current_schema() 
                   AND relname = r_indexes.table_name;
             IF count_chain_stats > 0 THEN
-                -- Rebuild index (NOT ONLINE)
-                stmt := 'REINDEX INDEX "' || r_indexes.index_name || '"';
-                EXECUTE stmt;
-
                 -- Analyze table (updates index statistics as well)
                 stmt := 'ANALYZE "' || r_indexes.table_name || '"';
                 EXECUTE stmt;
-            END IF;
+        END IF;
         exception
             when others then
             message := '索引(' || current_user || '.' || r_indexes.index_name ||
