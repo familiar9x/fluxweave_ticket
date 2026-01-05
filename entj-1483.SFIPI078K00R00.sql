@@ -50,11 +50,11 @@ DECLARE
     -- 帳票作成区分 
     gChohyoSakuseiKbn   PRT_OK.LIST_SAKUSEI_KBN%TYPE;
     -- 作表ＳＰリターン用 
-    gSqlCode            numeric;
-    gSqlErrM            varchar(1000);
+    gSqlCode            integer;
+    gSqlErrM            text;
     -- オプションフラグ 
     gOptionFlg   MOPTION_KANRI.OPTION_FLG%TYPE := '0';  -- オプションフラグ
-    total_cnt 		varchar(5);
+    total_cnt 		text;
 --====================================================================*
 --                    定数定義
 -- *====================================================================
@@ -71,7 +71,7 @@ DECLARE
     -- 帳票区分（バッチ）（夜間） 
     CHOHYO_KBN_BATCH            CONSTANT SREPORT_WK.CHOHYO_KBN%TYPE  := pkKakuninList.CHOHYO_KBN_BATCH();
     -- リターンコード（対象データ無し） 
-    RTN_NO_DATA         CONSTANT text  := '2';
+    RTN_NO_DATA         CONSTANT integer  := 2;
     -- 当日オペ件数一覧 
     REPORT_ID_O         CONSTANT text := 'IP030007811';
     -- 当日送受信件数一覧 
@@ -206,7 +206,7 @@ BEGIN
 		gOptionFlg := pkControl.getOPTION_FLG(gItakuKaishaCd, MISHONIN_OP, '0');
 		-- オプションフラグが１の場合のみ未承認データ一覧を作成する（対象データなし時は作成しない）
 		IF gOptionFlg = '1' THEN
-            CALL SPIP07861(gItakuKaishaCd, 'BATCH', '1', gGyomuYmd, '0', total_cnt, gSqlCode, gSqlErrM);
+            CALL SPIP07861(gItakuKaishaCd, 'BATCH', '1', gGyomuYmd, total_cnt, gSqlCode, gSqlErrM, '0');
 			IF gSqlCode = pkconstant.success() THEN
 				CALL pkPrtOk.insertPrtOk(USER_ID,gItakuKaishaCd,gGyomuYmd,gChohyoSakuseiKbn,REPORT_ID_M);
 			ELSIF gSqlCode = RTN_NO_DATA THEN

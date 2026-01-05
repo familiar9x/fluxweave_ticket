@@ -140,7 +140,6 @@ BEGIN
 				-- Clear composite type
 		v_item := ROW();
 		
-		v_item.l_inItem := v_item;
 		
 		-- Call pkPrint.insertData with composite type
 		CALL pkPrint.insertData(
@@ -176,7 +175,6 @@ BEGIN
 				-- Clear composite type
 		v_item := ROW();
 		
-		v_item.l_inItem := v_item;
 		
 		-- Call pkPrint.insertData with composite type
 		CALL pkPrint.insertData(

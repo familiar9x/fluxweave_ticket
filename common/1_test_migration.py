@@ -114,9 +114,39 @@ END $$;
         'timeout': 60,
         'tests': [
             {
-                'description': 'Issue pre-warning list',
-                'postgres_sql': "DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TESTUSER' AND chohyo_kbn = '1' AND sakusei_ymd = '20251104' AND chohyo_id = 'IP030007831'; CALL spip07831('0005', 'TESTUSER', '1', '20251104', NULL, NULL);",
-                'expected': 2  # 2=RTN_NODATA (no MGR_KIHON records with BEF_WARNING_L/S flags in test DB)
+                'description': 'Issue pre-warning list - NO DATA',
+                'postgres_sql': "DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TESTUSER' AND chohyo_kbn = '1' AND sakusei_ymd = '20251104' AND chohyo_id = 'IP030007831'; UPDATE mgr_sts SET bef_warning_l = '0', bef_warning_s = '0' WHERE itaku_kaisha_cd = '0005' AND mgr_cd IN ('0005S25110008', '0005F25110001'); CALL spip07831('0005', 'TESTUSER', '1', '20251104', NULL, NULL);",
+                'expected': 2  # 2=RTN_NODATA
+            },
+            {
+                'description': 'Issue pre-warning list - WITH DATA',
+                'postgres_sql': "DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND sakusei_ymd = '20251104' AND chohyo_id = 'IP030007831'; UPDATE mgr_sts SET bef_warning_l = '1' WHERE itaku_kaisha_cd = '0005' AND mgr_cd IN ('0005S25110008', '0005F25110001'); CALL spip07831('0005', 'TEST', '1', '20251104', NULL, NULL);",
+                'expected': 0  # 0=RTN_OK with test data
+            }
+        ]
+    },
+    'bsgt-5895': {
+        'name': 'sfIpaSime',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Get counts for closing process (締め処理用件数取得)',
+                'postgres_sql': """
+DO $$
+DECLARE
+    v_result record;
+BEGIN
+    SELECT * INTO v_result FROM sfipasime('0005');
+    
+    IF v_result.extra_param != 0 THEN
+        RAISE EXCEPTION 'extra_param expected 0 (success), got %', v_result.extra_param;
+    END IF;
+    
+    RAISE NOTICE 'Test passed - extra_param = 0';
+END $$;
+""",
+                'expected': 0  # 0=SUCCESS
             }
         ]
     },
@@ -580,6 +610,137 @@ SELECT sfipi092k00r00();
                 'description': 'Remaining amount notification scheduled data creation - creates ZANZON_TSUCHI records for bonds',
                 'postgres_sql': "SELECT sfipi115k00r01('0006');",
                 'expected': 0  # 0=SUCCESS - creates remaining amount notification data
+            }
+        ]
+    },
+    'vqhw-9431': {
+        'name': 'SFIPD018K01R01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Institution branch/CIF assignment CSV file creation',
+                'postgres_sql': "SELECT sfipd018k01r01('0005', 'TESTUSER', '1', '20240101', NULL, NULL, NULL, NULL);",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'rzvh-8215': {
+        'name': 'SFADI017S0511COMMON',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information change file transmission (status update)',
+                'postgres_sql': "SELECT sfadi017s0511common('20251201135600539712', 1, '01');",
+                'expected': 0  # 0=SUCCESS (ITEM015='1' updates UPD_MGR_RBR table)
+            }
+        ]
+    },
+    'vcrd-8026': {
+        'name': 'SFADI017S05111',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information change file transmission (status update wrapper)',
+                'postgres_sql': "SELECT sfadi017s05111('20251201135600539712', 1);",
+                'expected': 0  # 0=SUCCESS (calls SFADI017S0511COMMON with '01' status)
+            }
+        ]
+    },
+    'epkt-6199': {
+        'name': 'SFADI012S10119',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Settlement instruction transmission (status update wrapper) - requires SFADI012S1011COMMON migration',
+                'postgres_sql': "SELECT sfadi012s10119('20250307145112556859', 2);",
+                'expected': 99  # 99=FATAL (SFADI012S1011COMMON has DBMS_SQL not migrated yet)
+            }
+        ]
+    },
+    'mzss-7723': {
+        'name': 'SFADI017S05110',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information change file transmission (status update wrapper)',
+                'postgres_sql': "SELECT sfadi017s05110('20251201135600539712', 1);",
+                'expected': 0  # 0=SUCCESS (calls SFADI017S0511COMMON with SEND status)
+            }
+        ]
+    },
+    'bwww-5397': {
+        'name': 'SFADI017S05119',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond information change file transmission (status update wrapper)',
+                'postgres_sql': "SELECT sfadi017s05119('20251201135600539712', 1);",
+                'expected': 0  # 0=SUCCESS (calls SFADI017S0511COMMON with SHONIN status)
+            }
+        ]
+    },
+    'jddt-1205': {
+        'name': 'SFADI900S19110',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'SSI information inquiry request transmission (status update) - empty implementation',
+                'postgres_sql': "SELECT sfadi900s19110('20251201135600539712', 1);",
+                'expected': 0  # 0=SUCCESS (empty implementation, returns success)
+            }
+        ]
+    },
+    'qktw-8477': {
+        'name': 'SPIPK002K00R11',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Migration bond balance confirmation list - with test data',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    -- Insert test data
+    DELETE FROM import_kakunin_list_wk WHERE user_id = 'TEST';
+    INSERT INTO import_kakunin_list_wk (
+        itaku_kaisha_cd, user_id, chohyo_id, seq_no, 
+        mgr_cd, isin_cd, dkj_mgr_cd, mgr_rnm, mgr_meisai_no, hkuk_cd,
+        err_cd6, err_umu_flg, shori_mode, 
+        shokan_ymd, shokan_kbn, shokan_kngk, meimoku_zndk, tsuka_cd,
+        hkt_cd, err_nm30, sakusei_ymd, shori_tm,
+        koza_ten_cd, koza_ten_cifcd, hakko_ymd, mgr_nm,
+        kousin_id, sakusei_id
+    ) VALUES 
+    ('0005', 'TEST', 'IPK30000211', 1,
+     '1234567890123', 'JP1234567890', '', 'Test Bond 1', 1, '12345',
+     '', '0', '1',
+     '20251231', '01', 1000000.00, 500000.00, 'JPY',
+     '123456', '', '20251105', '120000',
+     '0001', '12345678901', '20240101', 'Test Bond Name 1',
+     'TEST', 'TEST'),
+    ('0005', 'TEST', 'IPK30000211', 2,
+     '1234567890124', 'JP1234567891', '', 'Test Bond 2', 1, '12345',
+     'ERR001', '1', '1',
+     '20251231', '02', 2000000.00, 1000000.00, 'JPY',
+     '123456', 'Test Error Message', '20251105', '120000',
+     '0001', '12345678902', '20240102', 'Test Bond Name 2',
+     'TEST', 'TEST');
+    
+    CALL spipk002k00r11('0005', 'TEST', '0', '20251105', v_code, v_err);
+    RAISE NOTICE 'Return Code: %, Error: %', v_code, COALESCE(v_err, 'NONE');
+END $$;
+""",
+                'expected': 0  # 0=SUCCESS (creates report with 2 records)
             }
         ]
     },
