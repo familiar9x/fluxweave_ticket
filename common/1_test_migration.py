@@ -139,20 +139,7 @@ END $$;
         'tests': [
             {
                 'description': 'Get counts for closing process (締め処理用件数取得)',
-                'postgres_sql': """
-DO $$
-DECLARE
-    v_result record;
-BEGIN
-    SELECT * INTO v_result FROM sfipasime('0005');
-    
-    IF v_result.extra_param != 0 THEN
-        RAISE EXCEPTION 'extra_param expected 0 (success), got %', v_result.extra_param;
-    END IF;
-    
-    RAISE NOTICE 'Test passed - extra_param = 0';
-END $$;
-""",
+                'postgres_sql': "SELECT extra_param FROM sfipasime('0   ');",
                 'expected': 0  # 0=SUCCESS
             }
         ]
