@@ -139,7 +139,7 @@ END $$;
         'tests': [
             {
                 'description': 'Get counts for closing process (締め処理用件数取得)',
-                'postgres_sql': "SELECT extra_param FROM sfipasime('0   ');",
+                'postgres_sql': "SELECT extra_param FROM sfipasime('0');",
                 'expected': 0  # 0=SUCCESS
             }
         ]
@@ -153,6 +153,375 @@ END $$;
                 'description': 'Bond information change file transmission (status update wrapper)',
                 'postgres_sql': "SELECT sfadi017s05119('20251201135600539712', 1);",
                 'expected': 0  # 0=SUCCESS (calls SFADI017S0511COMMON with SHONIN status)
+            }
+        ]
+    },
+    'ptcw-8531': {
+        'name': 'SPIPF008K00R02',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Update content list (new issue info)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPF30000821';
+    CALL spipf008k00r02(
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'TEST',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => '20241218',
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': [0]  # 0=SUCCESS
+            }
+        ]
+    },
+    'danm-2129': {
+        'name': 'SFADI002R04110',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Brand info change result notification matching process (銘柄情報変更結果通知突合処理)',
+                'postgres_sql': "SELECT SFADI002R04110('20260112000004', 1);",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'udjx-5226': {
+        'name': 'SPCMI012K00R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Report generation',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1';
+    CALL spcmi012k00r01(
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'TEST',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => '20241218',
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': [0]  # 0=SUCCESS
+            }
+        ]
+    },
+    'wnec-8136': {
+        'name': 'SPIPF008K00R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Update content list (new recruitment info)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPF30000811';
+    CALL spipf008k00r01(
+        l_inShoriCounter => 1,
+        l_inMgrCd => 'TEST',
+        l_inMgrMeisaiNo => '001',
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'TEST',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => TO_CHAR(CURRENT_DATE, 'YYYYMMDD'),
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'urhf-2772': {
+        'name': 'SPIPI027K00R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Issuer master import output',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer := 0;
+    v_err text := ''; 
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPK30000151';
+    CALL spipi027k00r01(
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'TEST',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => '20260112',
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO DATA, 40=NO DATA
+            }
+        ]
+    },
+    'dark-6792': {
+        'name': 'SPIPF027K00R02',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Output issuer master content',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id IN ('TEST', 'BATCH') AND chohyo_kbn = '1' AND chohyo_id IN ('IPF30102721', 'IPF30102722');
+    CALL spipf027k00r02(
+        l_inShoriCounter => 1,
+        l_inItakuKaishaCd => '0005',
+        l_inHktCd => '000001',
+        l_inUserId => 'TEST',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => TO_CHAR(CURRENT_DATE, 'YYYYMMDD'),
+        l_inPageSum => 1,
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': [0, 40]  # 0=SUCCESS, 40=NO DATA
+            }
+        ]
+    },
+    'wpcf-2734': {
+        'name': 'SPIPF027K00R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Issuer master import confirmation list',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPF30102711';
+    CALL spipf027k00r01(
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'TEST',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => TO_CHAR(CURRENT_DATE, 'YYYYMMDD'),
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO DATA, 40=NO DATA
+            }
+        ]
+    },
+    'akyu-3768': {
+        'name': 'SFADI012S1011COMMON',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Settlement instruction transmission processing (status update common)',
+                'postgres_sql': """
+-- Reset SHINKIKIROKU to testable state
+UPDATE SHINKIKIROKU 
+SET KK_PHASE = 'H2', KK_STAT = '02'
+WHERE ITAKU_KAISHA_CD = '0005' 
+  AND KESSAI_NO = 'TEST_KESSAI_001'
+  AND MASSHO_FLG = '0';
+
+-- Test the function
+SELECT SFADI012S1011COMMON('20260112000001', 1, '01');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'uasy-7086': {
+        'name': 'SFADI010S0711COMMON',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Fund transfer completion notification transmission (資金振替済通知送信処理)',
+                'postgres_sql': """
+-- Reset SHINKIKIROKU to testable state
+UPDATE SHINKIKIROKU 
+SET KK_STAT = '02'
+WHERE KESSAI_NO = '1201801050031756'
+  AND KK_PHASE = 'H6';
+
+-- Test the function
+SELECT SFADI010S0711COMMON('20260113000004', 1, '03');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'vmjc-3230': {
+        'name': 'SFADW013S5111COMMON',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Brand information registration data transmission/cancellation (銘柄情報登録データ 送信/取消処理)',
+                'postgres_sql': """
+-- Clean and setup test data
+DELETE FROM KK_RENKEI WHERE KK_SAKUSEI_DT = '20260113000005';
+
+INSERT INTO KK_RENKEI (
+    KK_SAKUSEI_DT, DENBUN_MEISAI_NO, JIP_DENBUN_CD, DENBUN_STAT,
+    SR_BIC_CD, HYOJI_KOMOKU1, HYOJI_KOMOKU4,
+    ITEM002, ITEM006, ITEM007, ITEM008, ITEM009,
+    ITEM016, ITEM017, ITEM019, ITEM020, ITEM021, ITEM022, ITEM023, ITEM024, ITEM025, ITEM026, ITEM027, ITEM028, ITEM029
+) VALUES (
+    '20260113000005', 1, 'S5111', '0',
+    'BOTKJPJT', 'TEST_MGR_W013', '20200101',
+    'JP1234567890', 'TestBrand', 'TestIssuer', 'TestNote', '1',
+    '1', '1', '1', '1', '01', '1', '1', '8', '20200101', '100000000', '1000000000', '00001', 'JPY'
+);
+
+-- Reset MGR_STS to testable state
+UPDATE MGR_STS 
+SET KK_PHASE = 'M1', KK_STAT = '02', MASSHO_FLG = '0'
+WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = 'TEST_MGR_W013' AND SHORI_KBN = '1';
+
+INSERT INTO MGR_STS (ITAKU_KAISHA_CD, MGR_CD, SHORI_KBN, KK_PHASE, KK_STAT, MASSHO_FLG, SHONIN_KAIJO_YOKUSEI_FLG)
+SELECT '0005', 'TEST_MGR_W013', '1', 'M1', '02', '0', '0'
+WHERE NOT EXISTS (
+    SELECT 1 FROM MGR_STS WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = 'TEST_MGR_W013' AND SHORI_KBN = '1'
+);
+
+-- Test the function
+SELECT SFADW013S5111COMMON('20260113000005', 1, '4');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'hnxj-6293': {
+        'name': 'SFADI002R28111',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Brand information comparison (銘柄情報更新−ＩＳＩＮコード、銘柄突合)',
+                'postgres_sql': """
+-- Test function (TOTSUGO_KEKKA_KBN column may not exist in test environment)
+SELECT SFADI002R28111('20260112000002', 1, '0005');
+                """,
+                'expected': [0]  # Accept multiple return codes as data setup may be incomplete
+            }
+        ]
+    },
+    'sdkz-2067': {
+        'name': 'SFADI005R08112',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'New record information comparison (新規募集情報ＴＢＬ突合・更新処理)',
+                'postgres_sql': """
+-- Reset test data
+UPDATE SHINKIKIROKU 
+SET TOTSUGO_KEKKA_KBN = '0'
+WHERE ITAKU_KAISHA_CD = '0005' AND KESSAI_NO = 'TEST20260112001';
+
+UPDATE SHINKIBOSHU
+SET TOTSUGO_KEKKA_KBN = '0'
+WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = 'S620060331876' AND MGR_MEISAI_NO = 1;
+
+-- Test function
+SELECT SFADI005R08112('0005', 'TEST20260112001');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'dgnn-8769': {
+        'name': 'SFADI002R04111',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond redemption information comparison (銘柄_償還回次テーブルとの突合処理)',
+                'postgres_sql': """
+-- Reset test data (ensure matching values with MGR_SHOKIJ)
+UPDATE KK_RENKEI 
+SET ITEM025 = '20060930', ITEM027 = '0.9'
+WHERE KK_SAKUSEI_DT = '20260112000002' AND DENBUN_MEISAI_NO = 1;
+
+-- Test function (l_inKbn=4: 償還情報 定時償還)
+SELECT SFADI002R04111('20260112000002', 1, '0005', 'S620060331876', 4, 'TEST');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'dgua-1659': {
+        'name': 'SFADI002R04120',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Brand info change result notification error processing (銘柄情報変更結果通知エラー処理)',
+                'postgres_sql': """
+SELECT SFADI002R04120('20260112000004', 1);
+                """,
+                'expected': [0]  # 0=SUCCESS, 2=NO_DATA_FIND, 40=NO_DATA, 99=FATAL (acceptable - requires complex setup with MITAKU_KAISHA, UPD_MGR_XXX tables)
+            }
+        ]
+    },
+    'gwhf-9960': {
+        'name': 'pkCompare.getCompareInfo',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Get comparison info with auto-numeric-wrapping (突合情報取得・自動数値変換)',
+                'postgres_sql': """
+-- Test getCompareInfo with numeric comparison (SFADI002R04111 use case)
+-- Function returns composite type, cast to text to check contents
+SELECT pkCompare.getCompareInfo(
+    'R04114',  -- TOTSUGO_NO
+    'decode(trim(RT02.ITEM027), null, null, to_number(RT02.ITEM027))',  -- MOTO_ITEM expression
+    'MG3.FACTOR'  -- SAKI_ITEM column
+)::text;
+                """,
+                'expected': 'contains:numeric_to_char'  # Should contain numeric_to_char wrapping
             }
         ]
     }
@@ -288,6 +657,16 @@ def run_tests(ticket_id: str):
                     print(f"  Status:     ❌ ERROR")
                     all_passed = False
                     test_results.append(False)
+            elif isinstance(expected, str) and expected.startswith('contains:'):
+                # Check if result contains expected substring
+                substring = expected.split(':', 1)[1]
+                if postgres_result and substring in str(postgres_result):
+                    print(f"  Status:     ✅ PASS (contains '{substring}')")
+                    test_results.append(True)
+                else:
+                    print(f"  Status:     ❌ FAIL (does not contain '{substring}')")
+                    all_passed = False
+                    test_results.append(False)
             elif (isinstance(expected, list) and postgres_result in expected) or postgres_result == expected:
                 print(f"  Status:     ✅ PASS")
                 test_results.append(True)
@@ -355,3 +734,4 @@ if __name__ == '__main__':
         success = run_all_tests()
     
     sys.exit(0 if success else 1)
+    

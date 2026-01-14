@@ -51,6 +51,7 @@ Rule:
 To convert NUMERIC, INT, etc to VARCHAR, please use pkcharacter.numeric_to_char function. This function will converted NUMERIC, INT, etc to the format that match Oracle.
 gTsukaRishiCalc := '('  trim(both gRiritsu::text)  '% × '…)
 should be gTsukaRishiCalc := '('  trim(both pkcharacter.numeric_to_char(gRiritsu))  '% × '…)
+- Oracle SELECT INTO → PostgreSQL SELECT INTO STRICT
 - When call function with OUT parameter -> select * into xxx from function(...); 
 
 	SELECT f.l_outsqlcode, f.l_outsqlerrm, f.extra_param 
