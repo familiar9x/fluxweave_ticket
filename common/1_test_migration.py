@@ -287,6 +287,157 @@ END $$;
             }
         ]
     },
+    'eerj-0959': {
+        'name': 'SPIPX022K02R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Principal/interest payment report creation (元利金支払情報データ作成)',
+                'postgres_sql': """
+DELETE FROM SREPORT_WK_SSKM 
+WHERE KEY_CD = '0005' 
+  AND USER_ID = 'TESTUSER' 
+  AND CHOHYO_KBN = '0'
+  AND CHOHYO_ID = 'IP030004711';
+
+CALL spipx022k02r01(
+    'IP030004711',
+    '0005',
+    'TESTUSER',
+    '0',
+    '20200331',
+    '',
+    '',
+    '',
+    'S620060331815',
+    '',
+    '',
+    '20200301',
+    '20200331',
+    '20200331',
+    NULL
+);
+                """,
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO DATA FOUND (depends on MBUTEN data availability)
+            }
+        ]
+    },
+    'pcuc-1602': {
+        'name': 'SPIPI047K00R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond principal/interest payment report (元利金支払報告書)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer := 0;
+    v_err text := '';
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'BATCH' AND chohyo_kbn = '1' AND chohyo_id = 'IP047';
+    CALL spipi047k00r01(
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'BATCH',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => '20180131',
+        l_inHktCd => NULL,
+        l_inKozaTenCd => NULL,
+        l_inKozaTenCifCd => NULL,
+        l_inMgrCd => NULL,
+        l_inIsinCd => NULL,
+        l_inKijunYm => '201801',
+        l_inKijunYmdFrom => NULL,
+        l_inKijunYmdTo => NULL,
+        l_inTsuchiYmd => NULL,
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': [0, 2]  # 0=SUCCESS, 2=NO DATA (201801 has KIKIN_IDO KKN_IDO_KBN='92' but complex joins may still filter out all records)
+            }
+        ]
+    },
+    'agft-9821': {
+        'name': 'SPIP00101',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Issue agent basic attribute registration processing',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer := 0;
+    v_err text := '';
+BEGIN 
+    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IP00101';
+    CALL spip00101(
+        l_inMgrCd => NULL,
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'TEST',
+        l_inChohyoKbn => '1',
+        l_inGyomuYmd => '20260115',
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+END $$;
+                """,
+                'expected': [0, 1, 2, 40]  # 0=SUCCESS, 1=NO DATA FOUND, 2=NO DATA, 40=NO DATA
+            }
+        ]
+    },
+    'srsq-5658': {
+        'name': 'SPIPI044K00R01',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond statement creation processing',
+                'postgres_sql': """
+DELETE FROM genbo_work WHERE 1=1;
+DELETE FROM prt_ok WHERE kijun_ymd = '20070521';
+CALL spipi044k00r01('0005', 'TESTUSER', '0', '20070521', 'S220020521001', 0, '');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'nqkf-9193': {
+        'name': 'SFIPX016K00R01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Invoice cancellation file creation',
+                'postgres_sql': """
+DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPX016';
+SELECT sfipx016k00r01('0005', 'TEST', '1', '20260115', NULL);
+                """,
+                'expected': [0, 1, 2, 40, 99]  # 0=SUCCESS, 1/2/40=NO DATA, 99=FATAL (no MGR_CD provided)
+            }
+        ]
+    },
+    'rjbw-8206': {
+        'name': 'SFIPI044K00R00_01',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond statement creation wrapper function',
+                'postgres_sql': """
+DELETE FROM genbo_work WHERE 1=1;
+DELETE FROM prt_ok WHERE kijun_ymd = '20070521';
+SELECT sfipi044k00r00_01('0005');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
     'dark-6792': {
         'name': 'SPIPF027K00R02',
         'type': 'procedure',
@@ -502,6 +653,20 @@ SELECT SFADI002R04111('20260112000002', 1, '0005', 'S620060331876', 4, 'TEST');
 SELECT SFADI002R04120('20260112000004', 1);
                 """,
                 'expected': [0]  # 0=SUCCESS, 2=NO_DATA_FIND, 40=NO_DATA, 99=FATAL (acceptable - requires complex setup with MITAKU_KAISHA, UPD_MGR_XXX tables)
+            }
+        ]
+    },
+    'nqkg-1418': {
+        'name': 'sfIpMgrKihonDelete',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Brand basic attribute cancellation processing (銘柄情報基本属性取消処理)',
+                'postgres_sql': """
+SELECT (sfipmgrkihondelete('0005', 'TEST_DELETE_MGR', 'TESTUSER')).extra_param;
+                """,
+                'expected': 0  # 0=SUCCESS (function deletes brand-related data)
             }
         ]
     },

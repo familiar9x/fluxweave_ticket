@@ -10,7 +10,7 @@ Process to migrate each file:
 - Ra 0: ok -> và thêm test case vào 1_test_migration.py
 - Ra 2: tìm tham số khác để ra 0
 - Ra 99: xem lỗi trực tiếp hoặc thêm raise notice vào file để fix lỗi và quay lại bước 5 
-8. Thêm test case vào 1_test_migration.py
+8. Thêm test case vào 1_test_migration.py và chạy test để verify
 
 Data example:
 'TESTUSER'::text,       -- l_inUserId

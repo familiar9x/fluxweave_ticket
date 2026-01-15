@@ -1,0 +1,10 @@
+SQL (PLSQL BRANCH): ipa/print/SPIP00101.SQL
+
+IMPORTANT: PLEASE MAKE SURE TO EXECUTE EACH FUNCTION/PROCEDURES AND ENSURE IT FUNCTION CORRECTLY.
+
+BRANCH SOURCES AND OUTPUT
+
+Generated: generated/db_output_sql/branch/T0001/db/plsql/ipa/print/SPIP00101.SQL
+Legacy: legacy/branches_20250707/T0001/db/plsql/ipa/print/SPIP00101.SQL
+Save to: branches/T0001/db/plsql/ipa/print/SPIP00101.SQL
+Make sure that the function does not return 99, if it is, debug by using `raise notice` to identify and resolve the cause.
