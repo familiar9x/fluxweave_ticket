@@ -197,6 +197,122 @@ END $$;
             }
         ]
     },
+    'spip00106': {
+        'name': 'SPIP00106',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Brand detail info list - Issue fee info (銘柄詳細情報リスト（発行時手数料情報）)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err varchar; 
+BEGIN 
+    CALL spip00106(
+        l_inmgrcd := '0005C08120001',
+        l_initakukaishacd := '0005',
+        l_inuserid := 'TESTUSER',
+        l_inchohyokbn := '0',
+        l_ingyomuymd := '20260116',
+        l_outsqlcode := v_code,
+        l_outsqlerrm := v_err
+    );
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 2  # RTN_NODATA - Expected in test environment without full master data
+            }
+        ]
+    },
+    'spip00107': {
+        'name': 'SPIP00107',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Brand detail info list - Period fee info (銘柄詳細情報リスト（期中手数料情報）)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    CALL spip00107(
+        l_inmgrcd := '0005C08120001',
+        l_initakukaishacd := '0005',
+        l_inuserid := 'TESTUSER',
+        l_inchohyokbn := '0',
+        l_ingyomuymd := '20260116',
+        l_outsqlcode := v_code,
+        l_outsqlerrm := v_err
+    );
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'spip10901': {
+        'name': 'SPIP10901',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Sub-trustee brand detail info list - Basic attributes (副受託銘柄詳細情報リスト（基本属性）)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    CALL spip10901(
+        l_inmgrcd := '0005C08120001',
+        l_initakukaishacd := '0005',
+        l_inuserid := 'TESTUSER',
+        l_inchohyokbn := '0',
+        l_ingyomuymd := '20260116',
+        l_outsqlcode := v_code,
+        l_outsqlerrm := v_err
+    );
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0
+            }
+        ]
+    },
+    'spip04401': {
+        'name': 'SPIP04401',
+        'type': 'procedure',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Bond register creation (社債原簿作成)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer := 0;
+    v_err text := ''; 
+BEGIN 
+    CALL spip04401(
+        l_inuserid := 'TESTUSER',
+        l_initakukaishacd := '0005',
+        l_inmgrcd := '0005C08120001',
+        l_inisincd := '            ',
+        l_intsuchiymd := '20260116',
+        l_outsqlcode := v_code,
+        l_outsqlerrm := v_err
+    );
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 2
+            }
+        ]
+    },
     'udjx-5226': {
         'name': 'SPCMI012K00R01',
         'type': 'procedure',
@@ -367,27 +483,25 @@ END $$;
         'timeout': 60,
         'tests': [
             {
-                'description': 'Issue agent basic attribute registration processing',
+                'description': 'Issue agent basic attribute registration processing (銘柄詳細情報リスト基本属性)',
                 'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer := 0;
-    v_err text := '';
-BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IP00101';
-    CALL spip00101(
-        l_inMgrCd => NULL,
-        l_inItakuKaishaCd => '0005',
-        l_inUserId => 'TEST',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => '20260115',
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-END $$;
+DELETE FROM sreport_wk 
+WHERE key_cd = '0005' 
+  AND user_id = 'TESTUSER' 
+  AND chohyo_kbn = '1' 
+  AND chohyo_id = 'IP00101';
+
+CALL spip00101(
+    '0005BF0210001',
+    '0005',
+    'TESTUSER',
+    '1',
+    '20260116',
+    NULL,
+    NULL
+);
                 """,
-                'expected': [0, 1, 2, 40]  # 0=SUCCESS, 1=NO DATA FOUND, 2=NO DATA, 40=NO DATA
+                'expected': 0  # 0=SUCCESS with valid MGR_CD
             }
         ]
     },
@@ -687,6 +801,57 @@ SELECT pkCompare.getCompareInfo(
 )::text;
                 """,
                 'expected': 'contains:numeric_to_char'  # Should contain numeric_to_char wrapping
+            }
+        ]
+    },
+    'anaf-2573': {
+        'name': 'SPIP10901',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Sub-consignment brand detail information list (basic attributes) (副受託銘柄詳細情報リスト（基本属性）)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    -- Clean up test data
+    DELETE FROM sreport_wk 
+    WHERE key_cd = '0005' 
+      AND user_id = 'TESTUSER' 
+      AND chohyo_kbn = '0'
+      AND chohyo_id IN ('IP030010911', 'IP030010912');
+    
+    -- Call procedure with actual brand data
+    CALL spip10901(
+        l_inMgrCd => '0005BF0210001',
+        l_inItakuKaishaCd => '0005',
+        l_inUserId => 'TESTUSER',
+        l_inChohyoKbn => '0',
+        l_inGyomuYmd => '20260116',
+        l_outSqlCode => v_code,
+        l_outSqlErrM => v_err
+    );
+    
+    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+    
+    IF v_code = 0 THEN
+        RAISE NOTICE 'TEST PASSED: Return code is 0';
+    ELSE
+        RAISE EXCEPTION 'TEST FAILED: Return code is % (expected 0), Error: %', v_code, v_err;
+    END IF;
+    
+    -- Verify data was inserted into SREPORT_WK (should have 2 reports: IP030010911 and IP030010912)
+    IF (SELECT COUNT(*) FROM sreport_wk WHERE chohyo_id IN ('IP030010911', 'IP030010912') AND user_id = 'TESTUSER') >= 2 THEN
+        RAISE NOTICE 'VERIFIED: Data found in SREPORT_WK for both report IDs';
+    ELSE
+        RAISE EXCEPTION 'VERIFICATION FAILED: Expected at least 2 records in SREPORT_WK';
+    END IF;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
             }
         ]
     }

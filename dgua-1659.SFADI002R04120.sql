@@ -70,7 +70,7 @@ DECLARE
 -- *====================================================================
 BEGIN
 	result := pkconstant.FATAL();
-	-- IF DEBUG = 1 THEN	CALL pkLog.debug(USER_ID, REPORT_ID, SP_ID || ' START');	END IF;
+	 IF DEBUG = 1 THEN	CALL pkLog.debug(USER_ID, REPORT_ID, SP_ID || ' START');	END IF;
 	-- 入力パラメータのチェック
 	IF coalesce(trim(both l_inKkSakuseiDt::text), '') = ''
 	  OR coalesce(trim(both l_inDenbunMeisaiNo::text), '') = '' THEN
@@ -94,7 +94,7 @@ BEGIN
 	END IF;
 	-- 業務日付取得 
 	gGyomuYmd := pkDate.getGyomuYmd();
-    rRT02 := SFADI002R04120_getKkData(l_inKkSakuseiDt, l_inDenbunMeisaiNo);
+    CALL SFADI002R04120_getKkData(l_inKkSakuseiDt, l_inDenbunMeisaiNo, rRT02);
     tempResult := SFADI002R04120_validateData(l_inKkSakuseiDt,
                                         l_inDenbunMeisaiNo,
                                         gItakuKaishaCd,
@@ -364,10 +364,11 @@ LANGUAGE PLPGSQL
 
 
 
-CREATE OR REPLACE FUNCTION sfadi002r04120_getkkdata (
+CREATE OR REPLACE PROCEDURE sfadi002r04120_getkkdata (
     l_inKkSakuseiDt character,
-    l_inDenbunMeisaiNo integer
-) RETURNS record AS $body$
+    l_inDenbunMeisaiNo integer,
+    rRT02 OUT record
+) AS $body$
 DECLARE
     tempITEM005 text;
     tempITEM006 text;
@@ -381,7 +382,6 @@ DECLARE
     tempITEM029 text;
     tempITEM038 text;
     tempITEM054 text;
-    rRT02 record;
 BEGIN
         -- 機構連携テーブルよりＩＳＩＮコード、期日を取得します。 
         SELECT
@@ -432,7 +432,7 @@ BEGIN
             tempITEM054
         INTO rRT02;
         
-        RETURN rRT02;
+        RETURN;
 EXCEPTION
 	WHEN	OTHERS	THEN
 		RAISE;
@@ -440,7 +440,7 @@ END;
 $body$
 LANGUAGE PLPGSQL
 ;
--- REVOKE ALL ON FUNCTION sfadi002r04120_getkkdata () FROM PUBLIC;
+-- REVOKE ALL ON PROCEDURE sfadi002r04120_getkkdata () FROM PUBLIC;
 
 
 
