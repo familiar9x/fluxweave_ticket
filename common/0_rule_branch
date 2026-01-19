@@ -1,11 +1,12 @@
 Process to migrate each file:
-0. Kiểm tra xem đã có file trong /home/ansible/jip-ipa/db/plsql chưa, nếu có rồi thì bỏ qua
 1. Copy file từ generated về file có tên: /home/ansible/fluxweave_ticket/[ticket_id].[sql_name].sql
 2. Run convert_pkprint_calls.py để convert pkprint calls sang PostgreSQL syntax
 3. RUN: script_convert_simple.sh    ← FIX data type
 4. Fix %TYPE, arrays, nested procedures... ( theo rule ở dưới)
 5. Deploy script local lên PostgreSQL theo thông tin trong 0_db_postgres (Ko copy vào jip-ipa)
 6. Check error and continue to fix
+- Nếu thiếu table thì tìm file chứa ddl table và deploy thêm
+- Nếu thiếu function/procedure thì báo lại.
 7. Tìm data example để test
 - Ra 0: ok -> và thêm test case vào 1_test_migration.py
 - Ra 2: tìm tham số khác để ra 0
@@ -19,7 +20,7 @@ Username: rh_branches_ipa
 Password: luxur1ous-Pine@pple
 
 Data example:
-'TESTUSER'::text,       -- l_inUserId
+'BATCH'::text,       -- l_inUserId
 '0005'::text,           -- l_inItakuKaishaCd
 '609970'::text,        -- l_inHktCd
 'S620060331876'::text, -- l_inMgrCd

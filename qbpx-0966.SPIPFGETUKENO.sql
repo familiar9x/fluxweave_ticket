@@ -20,7 +20,7 @@ DECLARE
 -- * 
 -- * @param l_inNo 		 IN		TEXT				種別
 -- *		  l_outNo		 OUT	TEXT				通番
--- *		  l_outSqlCode	 OUT	INTEGER				リターン値
+-- *		  l_outSqlCode	 OUT	NUMERIC				リターン値
 -- 
 --==============================================================================
 --					変数定義													

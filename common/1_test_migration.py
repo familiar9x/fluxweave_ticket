@@ -217,6 +217,118 @@ END $$;
             }
         ]
     },
+    'rtax-6128': {
+        'name': 'SFIPF010K01R02',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Create deposit data from nyukin_yotei until settlement day morning process (入金予定テーブルから、決算日当日朝処理までの当預データを作成する)',
+                'postgres_sql': "SELECT sfipf010k01r02('R0111', '0005', '1234567890');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'mrqc-0457': {
+        'name': 'SFIPF010K01R10',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Delete data from toyorealrcvif table (当預リアル受信ＩＦテーブル　データ削除)',
+                'postgres_sql': "SELECT sfipf010k01r10();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'neeg-6042': {
+        'name': 'SPIPF010K01R06',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Matching process common procedure - Update toyosend and toyorcv tables based on Kessai results (照合処理PG（共通）- 決済結果に基づき当預テーブル（送信用・受信用）を更新する)',
+                'postgres_sql': "DO $$ DECLARE l_outSqlCode integer; l_outSqlErrM text; BEGIN CALL spipf010k01r06('0001', 'TEST001', '01', '001', l_outSqlCode, l_outSqlErrM); RAISE NOTICE 'Return Code: %', l_outSqlCode; END $$;",
+                'expected': 0  # 0=SUCCESS
+            },
+            {
+                'description': 'Test with toyo_kubun 02 (当預出入区分=02)',
+                'postgres_sql': "DO $$ DECLARE l_outSqlCode integer; l_outSqlErrM text; BEGIN CALL spipf010k01r06('0001', 'TEST001', '02', '001', l_outSqlCode, l_outSqlErrM); RAISE NOTICE 'Return Code: %', l_outSqlCode; END $$;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'dawh-5989': {
+        'name': 'SFIPF012K01R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Insert toyosend data into filesndif and filesave for file transmission (当預テーブル（送信用）の内容を基にファイル送信ＩＦテーブル、ファイル送受信保存テーブルにデータを挿入する)',
+                'postgres_sql': "DELETE FROM filesndif WHERE data_id = '13015'; DELETE FROM filesave WHERE data_id = '13015'; DELETE FROM toyosend WHERE kessai_no = 'TEST001'; INSERT INTO toyosend (itaku_kaisha_cd, kessai_no, data_shori_kbn, if_kbn, data_kbn_smbc, gyomu_kbn_smbc, kessai_ymd, send_flg) VALUES ('0001', 'TEST001', '1', '01', '02', '03', '20251110', '1'); SELECT sfipf012k01r01();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'rgfr-1112': {
+        'name': 'SFIPF010K01R03',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Insert data into toyorealsndif and toyorealsave from toyosend (当預テーブル（送信用）の内容を基に当預リアル送信ＩＦテーブル、当預リアル送受信保存テーブルに決済日当日朝処理分のデータを挿入する)',
+                'postgres_sql': "SELECT sfipf010k01r03();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'ewkc-2514': {
+        'name': 'SFITRealSendToRecv',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Test function - Transfer data from knjrealsndif to knjrealrcvif (勘定系リアル送信IFテーブルから勘定系リアル受信IFテーブルを作成する)',
+                'postgres_sql': "SELECT sfitrealsendtorecv();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'qbpx-0966': {
+        'name': 'SPIPFGETUKENO',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Reception number assignment type 1 - internal (受付通番採番管理・内部)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_no TEXT; 
+    v_code INTEGER; 
+BEGIN 
+    CALL spipfgetukeno('1', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            },
+            {
+                'description': 'Reception number assignment type 2 - accounting system (受付通番採番管理・勘定系)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_no TEXT; 
+    v_code INTEGER; 
+BEGIN 
+    CALL spipfgetukeno('2', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
     'hnxj-6293': {
         'name': 'SFADI002R28111',
         'type': 'function',
