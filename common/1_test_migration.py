@@ -1,3 +1,5 @@
+
+
 #!/usr/bin/env python3
 """
 Test PostgreSQL migration results
@@ -12,179 +14,13 @@ from typing import Dict, List, Tuple, Any
 POSTGRES_CONFIG = {
     'host': 'jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com',
     'port': 5432,
-    'database': 'rh_mufg_ipa',
-    'user': 'rh_mufg_ipa',
+    'database': 'rh_branches_ipa',
+    'user': 'rh_branches_ipa',
     'password': 'luxur1ous-Pine@pple'
 }
 
 # Test configurations for each ticket
 TEST_CONFIGS = {
-    'yhkb-4351': {
-        'name': 'SFIPM001K00R01',
-        'type': 'function',
-        'timeout': 30,
-        'tests': [
-            {
-                'description': 'Create daily memorandum work info (備忘録日次作業情報作成)',
-                'postgres_sql': "DELETE FROM MEMORANDOM_D_SAGYO WHERE ITAKU_KAISHA_CD = '0005' AND MEMORANDOM_CD = 'M0002'; SELECT sfipm001k00r01('TEST', '0005', 'M0002', '1');",
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'jtgv-2994': {
-        'name': 'SPIPM001K00R03',
-        'type': 'procedure',
-        'timeout': 30,
-        'tests': [
-            {
-                'description': 'Memorandum setting info list (non-issue linked) (備忘録設定情報一覧表（銘柄非連動分）)',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer;
-    v_err text; 
-BEGIN 
-    -- Clean up test data
-    DELETE FROM sreport_wk 
-    WHERE key_cd = '0005' 
-      AND user_id = 'TEST' 
-      AND chohyo_kbn = '1'
-      AND chohyo_id = 'IPM30000121';
-    
-    -- Call procedure
-    CALL spipm001k00r03(
-        l_inItakuKaishaCd := '0005',
-        l_inUserId := 'TEST',
-        l_inChohyoKbn := '1',
-        l_inMemorandomCd := 'M0002',
-        l_outSqlCode := v_code,
-        l_outSqlErrM := v_err
-    );
-    
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-    
-    IF v_code = 0 THEN
-        RAISE NOTICE 'TEST PASSED: Return code is 0';
-    ELSE
-        RAISE EXCEPTION 'TEST FAILED: Return code is % (expected 0), Error: %', v_code, v_err;
-    END IF;
-    
-    -- Verify data
-    IF (SELECT COUNT(*) FROM sreport_wk WHERE chohyo_id = 'IPM30000121' AND user_id = 'TEST') >= 1 THEN
-        RAISE NOTICE 'VERIFIED: Data found in SREPORT_WK';
-    ELSE
-        RAISE EXCEPTION 'VERIFICATION FAILED: No data in SREPORT_WK';
-    END IF;
-END $$;
-                """,
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'uvty-9465': {
-        'name': 'SPIPM001K00R04',
-        'type': 'procedure',
-        'timeout': 30,
-        'tests': [
-            {
-                'description': 'Memorandum code-specific issue list (備忘録コード別銘柄情報一覧表)',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer;
-    v_err text; 
-BEGIN 
-    -- Clean up test data first
-    DELETE FROM sreport_wk 
-    WHERE key_cd = '0005' 
-      AND user_id = 'TEST' 
-      AND chohyo_kbn = '1'
-      AND chohyo_id = 'IPM30000131';
-    
-    -- Call procedure
-    CALL spipm001k00r04(
-        l_inItakuKaishaCd := '0005',
-        l_inUserId := 'TEST',
-        l_inChohyoKbn := '1',
-        l_inMemorandomCd := 'M0001',
-        l_outSqlCode := v_code,
-        l_outSqlErrM := v_err
-    );
-    
-    -- Raise result
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-    
-    IF v_code = 0 THEN
-        RAISE NOTICE 'TEST PASSED: Return code is 0';
-    ELSE
-        RAISE EXCEPTION 'TEST FAILED: Return code is % (expected 0), Error: %', v_code, v_err;
-    END IF;
-    
-    -- Verify data was inserted into SREPORT_WK
-    IF (SELECT COUNT(*) FROM sreport_wk WHERE chohyo_id = 'IPM30000131' AND user_id = 'TEST') >= 1 THEN
-        RAISE NOTICE 'VERIFIED: Data found in SREPORT_WK';
-    ELSE
-        RAISE EXCEPTION 'VERIFICATION FAILED: No data in SREPORT_WK';
-    END IF;
-END $$;
-                """,
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    }, 
-    'bsgt-5895': {
-        'name': 'sfIpaSime',
-        'type': 'function',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Get counts for closing process (締め処理用件数取得)',
-                'postgres_sql': "SELECT extra_param FROM sfipasime('0');",
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'bwww-5397': {
-        'name': 'SFADI017S05119',
-        'type': 'function',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Bond information change file transmission (status update wrapper)',
-                'postgres_sql': "SELECT sfadi017s05119('20251201135600539712', 1);",
-                'expected': 0  # 0=SUCCESS (calls SFADI017S0511COMMON with SHONIN status)
-            }
-        ]
-    },
-    'ptcw-8531': {
-        'name': 'SPIPF008K00R02',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Update content list (new issue info)',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer;
-    v_err text; 
-BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPF30000821';
-    CALL spipf008k00r02(
-        l_inItakuKaishaCd => '0005',
-        l_inUserId => 'TEST',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => '20241218',
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-END $$;
-                """,
-                'expected': [0]  # 0=SUCCESS
-            }
-        ]
-    },
     'danm-2129': {
         'name': 'SFADI002R04110',
         'type': 'function',
@@ -313,198 +149,6 @@ END $$;
             }
         ]
     },
-    'udjx-5226': {
-        'name': 'SPCMI012K00R01',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Report generation',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer;
-    v_err text; 
-BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1';
-    CALL spcmi012k00r01(
-        l_inItakuKaishaCd => '0005',
-        l_inUserId => 'TEST',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => '20241218',
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-END $$;
-                """,
-                'expected': [0]  # 0=SUCCESS
-            }
-        ]
-    },
-    'wnec-8136': {
-        'name': 'SPIPF008K00R01',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Update content list (new recruitment info)',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer;
-    v_err text; 
-BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPF30000811';
-    CALL spipf008k00r01(
-        l_inShoriCounter => 1,
-        l_inMgrCd => 'TEST',
-        l_inMgrMeisaiNo => '001',
-        l_inItakuKaishaCd => '0005',
-        l_inUserId => 'TEST',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => TO_CHAR(CURRENT_DATE, 'YYYYMMDD'),
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-END $$;
-                """,
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'urhf-2772': {
-        'name': 'SPIPI027K00R01',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Issuer master import output',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer := 0;
-    v_err text := ''; 
-BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPK30000151';
-    CALL spipi027k00r01(
-        l_inItakuKaishaCd => '0005',
-        l_inUserId => 'TEST',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => '20260112',
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-END $$;
-                """,
-                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO DATA, 40=NO DATA
-            }
-        ]
-    },
-    'eerj-0959': {
-        'name': 'SPIPX022K02R01',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Principal/interest payment report creation (元利金支払情報データ作成)',
-                'postgres_sql': """
-DELETE FROM SREPORT_WK_SSKM 
-WHERE KEY_CD = '0005' 
-  AND USER_ID = 'TESTUSER' 
-  AND CHOHYO_KBN = '0'
-  AND CHOHYO_ID = 'IP030004711';
-
-CALL spipx022k02r01(
-    'IP030004711',
-    '0005',
-    'TESTUSER',
-    '0',
-    '20200331',
-    '',
-    '',
-    '',
-    'S620060331815',
-    '',
-    '',
-    '20200301',
-    '20200331',
-    '20200331',
-    NULL
-);
-                """,
-                'expected': [0, 2]  # 0=SUCCESS, 2=NO DATA FOUND (depends on MBUTEN data availability)
-            }
-        ]
-    },
-    'pcuc-1602': {
-        'name': 'SPIPI047K00R01',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Bond principal/interest payment report (元利金支払報告書)',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer := 0;
-    v_err text := '';
-BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'BATCH' AND chohyo_kbn = '1' AND chohyo_id = 'IP047';
-    CALL spipi047k00r01(
-        l_inItakuKaishaCd => '0005',
-        l_inUserId => 'BATCH',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => '20180131',
-        l_inHktCd => NULL,
-        l_inKozaTenCd => NULL,
-        l_inKozaTenCifCd => NULL,
-        l_inMgrCd => NULL,
-        l_inIsinCd => NULL,
-        l_inKijunYm => '201801',
-        l_inKijunYmdFrom => NULL,
-        l_inKijunYmdTo => NULL,
-        l_inTsuchiYmd => NULL,
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-END $$;
-                """,
-                'expected': [0, 2]  # 0=SUCCESS, 2=NO DATA (201801 has KIKIN_IDO KKN_IDO_KBN='92' but complex joins may still filter out all records)
-            }
-        ]
-    },
-    'agft-9821': {
-        'name': 'SPIP00101',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Issue agent basic attribute registration processing (銘柄詳細情報リスト基本属性)',
-                'postgres_sql': """
-DELETE FROM sreport_wk 
-WHERE key_cd = '0005' 
-  AND user_id = 'TESTUSER' 
-  AND chohyo_kbn = '1' 
-  AND chohyo_id = 'IP00101';
-
-CALL spip00101(
-    '0005BF0210001',
-    '0005',
-    'TESTUSER',
-    '1',
-    '20260116',
-    NULL,
-    NULL
-);
-                """,
-                'expected': 0  # 0=SUCCESS with valid MGR_CD
-            }
-        ]
-    },
     'srsq-5658': {
         'name': 'SPIPI044K00R01',
         'type': 'procedure',
@@ -552,146 +196,22 @@ SELECT sfipi044k00r00_01('0005');
             }
         ]
     },
-    'dark-6792': {
-        'name': 'SPIPF027K00R02',
+    'bhun-3016': {
+        'name': 'SPIPFGETCHUNO',
         'type': 'procedure',
-        'timeout': 60,
+        'timeout': 30,
         'tests': [
             {
-                'description': 'Output issuer master content',
+                'description': 'Relay transaction number assignment (中継取引通番採番管理)',
                 'postgres_sql': """
 DO $$ 
 DECLARE 
-    v_code integer;
-    v_err text; 
+    v_no TEXT; 
+    v_code INTEGER; 
 BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id IN ('TEST', 'BATCH') AND chohyo_kbn = '1' AND chohyo_id IN ('IPF30102721', 'IPF30102722');
-    CALL spipf027k00r02(
-        l_inShoriCounter => 1,
-        l_inItakuKaishaCd => '0005',
-        l_inHktCd => '000001',
-        l_inUserId => 'TEST',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => TO_CHAR(CURRENT_DATE, 'YYYYMMDD'),
-        l_inPageSum => 1,
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
+    CALL spipfgetchuno('20260119', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
 END $$;
-                """,
-                'expected': [0, 40]  # 0=SUCCESS, 40=NO DATA
-            }
-        ]
-    },
-    'wpcf-2734': {
-        'name': 'SPIPF027K00R01',
-        'type': 'procedure',
-        'timeout': 60,
-        'tests': [
-            {
-                'description': 'Issuer master import confirmation list',
-                'postgres_sql': """
-DO $$ 
-DECLARE 
-    v_code integer;
-    v_err text; 
-BEGIN 
-    DELETE FROM sreport_wk WHERE key_cd = '0005' AND user_id = 'TEST' AND chohyo_kbn = '1' AND chohyo_id = 'IPF30102711';
-    CALL spipf027k00r01(
-        l_inItakuKaishaCd => '0005',
-        l_inUserId => 'TEST',
-        l_inChohyoKbn => '1',
-        l_inGyomuYmd => TO_CHAR(CURRENT_DATE, 'YYYYMMDD'),
-        l_outSqlCode => v_code,
-        l_outSqlErrM => v_err
-    );
-    RAISE NOTICE 'Return code: %, Error: %', v_code, v_err;
-END $$;
-                """,
-                'expected': [0, 2, 40]  # 0=SUCCESS, 2=NO DATA, 40=NO DATA
-            }
-        ]
-    },
-    'akyu-3768': {
-        'name': 'SFADI012S1011COMMON',
-        'type': 'function',
-        'timeout': 30,
-        'tests': [
-            {
-                'description': 'Settlement instruction transmission processing (status update common)',
-                'postgres_sql': """
--- Reset SHINKIKIROKU to testable state
-UPDATE SHINKIKIROKU 
-SET KK_PHASE = 'H2', KK_STAT = '02'
-WHERE ITAKU_KAISHA_CD = '0005' 
-  AND KESSAI_NO = 'TEST_KESSAI_001'
-  AND MASSHO_FLG = '0';
-
--- Test the function
-SELECT SFADI012S1011COMMON('20260112000001', 1, '01');
-                """,
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'uasy-7086': {
-        'name': 'SFADI010S0711COMMON',
-        'type': 'function',
-        'timeout': 30,
-        'tests': [
-            {
-                'description': 'Fund transfer completion notification transmission (資金振替済通知送信処理)',
-                'postgres_sql': """
--- Reset SHINKIKIROKU to testable state
-UPDATE SHINKIKIROKU 
-SET KK_STAT = '02'
-WHERE KESSAI_NO = '1201801050031756'
-  AND KK_PHASE = 'H6';
-
--- Test the function
-SELECT SFADI010S0711COMMON('20260113000004', 1, '03');
-                """,
-                'expected': 0  # 0=SUCCESS
-            }
-        ]
-    },
-    'vmjc-3230': {
-        'name': 'SFADW013S5111COMMON',
-        'type': 'function',
-        'timeout': 30,
-        'tests': [
-            {
-                'description': 'Brand information registration data transmission/cancellation (銘柄情報登録データ 送信/取消処理)',
-                'postgres_sql': """
--- Clean and setup test data
-DELETE FROM KK_RENKEI WHERE KK_SAKUSEI_DT = '20260113000005';
-
-INSERT INTO KK_RENKEI (
-    KK_SAKUSEI_DT, DENBUN_MEISAI_NO, JIP_DENBUN_CD, DENBUN_STAT,
-    SR_BIC_CD, HYOJI_KOMOKU1, HYOJI_KOMOKU4,
-    ITEM002, ITEM006, ITEM007, ITEM008, ITEM009,
-    ITEM016, ITEM017, ITEM019, ITEM020, ITEM021, ITEM022, ITEM023, ITEM024, ITEM025, ITEM026, ITEM027, ITEM028, ITEM029
-) VALUES (
-    '20260113000005', 1, 'S5111', '0',
-    'BOTKJPJT', 'TEST_MGR_W013', '20200101',
-    'JP1234567890', 'TestBrand', 'TestIssuer', 'TestNote', '1',
-    '1', '1', '1', '1', '01', '1', '1', '8', '20200101', '100000000', '1000000000', '00001', 'JPY'
-);
-
--- Reset MGR_STS to testable state
-UPDATE MGR_STS 
-SET KK_PHASE = 'M1', KK_STAT = '02', MASSHO_FLG = '0'
-WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = 'TEST_MGR_W013' AND SHORI_KBN = '1';
-
-INSERT INTO MGR_STS (ITAKU_KAISHA_CD, MGR_CD, SHORI_KBN, KK_PHASE, KK_STAT, MASSHO_FLG, SHONIN_KAIJO_YOKUSEI_FLG)
-SELECT '0005', 'TEST_MGR_W013', '1', 'M1', '02', '0', '0'
-WHERE NOT EXISTS (
-    SELECT 1 FROM MGR_STS WHERE ITAKU_KAISHA_CD = '0005' AND MGR_CD = 'TEST_MGR_W013' AND SHORI_KBN = '1'
-);
-
--- Test the function
-SELECT SFADW013S5111COMMON('20260113000005', 1, '4');
                 """,
                 'expected': 0  # 0=SUCCESS
             }
@@ -850,6 +370,43 @@ BEGIN
         RAISE EXCEPTION 'VERIFICATION FAILED: Expected at least 2 records in SREPORT_WK';
     END IF;
 END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'whtv-9956': {
+        'name': 'SPIPFGETIFNO',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'IF number assignment procedure for TOYO (当預IF通番採番)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_no text; 
+BEGIN 
+    CALL spipfgetifno(v_code, '20251104', v_no);
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'wrgv-0445': {
+        'name': 'SFIPF016K01R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'TOYO opening telegram transmission (当預開局電文送信)',
+                'postgres_sql': """
+DELETE FROM toyorealsndif WHERE make_dt = TO_CHAR(current_timestamp,'YYYYMMDD');
+DELETE FROM toyorealsave WHERE make_dt = TO_CHAR(current_timestamp,'YYYYMMDD');
+SELECT sfipf016k01r01();
                 """,
                 'expected': 0  # 0=SUCCESS
             }

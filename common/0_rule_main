@@ -1,0 +1,232 @@
+Process to migrate each file:
+0. Kiểm tra xem đã có file trong /home/ansible/jip-ipa/db/plsql chưa, nếu có rồi thì bỏ qua
+1. Copy file từ generated về file có tên: /home/ansible/fluxweave_ticket/[ticket_id].[sql_name].sql
+2. Run convert_pkprint_calls.py để convert pkprint calls sang PostgreSQL syntax
+3. RUN: script_convert_simple.sh    ← FIX data type
+4. Fix %TYPE, arrays, nested procedures... ( theo rule ở dưới)
+5. Deploy script local lên PostgreSQL theo thông tin trong 0_db_postgres (Ko copy vào jip-ipa)
+6. Check error and continue to fix
+7. Tìm data example để test
+- Ra 0: ok -> và thêm test case vào 1_test_migration.py
+- Ra 2: tìm tham số khác để ra 0
+- Ra 99: xem lỗi trực tiếp hoặc thêm raise notice vào file để fix lỗi và quay lại bước 5 
+8. Thêm test case vào 1_test_migration.py và chạy test để verify
+
+Hostname: jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com
+Port: 5432
+Database: rh_branches_ipa
+Username: rh_branches_ipa
+Password: luxur1ous-Pine@pple
+
+Data example:
+'TESTUSER'::text,       -- l_inUserId
+'0005'::text,           -- l_inItakuKaishaCd
+'609970'::text,        -- l_inHktCd
+'S620060331876'::text, -- l_inMgrCd
+'JP90B0006TP8'::text   -- l_inIsinCd
+'1201801050031756'::text, -- l_inKessaiNo 
+'20180101'::text,       -- l_inKessaiYmdF
+'20180105'::text,       -- l_inKessaiYmdT
+
+gRiritsu				numeric
+gInvoiceTourokuNo		varchar(14)
+l_inRBKbn = '0'
+
+Results code:
+- 0: success
+- [1,2,40]: no data found
+- 99: fatal error
+
+
+Rule:
+- array.exists(cnt) => array [cnt] IS NOT NULL
+- oid => ctid, rowid -> ctid
+- array.COUNT => coalesce (cardinality (array), 0))
+- FUNCTION xxx có INOUT nhưng return khác type record => thêm "OUT extra_param Boolean" lên parameter list, đổi return type thành "record"
+- typeArray nhưng khai báo init là varA: typeArray() => varA := ARRAY[]:: typeArray
+- UPDATE statement bỏ khai báo alias cho table name cần update (DELETE giữ nguyên vẫn ok)
+- SQLERRM(SQLCODE) => SQLERRM
+- SQLCODE → SQLSTATE
+- dont use CASCADE drop, just drop thing in order of dependencies
+- Refactor Oracle associative array thành PostgreSQL array với proper syntax:
+	Dùng temp_rec variable để build/update records
+	Dùng array_append() để thêm elements
+	Read-Modify-Write pattern cho updates: temp_rec := rec[i]; ... ; rec[i] := temp_rec;
+	Thay đổi loop từ 0..gRecCnt thành 1..(gRecCnt+1) (1-based indexing)
+- Nếu data type đang là số (number, integer ...) và cần convert to text thì làm theo rule
+To convert NUMERIC, INT, etc to VARCHAR, please use pkcharacter.numeric_to_char function. This function will converted NUMERIC, INT, etc to the format that match Oracle.
+gTsukaRishiCalc := '('  trim(both gRiritsu::text)  '% × '…)
+should be gTsukaRishiCalc := '('  trim(both pkcharacter.numeric_to_char(gRiritsu))  '% × '…)
+- Oracle SELECT INTO → PostgreSQL SELECT INTO STRICT
+- When call function with OUT parameter -> select * into xxx from function(...); 
+
+	SELECT f.l_outsqlcode, f.l_outsqlerrm, f.extra_param 
+	INTO l_tmpSqlCode, l_tmpSqlErrM, l_tmpExtra
+	FROM pkipakichutesuryo.insKichuTesuryoSeikyuOut(l_inuserid,
+                                           l_GyomuYmd,
+                                           gKjtFrom,
+                                           gKjtTo,
+                                           l_initakukaishacd,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           REPORT_ID,
+                                           PKIPACALCTESURYO.C_REAL(),
+										   PKIPACALCTESURYO.C_DATA_KBN_YOTEI(),
+										   PKIPACALCTESURYO.C_SI_KBN_ICHIRAN(),
+										   '0') AS f; --フロント照会画面判別フラグ '0'(フロント照会画面以外)
+	gReturnCode := l_tmpExtra;
+	l_outSqlCode := l_tmpSqlCode;
+	l_outSqlErrM := l_tmpSqlErrM;
+
+
+gRiritsu				numeric
+gInvoiceTourokuNo		varchar(14)
+gOutflg integer
+
+ko bao h cast text sang kieu khac
+CREATE OR REPLACE PROCEDURE spipf001k00r01 (
+	l_initakuid        CHAR,                                     -- 委託会社コード
+	l_inuserid         VARCHAR,                                  -- ユーザID
+	l_inchyohyokbn     CHAR,                                     -- 帳票区分
+	l_inchyohyosakukbn CHAR,                                     -- 帳票作成区分
+	l_ingyoumudt       CHAR,                                     -- 業務日付
+	l_indataid         VARCHAR,                                  -- データ種別
+	l_inrownum         NUMERIC,                                  -- 行番号
+	l_incolnm          VARCHAR,                                  -- 項目名称
+	l_insyuroku        VARCHAR,                                  -- 収録内容
+	l_inmessageid      varchar(6),                                  -- メッセージID
+	l_outsqlcode       OUT INTEGER,                              -- リターン値
+	l_outsqlerrm       OUT text                               -- エラーコメント
+)
+
+OUT extra_param integer
+	nCount numeric;
+	nRtnCd numeric;
+	nRtnCd2 INTERGER;
+	nSeq_no INTERGER;
+	vDataNm varchar(100);
+	vMessage MSG_KANRI.MSG_NM%TYPE;
+	vItakuKaishaRnm varchar(100);
+	cGyoumuDt sreport_wk.sakusei_ymd%type;
+
+
+	
+
+	iRet      integer;											 -- 戻り値
+	nCount    numeric;											 -- レコード数
+	cFlg      char(1);											 -- エラーフラグ
+	cGyoumuDt sreport_wk.sakusei_ymd%type;	
+
+
+VARCHAR2(n) -> VARCHAR(n)
+NUMBER -> NUMERIC
+CLOB	-> TEXT	    PostgreSQL không có CLOB.
+BLOB	-> BYTEA	Dữ liệu nhị phân.
+RAW(n)	-> BYTEA	    Cũng là nhị phân.
+LONG	-> TEXT	        Oracle LONG → PostgreSQL TEXT.
+NVARCHAR2	-> VARCHAR	PostgreSQL tự hỗ trợ UTF-8.
+
+Nếu procedure nhận composite type → phải pack các field vào biến cùng type rồi truyền vào procedure.
+ví dụ: 
+Tạo TYPE_SREPORT_WK_ITEM composite type: 
+Gán từng field vào composite type: 
+Gọi pkPrint.insertData với composite type:
+		-- Clear toàn bộ item
+		v_item := ROW();
+		
+		v_item.l_inItem001 := l_inGyomuYmd;							-- 業務日付
+		v_item.l_inItem002 := recMeisai.FINANCIAL_SECURITIES_KBN;	-- 金融証券区分
+		v_item.l_inItem003 := recMeisai.CODE_RNM;					-- 金融証券区分略称
+		v_item.l_inItem004 := recMeisai.BANK_CD;					-- 金融機関コード
+		v_item.l_inItem005 := recMeisai.BANK_NM;					-- 金融機関名称
+		v_item.l_inItem006 := recMeisai.BANK_RNM;					-- 金融機関略称
+		v_item.l_inItem007 := recMeisai.BANK_KANA_RNM;				-- 金融機関略称(カナ)
+		v_item.l_inItem008 := REPORT_ID;							-- 帳票ＩＤ
+		
+		-- 帳票ワークへデータを追加
+		CALL pkPrint.insertData(
+			l_inKeyCd		=> l_inItakuKaishaCd,
+			l_inUserId		=> 'BATCH',
+			l_inChohyoKbn	=> l_inChohyoKbn,
+			l_inSakuseiYmd	=> l_inGyomuYmd,
+			l_inChohyoId	=> REPORT_ID,
+			l_inSeqNo		=> gSeqNo,
+			l_inHeaderFlg	=> '1',
+			l_inItem		=> v_item,
+			l_inKousinId	=> l_inUserId,
+			l_inSakuseiId	=> l_inUserId
+		);	
+
+
+		CALL pkPrint.insertData(
+			l_inKeyCd			=>	l_inItakuKaishaCd,			-- 識別コード
+			l_inUserId			=>	'BATCH',					-- ユーザＩＤ
+			l_inChohyoKbn		=>	l_inChohyoKbn,				-- 帳票区分
+			l_inSakuseiYmd		=>	l_inGyomuYmd,				-- 作成年月日
+			l_inChohyoId		=>	REPORT_ID,					-- 帳票ＩＤ
+			l_inSeqNo			=>	gSeqNo,						-- 連番
+			l_inHeaderFlg		=>	'1',						-- ヘッダフラグ
+			l_inItem			=>	l_inItem,					-- アイテム
+			l_inKousinId		=>	l_inUserId,					-- 更新者ID
+			l_inSakuseiId		=>	l_inUserId					-- 作成者ID
+
+		CALL pkPrint.insertData(
+			l_inKeyCd      => l_inKeyCd,
+			l_inUserId     => l_inUserId,
+			l_inChohyoKbn  => l_inChohyoKbn,
+			l_inSakuseiYmd => l_inSakuseiYmd,
+			l_inChohyoId   => REPORT_ID,
+			l_inSeqNo      => gSeqNo,
+			l_inHeaderFlg  => '1',
+			l_inItem			 => l_inItem,
+			l_inKousinId   => l_inUserId,
+			l_inSakuseiId  => l_inUserId
+
+RETURN pkconstant.SUCCESS; -> RETURN pkconstant.success();
+RETURN pkconstant.FATAL; -> RETURN pkconstant.fatal();
+
+
+Dynamic SQL chứa Oracle (+) outer join 
+PostgreSQL không support (+), cần convert sang LEFT JOIN. ví dụ: FROM H03
+LEFT OUTER JOIN WT03 ON (H03.ITAKU_KAISHA_CD = WT03.ITAKU_KAISHA_CD AND H03.MGR_CD = WT03.MGR_CD). 
+**left join hay có kèm điều kiện join ở dưới where rồi, mấy cái chỗ (+),có alias thì move nó lên left join 
+ 
+Nested function -> Tách thành function/procedure top-level và truyền tham số
+
+
+
+
+IMPORTANT: PLEASE MAKE SURE TO EXECUTE EACH FUNCTION/PROCEDURES AND ENSURE IT FUNCTION CORRECTLY.
+
+Make sure that the function does not return 99, if it is, debug by using `raise notice` to identify and resolve the cause.
+For input, query MGR_KIHON table for data
+Nested function -> Tách thành function/procedure top-level và truyền tham số
+
+The generator should be already fixing this, but if it missed anything, please convert nested function so that it's prefixed with parent function name. Example: https://github.com/weaveio/jip-ipa/blob/main/db/plsql/ipa/issueAgent/newRecordReserve/ip00101/sfIpMgrKihonValidate.sql#L810
+-> Tách thành function/procedure top-level và truyền tham số
+
+
+Requirements
+
+Migrate the codes by starting with the generarted codes. Used the generated codes, fix any issues, and then compiled to make sure there are no error and that table or view is created.
+Review the legacy codes to make sure that no functions/procedures are missed. This is important for nested functions/procedures as the generator may failed to generate all the functions. Look at the top level function in the as-is (i.e. the function name where the PLSQL file is named after) to make sure the generator generated it. If it does not, use the legacy codes and removed all of the nested function (only leave the body) and then use ora2pg (https://ora2pg.darold.net/documentation.html) tool to generate it. Please use https://github.com/weaveio/jip-ipa/blob/main/db/ora2pg.conf as configuration file for ora2pg.
+If you needed to convert type (e.g. NUMBER to NUMERIC), please make sure to convert the type correctly. NUMBER should be converted to NUMERIC (not INT, BIGINT, etc).
+There will be a lot of mixed types usage which is fined in Oracle but will not work in Postgres. For this, cast the type so that the expected type in the function work correctly (e.g. someText = 0 works in Oracle, but failed in Postgres, so to fix this, do someText = '0'). DO NOT change the type of the function (you may change type CHAR to VARCHAR if needed, but not CHAR(3) to VARCHAR for example). The reason that you can't change the type of the function is because the functions can be called at multiple places so if you updated the function, other places will failed.
+To convert NUMERIC, INT, etc to VARCHAR, please use pkcharacter.numeric_to_char function. This function will converted NUMERIC, INT, etc to the format that match Oracle.
+For Oracle functions that does not exists in Postgres, please use the oracle package/schema (e.g. there is no next_day function in Postgresl so use oracle.next_day). We added orafce that supported Oracle's function so feel free to use oracle.whatever(...)
+Fix substring function with negative index
+substr(str, -2) => substring(str from '.{2}$')
+substr(str, -3) => substring(str from '.{3}$')
+Fix array appending
+Oracle: x = array.extend; x[x.count] := ....;
+Postgres: x = array_append(x, null); x[cardinality(x)] := ...
+Please compile the script and ensure it compiled successfully.
+Please make sure to test by directly executing the function/procedure and ensure it does not have return code 99. If it does, debug by adding RAISE NOTICE message to track the cause. Once the issue is resolved, remove RAISE NOTICEs that you added
+Please update db/make_plsql.sql to include this file (using path relative to db folder).
+
+example: db/plsql/ipa/issueAgent/newRecordReserve/ip00101/sfIpMgrKihonValidate.sql (one of the most complicated scripts with multiple nested functions/procedures)
+

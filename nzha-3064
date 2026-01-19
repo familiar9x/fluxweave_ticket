@@ -1,0 +1,5 @@
+Migrate statements in SCOMPARING_CONDITION
+
+Table SCOMPARING_CONDITION stored some SQL statements, some of which are Oracle specific syntax. 
+Migrates these statements so that they are compatible with Postgres. 
+Save the migrates codes as INSERT statements in db/scomparing_condition_data.sql

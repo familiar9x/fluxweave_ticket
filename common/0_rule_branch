@@ -12,6 +12,12 @@ Process to migrate each file:
 - Ra 99: xem lỗi trực tiếp hoặc thêm raise notice vào file để fix lỗi và quay lại bước 5 
 8. Thêm test case vào 1_test_migration.py và chạy test để verify
 
+Hostname: jip-cp-ipa-postgre17.cvmszg1k9xhh.us-east-1.rds.amazonaws.com
+Port: 5432
+Database: rh_branches_ipa
+Username: rh_branches_ipa
+Password: luxur1ous-Pine@pple
+
 Data example:
 'TESTUSER'::text,       -- l_inUserId
 '0005'::text,           -- l_inItakuKaishaCd

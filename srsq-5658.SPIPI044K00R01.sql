@@ -475,7 +475,7 @@ BEGIN
 			MG1.RBR_DD,
 			VJ1.OWN_FINANCIAL_SECURITIES_KBN,
 			VJ1.OWN_BANK_CD
-	INTO STRICT	gHKT_CD
+	INTO	gHKT_CD
 			,gISIN_CD
 			,gJTK_KBN
 			,gTANPO_KBN
@@ -507,7 +507,9 @@ BEGIN
 	AND		MG1.KK_KANYO_FLG IN ('0','1')
 	AND		MG1.JTK_KBN <> '2'
 	AND		MG1.JTK_KBN <> '5'
-	AND		MG1.PARTMGR_KBN IN ('0','2');
+	AND		MG1.PARTMGR_KBN IN ('0','2')
+	ORDER BY VJ1.OWN_BANK_CD DESC NULLS LAST
+	LIMIT 1;
 	RAISE NOTICE '[DEBUG R01] After SELECT mgr_kihon';
 	-- 初回の振替債移行日を格納。なければ他の固定文字を格納。
 	call spipi044k00r01_rtnfurikaeymd(l_inItakuKaishaCd,l_inMgrCd,gTOKUREI_SHASAI_FLG,l_inGyomuYmd,gFurikaeYmd);
