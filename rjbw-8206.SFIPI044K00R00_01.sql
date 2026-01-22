@@ -148,7 +148,7 @@ BEGIN
 	END LOOP;
 	-- 原簿ワークのデータ数をカウント
 	SELECT	COUNT(ITAKU_KAISHA_CD)
-	INTO STRICT	gSeqNo
+	INTO	gSeqNo
 	FROM	GENBO_WORK
 	WHERE	ITAKU_KAISHA_CD = l_inItakuKaishaCd;
 	-- データが存在した場合のみ帳票ワークに書き込む処理を行う
@@ -156,12 +156,13 @@ BEGIN
 		--自行・委託会社マスタVIEWより原簿送付状出力フラグを取得する
 		SELECT
 			GENBO_SOFU_FLG
-		INTO STRICT
+		INTO
 			gGenboSofuFlg
 		FROM
 			VJIKO_ITAKU
 		WHERE
-			KAIIN_ID = l_inItakuKaishaCd;
+			KAIIN_ID = l_inItakuKaishaCd
+		LIMIT 1;
 		--原簿ワークに書き込む処理が終わったら、帳票ワーク作成SP(SPIPI044K00R02)をコールする
 		CALL SPIPI044K00R02(	gYokuGyomuYmd,										-- バッチの場合、翌業務日付をもとに和暦変換をさせる。
 						l_inItakuKaishaCd,
@@ -208,7 +209,7 @@ EXCEPTION
 	WHEN OTHERS THEN
 		CALL pkLog.fatal('ECM701', 'SFIPI044K00R00_01', 'エラーコード'||SQLSTATE);
 		CALL pkLog.fatal('ECM701', 'SFIPI044K00R00_01', 'エラー内容'||SQLERRM);
-		RETURN pkconstant.FATAL();
+		RETURN pkconstant.fatal();
 END;
 $body$
 LANGUAGE PLPGSQL

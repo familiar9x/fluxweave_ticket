@@ -1,0 +1,11 @@
+SQL (PLSQL BRANCH): customize/smbc/print/toyo/SPIPF011K01R02.SQL
+
+IMPORTANT: PLEASE MAKE SURE TO EXECUTE EACH FUNCTION/PROCEDURES AND ENSURE IT FUNCTION CORRECTLY.
+
+BRANCH SOURCES AND OUTPUT
+
+Generated: generated/db_output_sql/branch/T0009/db/plsql/customize/smbc/print/toyo/SPIPF011K01R02.SQL
+Legacy: legacy/branches_20250707/T0009/db/plsql/customize/smbc/print/toyo/SPIPF011K01R02.SQL
+Save to: branches/T0009/db/plsql/customize/smbc/print/toyo/SPIPF011K01R02.SQL
+Make sure that the function does not return 99, if it is, debug by using `raise notice` to identify and resolve the cause.
+For input, query MGR_KIHON table for data

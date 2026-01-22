@@ -8,4 +8,3 @@ Generated: generated/db_output_sql/branch/T0009/db/plsql/customize/smbc/batch/to
 Legacy: legacy/branches_20250707/T0009/db/plsql/customize/smbc/batch/toyo/SFIPF010K01R04.sql
 Save to: branches/T0009/db/plsql/customize/smbc/batch/toyo/SFIPF010K01R04.sql
 Make sure that the function does not return 99, if it is, debug by using `raise notice` to identify and resolve the cause.
-For input, query MGR_KIHON table for data

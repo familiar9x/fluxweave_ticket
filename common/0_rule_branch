@@ -28,6 +28,7 @@ Data example:
 '1201801050031756'::text, -- l_inKessaiNo 
 '20180101'::text,       -- l_inKessaiYmdF
 '20180105'::text,       -- l_inKessaiYmdT
+nRet: integer;
 
 gRiritsu				numeric
 gInvoiceTourokuNo		varchar(14)
