@@ -289,6 +289,151 @@ SELECT sfipi044k00r00_01('0005');
             }
         ]
     },
+    'bhun-3016': {
+        'name': 'SPIPFGETCHUNO',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Relay transaction number assignment (中継取引通番採番管理)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_no TEXT; 
+    v_code INTEGER; 
+BEGIN 
+    CALL spipfgetchuno('20260119', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'rtax-6128': {
+        'name': 'SFIPF010K01R02',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Create deposit data from nyukin_yotei until settlement day morning process (入金予定テーブルから、決算日当日朝処理までの当預データを作成する)',
+                'postgres_sql': "SELECT sfipf010k01r02('R0111', '0005', '1234567890');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'zaad-9750': {
+        'name': 'SPIPF010K01R05',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Process result data reception - Parse toyo real data with correct format (処理結果データ受信 - 正しいフォーマットで当預リアルデータを解析)',
+                'postgres_sql': "DO $$ DECLARE l_outSqlCode integer; l_outSqlErrM text; test_data text := 'A1,02,R2,2026011900000001,0000000000000016,01,1,001,30,1,1,20260119,1,000001,0001,01,01,123456789,0001,1,01,000000000000000001,01,1,1,1,20260119,20260119,123456789,0123456789,TEST00000000001X,01'; BEGIN DELETE FROM toyorealsave WHERE data_id = '51' AND make_dt = '20260119' AND data_seq = 999; DELETE FROM toyorcv WHERE kessai_no = 'TEST00000000001X'; DELETE FROM toyosend WHERE kessai_no = 'TEST00000000001X'; CALL spipf010k01r05('51', '20260119', '999', test_data, l_outSqlCode, l_outSqlErrM); RAISE NOTICE 'Return Code: %', l_outSqlCode; END $$;",
+                'expected': 0  # 0=SUCCESS - all validations pass with correct code values
+            }
+        ]
+    },
+    'mrqc-0457': {
+        'name': 'SFIPF010K01R10',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Delete data from toyorealrcvif table (当預リアル受信ＩＦテーブル　データ削除)',
+                'postgres_sql': "SELECT sfipf010k01r10();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'neeg-6042': {
+        'name': 'SPIPF010K01R06',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Matching process common procedure - Update toyosend and toyorcv tables based on Kessai results (照合処理PG（共通）- 決済結果に基づき当預テーブル（送信用・受信用）を更新する)',
+                'postgres_sql': "DO $$ DECLARE l_outSqlCode integer; l_outSqlErrM text; BEGIN CALL spipf010k01r06('0001', 'TEST001', '01', '001', l_outSqlCode, l_outSqlErrM); RAISE NOTICE 'Return Code: %', l_outSqlCode; END $$;",
+                'expected': 0  # 0=SUCCESS
+            },
+            {
+                'description': 'Test with toyo_kubun 02 (当預出入区分=02)',
+                'postgres_sql': "DO $$ DECLARE l_outSqlCode integer; l_outSqlErrM text; BEGIN CALL spipf010k01r06('0001', 'TEST001', '02', '001', l_outSqlCode, l_outSqlErrM); RAISE NOTICE 'Return Code: %', l_outSqlCode; END $$;",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'dawh-5989': {
+        'name': 'SFIPF012K01R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Insert toyosend data into filesndif and filesave for file transmission (当預テーブル（送信用）の内容を基にファイル送信ＩＦテーブル、ファイル送受信保存テーブルにデータを挿入する)',
+                'postgres_sql': "DELETE FROM filesndif WHERE data_id = '13015'; DELETE FROM filesave WHERE data_id = '13015'; DELETE FROM toyosend WHERE kessai_no = 'TEST001'; INSERT INTO toyosend (itaku_kaisha_cd, kessai_no, data_shori_kbn, if_kbn, data_kbn_smbc, gyomu_kbn_smbc, kessai_ymd, send_flg) VALUES ('0001', 'TEST001', '1', '01', '02', '03', '20251110', '1'); SELECT sfipf012k01r01();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'rgfr-1112': {
+        'name': 'SFIPF010K01R03',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Insert data into toyorealsndif and toyorealsave from toyosend (当預テーブル（送信用）の内容を基に当預リアル送信ＩＦテーブル、当預リアル送受信保存テーブルに決済日当日朝処理分のデータを挿入する)',
+                'postgres_sql': "SELECT sfipf010k01r03();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'ewkc-2514': {
+        'name': 'SFITRealSendToRecv',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Test function - Transfer data from knjrealsndif to knjrealrcvif (勘定系リアル送信IFテーブルから勘定系リアル受信IFテーブルを作成する)',
+                'postgres_sql': "SELECT sfitrealsendtorecv();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'qbpx-0966': {
+        'name': 'SPIPFGETUKENO',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Reception number assignment type 1 - internal (受付通番採番管理・内部)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_no TEXT; 
+    v_code INTEGER; 
+BEGIN 
+    CALL spipfgetukeno('1', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            },
+            {
+                'description': 'Reception number assignment type 2 - accounting system (受付通番採番管理・勘定系)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_no TEXT; 
+    v_code INTEGER; 
+BEGIN 
+    CALL spipfgetukeno('2', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
     'hnxj-6293': {
         'name': 'SFADI002R28111',
         'type': 'function',
@@ -359,6 +504,20 @@ SELECT SFADI002R04111('20260112000002', 1, '0005', 'S620060331876', 4, 'TEST');
 SELECT SFADI002R04120('20260112000004', 1);
                 """,
                 'expected': [0]  # 0=SUCCESS, 2=NO_DATA_FIND, 40=NO_DATA, 99=FATAL (acceptable - requires complex setup with MITAKU_KAISHA, UPD_MGR_XXX tables)
+            }
+        ]
+    },
+    'nqkg-1418': {
+        'name': 'sfIpMgrKihonDelete',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Brand basic attribute cancellation processing (銘柄情報基本属性取消処理)',
+                'postgres_sql': """
+SELECT (sfipmgrkihondelete('0005', 'TEST_DELETE_MGR', 'TESTUSER')).extra_param;
+                """,
+                'expected': 0  # 0=SUCCESS (function deletes brand-related data)
             }
         ]
     },
@@ -433,6 +592,143 @@ END $$;
             }
         ]
     },
+    'whtv-9956': {
+        'name': 'SPIPFGETIFNO',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'IF number assignment procedure for TOYO (当預IF通番採番)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_no text; 
+BEGIN 
+    CALL spipfgetifno(v_code, '20251104', v_no);
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'wrgv-0445': {
+        'name': 'SFIPF016K01R01',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'TOYO opening telegram transmission (当預開局電文送信)',
+                'postgres_sql': """
+DELETE FROM toyorealsndif WHERE make_dt = TO_CHAR(current_timestamp,'YYYYMMDD');
+DELETE FROM toyorealsave WHERE make_dt = TO_CHAR(current_timestamp,'YYYYMMDD');
+SELECT sfipf016k01r01();
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'pgrh-3462': {
+        'name': 'SFIPF016K01R03',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'KNJ opening/closing telegram - open (勘定系開局閉局電文作成 - 開局)',
+                'postgres_sql': """
+DELETE FROM knjrealsndif WHERE data_id IN ('14001', '14003');
+DELETE FROM knjrealsndsaveif WHERE data_id IN ('14001', '14003');
+DELETE FROM knjsetuzokustatus WHERE 1=1;
+SELECT sfipf016k01r03('1');
+                """,
+                'expected': 0  # 0=SUCCESS
+            },
+            {
+                'description': 'KNJ opening/closing telegram - close (勘定系開局閉局電文作成 - 閉局)',
+                'postgres_sql': """
+SELECT sfipf016k01r03('2');
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'umzg-3852': {
+        'name': 'SPIPFGETAZUNO',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Deposit number assignment - first call (預入通番採番管理 - 初回)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_no TEXT; 
+    v_code INTEGER; 
+BEGIN 
+    DELETE FROM knjazutuban WHERE knj_shori_ymd = '20260119';
+    CALL spipfgetazuno('20260119', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            },
+            {
+                'description': 'Deposit number assignment - second call (預入通番採番管理 - 2回目)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_no TEXT; 
+    v_code INTEGER; 
+BEGIN 
+    CALL spipfgetazuno('20260119', v_no, v_code); 
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'defm-5819': {
+        'name': 'SFIPF016K01R02',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'TOYO closing telegram transmission (当預閉局電文送信)',
+                'postgres_sql': """
+DELETE FROM toyorealsndif WHERE data_id = '13003' AND make_dt = TO_CHAR(current_timestamp,'YYYYMMDD');
+DELETE FROM toyorealsave WHERE data_id = '13003' AND make_dt = TO_CHAR(current_timestamp,'YYYYMMDD');
+SELECT sfipf016k01r02();
+                """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'xtxu-2827': {
+        'name': 'SFIPF010K01R11',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Receive data auto creation (受信データ自動作成)',
+                'postgres_sql': "SELECT sfipf010k01r11();",
+                'expected': 0  # 0=SUCCESS (no data is ok)
+            }
+        ]
+    },
+    'zmma-2631': {
+        'name': 'sfIpfCalHakkoKawarikin',
+        'type': 'function',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'Calculate issue substitute money deposit (発行代り金入金計算)',
+                'postgres_sql': "SELECT extra_param FROM sfipfcalhakkokawarikin('0005', 'S220180131003', 15000000000, 100.0000000000);",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
     'yecd-3832': {
         'name': 'SPIPF010K01R07',
         'type': 'procedure',
@@ -460,6 +756,159 @@ BEGIN
     RAISE NOTICE 'Return Code: %', v_code;
 END $$;
                 """,
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'vjtf-8447': {
+        'name': 'SPIPF011K01R02',
+        'type': 'procedure',
+        'timeout': 30,
+        'tests': [
+            {
+                'description': 'BOJ TOYO payment request uncreated list (日銀当預支払依頼未作成リスト)',
+                'postgres_sql': """
+DO $$ 
+DECLARE 
+    v_code integer;
+    v_err text; 
+BEGIN 
+    CALL spipf011k01r02(
+        l_inItakuKaishaCd := '0005',
+        l_inUserId := 'TESTUSER',
+        l_inChohyoKbn := '0',
+        l_inGyomuYmd := '20260120',
+        l_outSqlCode := v_code,
+        l_outSqlErrM := v_err
+    );
+    RAISE NOTICE 'Return Code: %', v_code;
+END $$;
+                """,
+                'expected': 0  # 0=SUCCESS with test data
+            }
+        ]
+    },
+    'jknt-6049': {
+        'name': 'pkIpaKessanHosei.calcHosei',
+        'type': 'function',
+        'timeout': 120,
+        'tests': [
+            {
+                'description': 'Accrued/Prepaid revenue calculation (未収前受収益計算)',
+                'postgres_sql': "SELECT pkipakessanhosei.calchosei('0005', '202501', '1', 'BATCH');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'wcwf-4108': {
+        'name': 'SFITRetryData',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Accounting IF retry data processing (勘定系IF再処理)',
+                'setup_postgres': """
+-- Setup: Insert test data with retry flag
+DELETE FROM knjhakkouif;
+DELETE FROM knjganrikichuif;
+
+INSERT INTO knjhakkouif (
+    itaku_kaisha_cd, knj_uke_tsuban_naibu, knj_azuke_no, knj_shori_ymd,
+    knj_shori_kbn, knj_ten_no, knj_kamoku, knj_kouza_no, knj_hrkm_kngk,
+    knj_inout_kbn, knj_chukeimsgid, mgr_cd, knj_uke_tsuban, knj_chukei_tsuban,
+    knj_torikeshi_flg, knj_saishori_flg, kousin_id, sakusei_id
+) VALUES (
+    '0005', 1001, 12345, '20250120',
+    '1', '0001', '01', '12345678', 100000,
+    '1', 'MSG001', 'MGR001', 2001, 3001,
+    '0', '1', 'TEST', 'TEST'
+);
+
+INSERT INTO knjganrikichuif (
+    itaku_kaisha_cd, knj_uke_tsuban_naibu, knj_azuke_no, knj_shori_ymd,
+    knj_shori_kbn, knj_tesuryo_kbn, knj_ten_no, knj_kamoku, knj_kouza_no,
+    knj_gankin, knj_rkn, knj_gnkn_shr_tesu_kngk, knj_rkn_shr_tesu_kngk,
+    knj_kingaku, knj_shohizei, knj_inout_kbn, knj_chukeimsgid, knj_uke_tsuban,
+    hkt_cd, knj_chukei_tsuban, knj_torikeshi_flg, knj_saishori_flg,
+    kousin_id, sakusei_id
+) VALUES (
+    '0005', 1002, 12346, '20250120',
+    '1', '1', '0001', '01', '12345678',
+    50000, 50000, 1000, 500,
+    101500, 5000, '1', 'MSG002', 2002,
+    'HKT001', 3002, '0', '1',
+    'TEST', 'TEST'
+);
+                """,
+                'postgres_sql': "SELECT sfitretrydata();",
+                'expected': 0,  # 0=SUCCESS
+                'cleanup_postgres': """
+-- Cleanup test data
+DELETE FROM knjhakkouif WHERE kousin_id = 'TEST' OR sakusei_id = 'TEST';
+DELETE FROM knjganrikichuif WHERE kousin_id = 'TEST' OR sakusei_id = 'TEST';
+                """
+            }
+        ]
+    },
+    'tcey-1073': {
+        'name': 'SFIPF011K01R03',
+        'type': 'function',
+        'timeout': 300,
+        'tests': [
+            {
+                'description': 'BOJ TOYO payment request uncreated list batch instruction (日銀当預支払依頼未作成リスト出力指示)',
+                'postgres_sql': "SELECT sfipf011k01r03();",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'ghvx-7333': {
+        'name': 'SFIPF010K01R09',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Real shared DB IF unprocessed data check - status not waiting (リアル共有DBIF未処理データ確認 - 処理待ち以外)',
+                'setup_postgres': """
+-- Setup: Set TOYOKONAIIF status to '3' (not 0 or 1) to return 0 immediately
+DELETE FROM TOYOKONAIIF WHERE 1=1;
+INSERT INTO TOYOKONAIIF (
+    KONAIIF_CONNECT_STAT,
+    KOUSIN_DT, KOUSIN_ID, SAKUSEI_DT, SAKUSEI_ID
+) VALUES (
+    '3',  -- Status: neither closed(0) nor waiting(1) - returns 0 with warning
+    current_timestamp, 'BATCH', current_timestamp, 'BATCH'
+);
+                """,
+                'postgres_sql': "SELECT sfipf010k01r09();",
+                'expected': 0,  # 0=SUCCESS (status is not 0 or 1, logs warning and returns 0)
+                'cleanup_postgres': """
+-- Reset TOYOKONAIIF status back to initial state
+UPDATE TOYOKONAIIF SET KONAIIF_CONNECT_STAT = '1';
+                """
+            }
+        ]
+    },
+    'begt-6869': {
+        'name': 'sfIpfDeleteFileRcvIf',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'File receive DBIF garbage collection (ファイル受信ＤＢＩＦガベージ処理)',
+                'postgres_sql': "SELECT sfipfdeletefilercvif('00001');",
+                'expected': 0  # 0=SUCCESS
+            }
+        ]
+    },
+    'vjnz-9258': {
+        'name': 'SFIPF010K01R04',
+        'type': 'function',
+        'timeout': 60,
+        'tests': [
+            {
+                'description': 'Toyo real send IF data insert (当預リアル送信IF挿入)',
+                'postgres_sql': "SELECT sfipf010k01r04('0005', 'TEST0001', '1');",
                 'expected': 0  # 0=SUCCESS
             }
         ]

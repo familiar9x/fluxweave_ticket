@@ -23,12 +23,12 @@ DECLARE
 --==============================================================================
 	iRet					 integer;						-- リターン値
 	cInNo					 TEXT;							-- 勘定IF受信接続フラグ
-	cGyoumuDt				 char(8);						-- 業務日付
-	cWk_kaiin				 char(4);						-- 会員ＩＤ 
+	cGyoumuDt				 TEXT;						-- 業務日付
+	cWk_kaiin				 TEXT;						-- 会員ＩＤ 
 	nRtnCd					 numeric;						-- リターンコード
-	vSqlErrM				 varchar(200);					-- エラーメッセージ
-	vMsgLog					 varchar(300);					-- ログ出力用メッセージ
-	vTableName				 varchar(300);
+	vSqlErrM				 TEXT;					-- エラーメッセージ
+	vMsgLog					 TEXT;					-- ログ出力用メッセージ
+	vTableName				 TEXT;
 --==============================================================================
 --					メイン処理												
 --==============================================================================
@@ -39,11 +39,23 @@ BEGIN
 	-- 業務日付を取得
 	cGyoumuDt := pkDate.getGyomuYmd();
 	-- 自行情報マスタより会員IDを取得
-	SELECT kaiin_id INTO STRICT cWk_kaiin
-	FROM sown_info;
+	SELECT kaiin_id INTO cWk_kaiin
+	FROM sown_info
+	LIMIT 1;
+	
+	IF cWk_kaiin IS NULL THEN
+		CALL pkLog.fatal('ECM701', 'IPF013K01R08', '自行情報マスタにデータが存在しません');
+		RETURN pkconstant.fatal();
+	END IF;
 	
 	-- 勘定系接続ステータス管理テーブルの勘定系IF送信接続フラグを取得する。
-	SELECT knjif_send INTO STRICT cInNo from knjsetuzokustatus;
+	SELECT knjif_send INTO cInNo from knjsetuzokustatus
+	LIMIT 1;
+	
+	IF cInNo IS NULL THEN
+		CALL pkLog.fatal('ECM701', 'IPF013K01R08', '勘定系接続ステータス管理テーブルにデータが存在しません');
+		RETURN pkconstant.fatal();
+	END IF;
 	-- 勘定系接続ステータス管理テーブルの勘定IF送信接続フラグが'1'の場合,DBIFリアル送信PGをCallする。
 	IF cInNo = '1' THEN
 		nRtnCd := SFIPF013K01R01('1', 'BATCH');
@@ -108,12 +120,12 @@ CREATE OR REPLACE FUNCTION sfipf013k01r08_common_func (
 	l_inMsgLog text,			-- ログ出力用メッセージ
 	l_inTableName text,			-- テーブル名称
 	l_inItaku_kaisha_cd text, 				-- 委託会社コード
-	l_inGyoumuDt char(8)			-- 業務日付
+	l_inGyoumuDt text			-- 業務日付
  ) RETURNS integer AS $body$
 DECLARE
 	iRet					 integer;						-- リターン値
 	nRtnCd					 numeric;						-- リターンコード
-	vSqlErrM				 varchar(200);					-- エラーメッセージ
+	vSqlErrM				 TEXT;					-- エラーメッセージ
 BEGIN
 	-- ログ出力
 	CALL pkLog.error(
