@@ -168,10 +168,11 @@ BEGIN
 		gItakuKaishaRnm := NULL;
 	ELSE
 		SELECT bank_rnm
-		INTO STRICT gItakuKaishaRnm
+		INTO gItakuKaishaRnm
 		FROM vjiko_itaku
 		WHERE kaiin_id = l_inItakuKaishaCd
-		AND jiko_daiko_kbn = '2';
+		AND jiko_daiko_kbn = '2'
+		LIMIT 1;
 	END IF;
 	-- 帳票ワークの削除
 	DELETE FROM SREPORT_WK

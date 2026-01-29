@@ -136,15 +136,12 @@ CREATE OR REPLACE PROCEDURE spipi044k00r01_rtnfurikaeymd (
     inGyomuYmd SSYSTEM_MANAGEMENT.GYOMU_YMD % TYPE,
     outFurikaeYmd INOUT GENSAI_RIREKI.SHOKAN_YMD % TYPE
 ) AS $body$ BEGIN
-	RAISE NOTICE '[DEBUG rtnfurikaeymd] START inTokureiFlg=%', inTokureiFlg;
 	IF trim(both inTokureiFlg) = 'N' THEN
 		-- 該当する銘柄が特例社債でなければ、リターン値は'00000000'とする。
 		outFurikaeYmd := '00000000';
-		RAISE NOTICE '[DEBUG rtnfurikaeymd] Not tokurei, return 00000000';
 	ELSE	-- 該当する銘柄が特例社債であれば、以下の処理を行う。
 		-- 初回の振替債が行われてない場合は'99999999'を変数に格納
 		-- 初回の振替債が行われている場合は初回の振替債が行われた日付を変数に格納
-		RAISE NOTICE '[DEBUG rtnfurikaeymd] Is tokurei, query gensai_rireki';
 		SELECT  coalesce(trim(both MIN(Z01.SHOKAN_YMD)),'99999999')
 		INTO STRICT    outFurikaeYmd
 		FROM    GENSAI_RIREKI Z01
@@ -152,9 +149,7 @@ CREATE OR REPLACE PROCEDURE spipi044k00r01_rtnfurikaeymd (
 		AND     Z01.MGR_CD = inMgrCd
 		AND     Z01.SHOKAN_YMD <= inGyomuYmd
 		AND     Z01.SHOKAN_KBN = '01';
-		RAISE NOTICE '[DEBUG rtnfurikaeymd] Query done, outFurikaeYmd=%', outFurikaeYmd;
 	END IF;
-	RAISE NOTICE '[DEBUG rtnfurikaeymd] END';
 END;
 /**
  * 原簿ワークテーブルにデータを登録します。
@@ -433,9 +428,6 @@ AND		MG3.SHOKAN_YMD <= l_inGyomuYmd;
 /*==============================================================================*/
 
 BEGIN
-	--raise notice 'in SPIPI044K00R01';
-
-	RAISE NOTICE '[DEBUG R01] START MGR_CD=%', l_inMgrCd;
 	IF DEBUG = 1 THEN	call pkLog.debug(l_inUserId, REPORT_ID, 'SPIPI044K00R01 START');	END IF;
 	-- 入力パラメータのチェック
 	IF nullif(trim(both l_inItakuKaishaCd), '') Is Null
@@ -450,7 +442,6 @@ BEGIN
 		call pkLog.error('ECM501', REPORT_ID, 'SQLERRM:'||'');
 		RETURN;
 	END IF;
-	RAISE NOTICE '[DEBUG R01] After param check';
 	-- 原簿の上部で必要となるデータを抽出し、変数に格納する
 	SELECT 	/*+ INDEX(MG1 MGR_KIHON_PK) */			MG1.HKT_CD,
 			MG1.ISIN_CD,
@@ -510,10 +501,8 @@ BEGIN
 	AND		MG1.PARTMGR_KBN IN ('0','2')
 	ORDER BY VJ1.OWN_BANK_CD DESC NULLS LAST
 	LIMIT 1;
-	RAISE NOTICE '[DEBUG R01] After SELECT mgr_kihon';
 	-- 初回の振替債移行日を格納。なければ他の固定文字を格納。
 	call spipi044k00r01_rtnfurikaeymd(l_inItakuKaishaCd,l_inMgrCd,gTOKUREI_SHASAI_FLG,l_inGyomuYmd,gFurikaeYmd);
-	RAISE NOTICE '[DEBUG R01] After rtnfurikaeymd, gFurikaeYmd=%', gFurikaeYmd;
 	-- 銘柄_受託銀行の検索
 	SELECT	COUNT(ITAKU_KAISHA_CD)
 	INTO STRICT	gCount
@@ -522,7 +511,6 @@ BEGIN
 	AND		MGR_CD = l_inMgrCd
 	AND		FINANCIAL_SECURITIES_KBN = gOWN_FINANCIAL_SECURITIES_KBN
 	AND		BANK_CD = gOWN_BANK_CD;
-	RAISE NOTICE '[DEBUG R01] After SELECT mgr_jutakuginko, gCount=%', gCount;
 	-- 受託タイトルの編集
 	CASE gJTK_KBN
 		WHEN '1' THEN
@@ -551,21 +539,16 @@ BEGIN
 		ELSE
 			gJutakusakiTitle := '　';
 	END CASE;
-	RAISE NOTICE '[DEBUG R01] After CASE gJutakusakiTitle, gNENRBR_CNT=%', gNENRBR_CNT;
 	-- 年利払回数がNULLでなければ利払期日名称の編集を行う
 	IF nullif(trim(both gNENRBR_CNT), '') IS NULL THEN
 		gRbrKjtNm 				:=	' ';
 	ELSE
 		-- 利払期日名称の編集
-		RAISE NOTICE '[DEBUG R01] Before getRibaraiKijitsu';
 		select * into gOutFlg, gRbrKjtNm from pkRibaraiKijitsu.getRibaraiKijitsu(gNENRBR_CNT::int,gST_RBR_KJT,gRBR_DD);
-		RAISE NOTICE '[DEBUG R01] After getRibaraiKijitsu, gOutFlg=%', gOutFlg;
 	END IF;
 	-- 発行分のデータを抽出するカーソル
-	RAISE NOTICE '[DEBUG R01] Before cursor HAKKO_DATA';
 	FOR HAKKO_DATA IN CUR_HAKKO_DATA LOOP
 		-- 原簿ワークへの登録
-		RAISE NOTICE '[DEBUG R01] In HAKKO_DATA loop';
 		call spipi044k00r01_genboDataInsert(
 			inItakuKaishaCd			=>	l_inItakuKaishaCd						-- 委託会社コード
 			,inHktCd				=>	gHKT_CD									-- 発行体コード
@@ -601,10 +584,8 @@ BEGIN
 		);
 	END LOOP;
 	-- 期中分のデータを抽出するカーソル
-	RAISE NOTICE '[DEBUG R01] Before cursor KICHU_DATA';
 	BEGIN
 		FOR KICHU_DATA IN CUR_KICHU_DATA LOOP
-			RAISE NOTICE '[DEBUG R01] In KICHU loop: KJT=%, YMD=%, SHOKAN_KBN=%, MEIMOKU_ZNDK=%', KICHU_DATA.GANRIBARAI_KJT, KICHU_DATA.GANRIBARAI_YMD, KICHU_DATA.SHOKAN_KBN, KICHU_DATA.MEIMOKU_ZNDK;
 			-- 残高ファンクションを使用する時のエラー対応
 			IF KICHU_DATA.MEIMOKU_ZNDK ='JISSU_ERROR' THEN
 			l_outSqlCode := RTN_NG;
@@ -654,7 +635,6 @@ BEGIN
 		END LOOP;
 	EXCEPTION
 		WHEN OTHERS THEN
-			RAISE NOTICE '[DEBUG R01] KICHU cursor ERROR: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 			RAISE;
 	END;
 	-- 買入消却分のデータを抽出するカーソル
@@ -823,8 +803,6 @@ EXCEPTION
 		call pkLog.fatal('ECM701', REPORT_ID, 'SQLERRM:'||SUBSTR(SQLERRM, 1, 100));
 		l_outSqlCode := RTN_FATAL;
 		l_outSqlErrM := SQLERRM;
-		raise notice 'SQLERRM: %', SQLERRM;
-		raise notice 'SQLSTATE: %', SQLSTATE;
 END;
 $body$
 LANGUAGE PLPGSQL

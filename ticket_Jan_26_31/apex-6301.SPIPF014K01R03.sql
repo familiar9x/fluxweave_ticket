@@ -180,10 +180,11 @@ BEGIN
 		vItakuKaishaRnm := NULL;
 	ELSE
 		SELECT bank_rnm
-		INTO STRICT vItakuKaishaRnm
+		INTO vItakuKaishaRnm
 		FROM vjiko_itaku
 		WHERE kaiin_id = l_inItakuKaishaCd
-		AND jiko_daiko_kbn = '2';
+		AND jiko_daiko_kbn = '2'
+		LIMIT 1;
 	END IF;
 	-- デ−タ取得
 	FOR recMeisai IN curMeisai LOOP

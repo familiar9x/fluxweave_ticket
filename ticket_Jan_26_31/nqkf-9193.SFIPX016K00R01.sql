@@ -96,25 +96,19 @@ DECLARE
 --                  メイン処理                                                  
 --==============================================================================
 BEGIN
-	RAISE NOTICE '[DEBUG] START - MGR_CD: %, ITAKU: %, USER: %', l_inMgrCd, l_inItakuKaishaCd, l_inUserId;
 --	pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, C_PROGRAM_ID || ' START');
 	-- メッセージ編集
 	gMessage := 'ユーザＩＤ：' || l_inUserId || ', 委託会社コード：' || l_inItakuKaishaCd || ', 銘柄コード：' || l_inMgrCd;
-	RAISE NOTICE '[DEBUG] Message: %', gMessage;
 	-- 振替ＣＢオプションフラグ取得
 	gCbOptionFlg := pkControl.getOPTION_FLG(l_inItakuKaishaCd, C_CB_OPTION_CD, '0');
-	RAISE NOTICE '[DEBUG] After getOPTION_FLG 1';
 --	pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '振替ＣＢオプションフラグ：' || gCbOptionFlg);
 	-- 実質記番号オプションフラグ取得
 	gKbOptionFlg := pkControl.getOPTION_FLG(l_inItakuKaishaCd, C_KB_OPTION_CD, '0');
-	RAISE NOTICE '[DEBUG] After getOPTION_FLG 2';
 --	pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '実質記番号オプションフラグ：' || gKbOptionFlg);
 	-- 金融債手数料登録判定オプションフラグ取得
 	gKyOptionFlg := pkControl.getOPTION_FLG(l_inItakuKaishaCd, C_KY_OPTION_CD, '0');
-	RAISE NOTICE '[DEBUG] After getOPTION_FLG 3';
 --	pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '実質記番号オプションフラグ：' || gKbOptionFlg);
 	-- 銘柄基本情報取得
-	RAISE NOTICE '[DEBUG] Before SELECT';
 	BEGIN
 		SELECT
 			MG1.SAIKEN_SHURUI,			-- 債券種類
@@ -140,17 +134,14 @@ BEGIN
 		AND	MG1.ITAKU_KAISHA_CD = MG0.ITAKU_KAISHA_CD
 		AND MG1.MGR_CD = l_inMgrCd
 		AND	MG1.MGR_CD = MG0.MGR_CD;
-		RAISE NOTICE '[DEBUG] After SELECT - gSaikenShurui: %, gTokureiShasaiFlg: %', gSaikenShurui, gTokureiShasaiFlg;
 	EXCEPTION
 		-- 対象データなしの時
 		WHEN no_data_found THEN
 			-- 致命的エラーログ出力
-			RAISE NOTICE '[DEBUG] No data found for MGR_CD: %, ITAKU_KAISHA_CD: %', l_inMgrCd, l_inItakuKaishaCd;
 			CALL pkLog.fatal('ECM701', C_PROGRAM_ID, '銘柄_基本に存在しません。' || gMessage);
 			-- 異常終了
 			RETURN pkconstant.FATAL();
 		WHEN OTHERS THEN
-			RAISE NOTICE '[DEBUG] Exception: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 			CALL pkLog.fatal('ECM701', C_PROGRAM_ID, 'Error: ' || SQLERRM);
 			RETURN pkconstant.FATAL();
 	END;
@@ -158,7 +149,6 @@ BEGIN
 --	pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '特例社債フラグ：' || gTokureiShasaiFlg);
 --	pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '機構関与方式採用フラグ：' || gKkKanyoFlg);
 	-- 帳票ワークの削除
-	RAISE NOTICE '[DEBUG] Before DELETE';
 	DELETE FROM SREPORT_WK
 	WHERE
 		KEY_CD = l_inItakuKaishaCd
@@ -196,12 +186,9 @@ BEGIN
 			C_GENBO_ID_A,
 			C_GENBO_ID_B
 		);
-	RAISE NOTICE '[DEBUG] After DELETE, rows affected: %', FOUND;
 	-- 銘柄情報詳細リスト（基本情報）データ作成 =========================================================================START
 	-- 振替ＣＢオプションフラグが「1：導入済」かつ債券種類が「80：新株予約権付社債」、「89：その他（ＣＢ）」の時
-	RAISE NOTICE '[DEBUG] Check CB: gCbOptionFlg=%, gSaikenShurui=%, gJtkKbn=%', gCbOptionFlg, gSaikenShurui, gJtkKbn;
 	IF gCbOptionFlg = '1' AND gSaikenShurui IN ('80', '89') AND gJtkKbn != '2' THEN
-		RAISE NOTICE '[DEBUG] Entering CB branch - calling SPIPW001K00R01';
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, 'ＣＢ用の銘柄情報詳細リスト（基本情報）データ作成コール-SPIPW001K00R01');
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第１引数（銘柄コード）：' || l_inMgrCd);
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第２引数（委託会社コード）：' || l_inItakuKaishaCd);
@@ -239,7 +226,6 @@ BEGIN
 		END IF;
 	-- 特例社債フラグが「Y：特例社債等」の時
 	ELSIF gTokureiShasaiFlg = 'Y' AND gJtkKbn != '2' THEN
-		RAISE NOTICE '[DEBUG] Entering Tokurei branch - calling SPIPK001K00R14';
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '特例債用の銘柄情報詳細リスト（基本情報）データ作成コール-SPIPK001K00R14');
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第１引数（銘柄コード）：' || l_inMgrCd);
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第２引数（委託会社コード）：' || l_inItakuKaishaCd);
@@ -277,7 +263,6 @@ BEGIN
 		END IF;
 	-- 副受託の時
 	ELSIF gJtkKbn = '2' THEN
-		RAISE NOTICE '[DEBUG] Calling spIp10901 (副受託)';
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '副受託銘柄情報詳細リスト（基本情報）データ作成コール-spIp10901');
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第１引数（銘柄コード）：' || l_inMgrCd);
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第２引数（委託会社コード）：' || l_inItakuKaishaCd);
@@ -315,7 +300,6 @@ BEGIN
 		END IF;
 	-- その他の時
 	ELSE
-		RAISE NOTICE '[DEBUG] Entering ELSE branch (standard) - calling spIp00101';
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '銘柄情報詳細リスト（基本情報）データ作成コール-spIp00101');
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第１引数（銘柄コード）：' || l_inMgrCd);
 --		pkLog.debug(pkconstant.BATCH_USER(), C_PROGRAM_ID, '第２引数（委託会社コード）：' || l_inItakuKaishaCd);
@@ -582,12 +566,10 @@ BEGIN
 	END IF;
 	-- 社債原簿データ作成 ===============================================================================================END
 	-- 正常終了
-	RAISE NOTICE '[DEBUG] Returning SUCCESS';
 	RETURN pkconstant.success();
 -- エラー処理
 EXCEPTION
 	WHEN OTHERS THEN
-		RAISE NOTICE '[DEBUG] EXCEPTION caught: SQLSTATE=%, SQLERRM=%', SQLSTATE, SQLERRM;
 		CALL pkLog.fatal('ECM701', C_PROGRAM_ID, 'SQLCODE:' || SQLSTATE);
 		CALL pkLog.fatal('ECM701', C_PROGRAM_ID, 'SQLERRM:' || SQLERRM);
 		RETURN pkconstant.FATAL();
